@@ -1,3 +1,6 @@
+# Built ISO image file tree
+iso/
+
 # Prerequisites
 *.d
 
