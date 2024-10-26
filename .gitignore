@@ -5,6 +5,9 @@ osOS.iso
 *.elf
 *stage2_eltorito
 
+# bochs log
+bochslog.txt
+
 # Prerequisites
 *.d
 
