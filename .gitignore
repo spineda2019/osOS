@@ -2,6 +2,9 @@
 iso/
 osOS.iso
 
+*.elf
+*stage2_eltorito
+
 # Prerequisites
 *.d
 
