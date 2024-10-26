@@ -1,5 +1,6 @@
 # Built ISO image file tree
 iso/
+osOS.iso
 
 # Prerequisites
 *.d
