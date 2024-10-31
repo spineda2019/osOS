@@ -2,6 +2,8 @@
 iso/
 osOS.iso
 build/
+.cache/
+compile_commands.json
 
 *.elf
 *stage2_eltorito
