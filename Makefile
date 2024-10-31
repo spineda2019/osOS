@@ -10,13 +10,9 @@ export BUILD_DIR
 .PHONY: clean all run $(SUBDIRS)
 
 all: $(BUILD_DIR) $(SUBDIRS) osOS.iso
+	@echo -e "bochs -f ../bochs.config" > $(BUILD_DIR)/run.sh
 
-run: osOS.iso
-	@echo running kernel in bochs...
-	cd $(BUILD_DIR)
-	bochs -f ../bochs.config
-
-osOS.iso: $(GRUB_REQUIREMENTS)
+osOS.iso: $(GRUB_REQUIREMENTS) copystep
 	genisoimage                  \
 	-R                           \
 	-b boot/grub/stage2_eltorito \
@@ -28,6 +24,10 @@ osOS.iso: $(GRUB_REQUIREMENTS)
 	-boot-info-table             \
 	-o $(BUILD_DIR)/osOS.iso     \
 	$(ISO_DIR)
+
+copystep: loader
+	cp $(BUILD_DIR)/loader/kernel.elf $(BOOT_DIR)
+
 
 $(GRUB_REQUIREMENTS): $(GRUB_DIR)
 	cp $@ $(GRUB_DIR)
