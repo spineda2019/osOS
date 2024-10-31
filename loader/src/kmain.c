@@ -2,7 +2,9 @@
  * Copyright 2024 Sebastian Pineda
  */
 
-int kmain() {
-    while (1) {
-    }
+unsigned int kmain() {
+    //     instead of
+    //     0xCAFEBABE
+    return 0x42424242;
+    // Above should be in eax
 }

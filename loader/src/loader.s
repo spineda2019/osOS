@@ -19,7 +19,7 @@ align 4
     mov esp, kernel_stack + KERNEL_STACK_SIZE  ; setup stack pointer to end of kernel_stack
 
 loader:
-    mov eax, 0xCAFEBABE
+    call kmain                                 ; No pushing needed
 
 .loop:
-    call kmain
+    jmp .loop
