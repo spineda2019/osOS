@@ -1,6 +1,7 @@
 # Built ISO image file tree
 iso/
 osOS.iso
+build/
 
 *.elf
 *stage2_eltorito
