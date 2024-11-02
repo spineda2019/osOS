@@ -1,5 +1,6 @@
 global loader                                  ; Entry symbol for ELF
 extern kmain
+extern frame_buffer_write_cell
 
 MAGIC_NUMBER equ 0x1BADB002
 FLAGS        equ 0x0
@@ -20,6 +21,11 @@ align 4
 
 loader:
     call kmain                                 ; No pushing needed
+    push word 0x8                                   ; background
+    push word 0x2                                   ; foreground
+    push word 0x57                                  ; should be W in hex
+    push dword 0x0
+    call frame_buffer_write_cell
 
 .loop:
     jmp .loop
