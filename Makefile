@@ -11,6 +11,7 @@ export BUILD_DIR
 
 all: $(BUILD_DIR) $(SUBDIRS) osOS.iso
 	@echo -e "bochs -f ../bochs.config" > $(BUILD_DIR)/run.sh
+	@chmod +x $(BUILD_DIR)/run.sh
 
 osOS.iso: $(GRUB_REQUIREMENTS) copystep
 	genisoimage                  \
