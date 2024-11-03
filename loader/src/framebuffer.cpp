@@ -30,7 +30,7 @@ int FrameBuffer::WriteCell(unsigned char row, unsigned char column,
     if (row > 25 || column > 80) {
         return -1;
     } else {
-        int cell_location{(row * 2) + (column * 2)};
+        int cell_location{(row * 2 * 80) + (column * 2)};
         cell.Set(cell_location);
         return 0;
     }
@@ -56,7 +56,7 @@ void clear_screen() {
 void welcome_message() {
     FrameBuffer fb{};
     unsigned char index{0};
-    for (unsigned int cell{25 - WELCOME_SIZE - 1}; cell < 25; cell++) {
+    for (unsigned int cell{40 - WELCOME_SIZE - 1}; cell < 80; cell++) {
         (void)fb.WriteCell(12, cell,
                            Cell{WELCOME_MESSAGE[index], FrameBufferColor::Green,
                                 FrameBufferColor::Black});
