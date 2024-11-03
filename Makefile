@@ -2,7 +2,7 @@ BUILD_DIR = $(shell pwd)/build
 ISO_DIR := $(BUILD_DIR)/iso
 BOOT_DIR := $(ISO_DIR)/boot
 GRUB_DIR := $(BOOT_DIR)/grub
-SUBDIRS := framebuffer loader
+SUBDIRS := kernel_core
 GRUB_REQUIREMENTS := menu.lst stage2_eltorito
 
 export BUILD_DIR

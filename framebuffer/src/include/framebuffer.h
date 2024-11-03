@@ -1,6 +1,0 @@
-#ifndef FRAMEBUFFER_SRC_INCLUDE_FRAMEBUFFER_H_
-#define FRAMEBUFFER_SRC_INCLUDE_FRAMEBUFFER_H_
-
-int write(char* buf, unsigned int length);
-
-#endif  // FRAMEBUFFER_SRC_INCLUDE_FRAMEBUFFER_H_
