@@ -1,4 +1,4 @@
-global loader                                  ; Entry symbol for ELF
+global kernel_core                                  ; Entry symbol for ELF
 extern kmain
 extern dummy_buffer_write
 extern clear_screen
@@ -23,7 +23,7 @@ align 4
     dd CHECKSUM
     mov esp, kernel_stack + KERNEL_STACK_SIZE  ; setup stack pointer to end of kernel_stack
 
-loader:
+kernel_core:
     push word 0x8                                   ; background
     push word 0x2                                   ; foreground
     push word 0x57                                  ; should be W in hex

@@ -26,8 +26,8 @@ osOS.iso: $(GRUB_REQUIREMENTS) copystep
 	-o $(BUILD_DIR)/osOS.iso     \
 	$(ISO_DIR)
 
-copystep: loader
-	cp $(BUILD_DIR)/loader/kernel.elf $(BOOT_DIR)
+copystep: kernel_core
+	cp $(BUILD_DIR)/kernel_core/kernel.elf $(BOOT_DIR)
 
 
 $(GRUB_REQUIREMENTS): $(GRUB_DIR)
@@ -48,8 +48,8 @@ $(BUILD_DIR): $@
 $(SUBDIRS):
 	@$(MAKE) -C $@
 
-just_loader: framebuffer
-	@$(MAKE) -C loader
+just_kernel_core: framebuffer
+	@$(MAKE) -C kernel_core
 
 just_framebuffer:
 	@$(MAKE) -C framebuffer

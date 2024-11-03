@@ -3,9 +3,9 @@ ifndef BUILD_DIR
 endif
 CC = gcc
 CXX = g++
-SUB_BUILD_DIR = ${BUILD_DIR}/loader
+SUB_BUILD_DIR = ${BUILD_DIR}/kernel_core
 SRC_DIR = src
-OBJECTS = ${SUB_BUILD_DIR}/loader.o      \
+OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o      \
 		  ${SUB_BUILD_DIR}/kmain.o       \
 		  $(SUB_BUILD_DIR)/framebuffer.o
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
@@ -15,8 +15,6 @@ CXXFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 LDFLAGS = -T link.ld -melf_i386
 ASSEMBLER = nasm
 ASSEMBLER_FLAGS = -f elf
-
-.PHONY: all copystep
 
 all: $(BUILD_DIR) $(SUB_BUILD_DIR) kernel.elf
 
@@ -43,6 +41,3 @@ $(SUB_BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
 clean:
 	@echo Cleaning build directory: $(BUILD_DIR)
 	@rm -rf $(BUILD_DIR)
-
-copy_step: all
-	@echo copying grub dependencies
