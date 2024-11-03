@@ -5,7 +5,6 @@
 #include "include/framebuffer.hpp"
 
 namespace {
-char* frame_buffer{reinterpret_cast<char*>(0x000B8000)};
 constexpr int HALF_BYTE{4};
 constexpr unsigned char WELCOME_SIZE{18};
 constexpr const unsigned char WELCOME_MESSAGE[]{"Welcome to osOS!!"};
@@ -28,6 +27,7 @@ Cell::Cell()
 void Cell::SetCharacter(unsigned char c) { character_ = c; }
 
 void Cell::Draw(unsigned int location) const {
+    char* frame_buffer{reinterpret_cast<char*>(FRAME_BUFFER_START)};
     frame_buffer[location] = character_;
     frame_buffer[location + 1] = meta_data_;
 }
@@ -101,16 +101,5 @@ void welcome_message() {
             break;
         }
     }
-}
-
-void dummy_buffer_write() {
-    frame_buffer[0] = 'S';
-    frame_buffer[1] = ((2 & 0x0F) << 4) | (4 & 0x0F);
-
-    frame_buffer[2] = 'e';
-    frame_buffer[3] = ((2 & 0x0F) << 4) | (4 & 0x0F);
-
-    frame_buffer[4] = 'b';
-    frame_buffer[5] = ((2 & 0x0F) << 4) | (4 & 0x0F);
 }
 }

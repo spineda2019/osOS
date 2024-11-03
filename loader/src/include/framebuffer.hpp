@@ -38,6 +38,7 @@ class Cell final {
  private:
     unsigned char character_;
     unsigned char meta_data_;
+    static constexpr int FRAME_BUFFER_START{0x000B8000};
 };
 
 class FrameBuffer final {
