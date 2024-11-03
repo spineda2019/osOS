@@ -2,6 +2,7 @@ global loader                                  ; Entry symbol for ELF
 extern kmain
 extern dummy_buffer_write
 extern clear_screen
+extern test_corners
 extern frame_buffer_write_cell
 extern welcome_message
 
@@ -30,6 +31,7 @@ loader:
     call frame_buffer_write_cell
     call clear_screen
     call welcome_message
+    call test_corners
     call kmain                                 ; No pushing needed
 
 .loop:

@@ -28,7 +28,12 @@ class Cell final {
  public:
     Cell(unsigned char character, FrameBufferColor background_color,
          FrameBufferColor text_color);
-    void Set(unsigned int location) const;
+    Cell();
+    void Draw(unsigned int location) const;
+
+    void SetCharacter(unsigned char c);
+    void SetBackground(FrameBufferColor background);
+    void SetTextColor(FrameBufferColor text_color);
 
  private:
     unsigned char character_;
@@ -39,8 +44,7 @@ class FrameBuffer final {
  public:
     FrameBuffer();
 
-    [[nodiscard("This may fail, and the result must be checked")]]
-    int WriteCell(unsigned char row, unsigned char column, Cell&& cell);
+    int DrawCell(unsigned char row, unsigned char column, Cell cell);
 };
 
 #endif  // LOADER_SRC_INCLUDE_FRAMEBUFFER_HPP_
