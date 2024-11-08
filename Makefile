@@ -7,7 +7,7 @@ GRUB_REQUIREMENTS := menu.lst stage2_eltorito
 
 export BUILD_DIR
 
-.PHONY: clean all run $(SUBDIRS) assembly_wrappers
+.PHONY: clean all run $(SUBDIRS)
 
 all: $(BUILD_DIR) $(SUBDIRS) osOS.iso
 	@echo -e "bochs -f ../bochs.config" > $(BUILD_DIR)/run.sh
@@ -45,17 +45,11 @@ $(ISO_DIR): $(BUILD_DIR)
 $(BUILD_DIR): $@
 	mkdir -p $@
 
-$(SUBDIRS): assembly_wrappers
-	@$(MAKE) -C $@
-
 just_kernel_core: framebuffer
 	@$(MAKE) -C kernel_core
 
 just_framebuffer:
 	@$(MAKE) -C framebuffer
-
-assembly_wrappers:
-	@$(MAKE) -C $@
 
 clean:
 	@echo Cleaning build directory: $(BUILD_DIR)
