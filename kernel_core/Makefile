@@ -4,7 +4,6 @@ endif
 CC = gcc
 CXX = g++
 SUB_BUILD_DIR = ${BUILD_DIR}/kernel_core
-SRC_DIR = src
 OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o      \
 		  ${SUB_BUILD_DIR}/kmain.o       \
 		  $(SUB_BUILD_DIR)/framebuffer.o
@@ -15,6 +14,17 @@ CXXFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 LDFLAGS = -T link.ld -melf_i386
 ASSEMBLER = nasm
 ASSEMBLER_FLAGS = -f elf
+
+################################################################################
+# Mandatory modules
+
+SRC_DIR = src
+FRAMEBUFFER_SRC_DIR = framebuffer
+LOADER_SRC_DIR = loader
+
+################################################################################
+
+.PHONY: bUILD_DIR SUB_BUILD_DIR
 
 all: $(BUILD_DIR) $(SUB_BUILD_DIR) kernel.elf
 
@@ -29,13 +39,13 @@ $(SUB_BUILD_DIR): $(BUILD_DIR)
 kernel.elf: $(OBJECTS)
 	ld $(LDFLAGS) $(OBJECTS) -o $(SUB_BUILD_DIR)/kernel.elf
 
-$(SUB_BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+$(SUB_BUILD_DIR)/%.o: $(FRAMEBUFFER_SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-$(SUB_BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+$(SUB_BUILD_DIR)/%.o: $(LOADER_SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@
 
-$(SUB_BUILD_DIR)/%.o: $(SRC_DIR)/%.asm
+$(SUB_BUILD_DIR)/%.o: $(LOADER_SRC_DIR)/%.asm
 	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $< -o $@
 
 clean:
