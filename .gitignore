@@ -6,7 +6,8 @@ build/
 compile_commands.json
 
 *.elf
-*stage2_eltorito
+# I will find a way to not have to check this in
+# *stage2_eltorito
 
 # bochs log
 bochslog.txt
