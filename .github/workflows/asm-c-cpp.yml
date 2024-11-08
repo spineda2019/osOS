@@ -15,4 +15,4 @@ jobs:
     - uses: ilammy/setup-nasm@v1
     - uses: actions/checkout@v4
     - name: make
-      run: make
+      run: sudo apt install genisoimage && make all
