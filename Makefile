@@ -7,7 +7,7 @@ GRUB_REQUIREMENTS := menu.lst stage2_eltorito
 
 export BUILD_DIR
 
-.PHONY: clean all run $(SUBDIRS)
+.PHONY: clean all run $(SUBDIRS) copystep
 
 all: $(BUILD_DIR) $(SUBDIRS) osOS.iso
 	@echo -e "bochs -f ../bochs.config" > $(BUILD_DIR)/run.sh
@@ -25,6 +25,9 @@ osOS.iso: $(GRUB_REQUIREMENTS) copystep
 	-boot-info-table             \
 	-o $(BUILD_DIR)/osOS.iso     \
 	$(ISO_DIR)
+
+$(SUBDIRS):
+	@$(MAKE) -C $@
 
 copystep: kernel_core
 	cp $(BUILD_DIR)/kernel_core/kernel.elf $(BOOT_DIR)

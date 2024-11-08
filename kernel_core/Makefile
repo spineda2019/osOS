@@ -1,11 +1,11 @@
-ifndef BUILD_DIR
-	BUILD_DIR = build
-endif
+BUILD_DIR ?= build
+
 CC = gcc
 CXX = g++
 SUB_BUILD_DIR = ${BUILD_DIR}/kernel_core
-OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o      \
-		  ${SUB_BUILD_DIR}/kmain.o       \
+OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o   \
+		  ${SUB_BUILD_DIR}/kmain.o         \
+		  ${SUB_BUILD_DIR}/io.o            \
 		  $(SUB_BUILD_DIR)/framebuffer.o
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 	     -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c -std=c11
@@ -21,10 +21,11 @@ ASSEMBLER_FLAGS = -f elf
 SRC_DIR = src
 FRAMEBUFFER_SRC_DIR = framebuffer
 LOADER_SRC_DIR = loader
+ASSEMBLY_WRAPPER_SRC_DIR = assembly_wrappers
 
 ################################################################################
 
-.PHONY: bUILD_DIR SUB_BUILD_DIR
+.PHONY: BUILD_DIR SUB_BUILD_DIR
 
 all: $(BUILD_DIR) $(SUB_BUILD_DIR) kernel.elf
 
@@ -46,6 +47,9 @@ $(SUB_BUILD_DIR)/%.o: $(LOADER_SRC_DIR)/%.c
 	$(CC) $(CFLAGS) $< -o $@
 
 $(SUB_BUILD_DIR)/%.o: $(LOADER_SRC_DIR)/%.asm
+	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $< -o $@
+
+$(SUB_BUILD_DIR)/%.o: $(ASSEMBLY_WRAPPER_SRC_DIR)/%.asm
 	$(ASSEMBLER) $(ASSEMBLER_FLAGS) $< -o $@
 
 clean:

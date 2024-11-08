@@ -1,4 +1,4 @@
-ENTRY(loader)
+ENTRY(kernel_core)
 
 SECTIONS {
     . = 0x00100000;        /* Load code at exactly 1MB */
