@@ -5,6 +5,8 @@ extern clear_screen
 extern test_corners
 extern frame_buffer_write_cell
 extern welcome_message
+extern reset_cursor
+extern move_framebuffer_cursor
 
 MAGIC_NUMBER equ 0x1BADB002
 FLAGS        equ 0x0
@@ -32,7 +34,40 @@ kernel_core:
     call clear_screen
     call welcome_message
     call test_corners
+    call reset_cursor
     call kmain                                 ; No pushing needed
 
 .loop:
+    ; blink the cursors around
+    mov eax, 0
+    call sleep
+    push 0
+    call move_framebuffer_cursor
+    pop eax
+
+    mov eax, 0
+    call sleep
+    push 79
+    call move_framebuffer_cursor
+    pop eax
+
+    mov eax, 0
+    call sleep
+    push 1920
+    call move_framebuffer_cursor
+    pop eax
+
+    mov eax, 0
+    call sleep
+    push 1999
+    call move_framebuffer_cursor
+    pop eax
+
     jmp .loop
+
+sleep:
+    ; should start at 0
+    inc eax
+    cmp eax, 10000000000
+    jle sleep
+    ret

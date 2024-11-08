@@ -4,10 +4,16 @@
 
 #include "include/framebuffer.hpp"
 
+#include <io.h>
+
 namespace {
 constexpr int HALF_BYTE{4};
 constexpr unsigned char WELCOME_SIZE{18};
 constexpr const unsigned char WELCOME_MESSAGE[]{"Welcome to osOS!!"};
+constexpr unsigned short FRAMEBUFFER_COMMAND_PORT{0x3D4};
+constexpr unsigned short FRAMEBUFFER_DATA_PORT{0x3D5};
+constexpr unsigned char FRAMEBUFFER_HIGH_BYTE_COMMAND{14};
+constexpr unsigned char FRAMEBUFFER_LOW_BYTE_COMMAND{15};
 }  // namespace
 
 Cell::Cell(unsigned char character, FrameBufferColor background_color,
@@ -87,6 +93,15 @@ void clear_screen() {
         }
     }
 }
+
+void move_framebuffer_cursor(unsigned short position) {
+    out_wrapper(FRAMEBUFFER_COMMAND_PORT, FRAMEBUFFER_HIGH_BYTE_COMMAND);
+    out_wrapper(FRAMEBUFFER_DATA_PORT, ((position >> 8) & 0x00FF));
+    out_wrapper(FRAMEBUFFER_COMMAND_PORT, FRAMEBUFFER_LOW_BYTE_COMMAND);
+    out_wrapper(FRAMEBUFFER_DATA_PORT, position & 0x00FF);
+}
+
+void reset_cursor() { move_framebuffer_cursor(0); }
 
 void welcome_message() {
     FrameBuffer internal_global_framebuffer{};

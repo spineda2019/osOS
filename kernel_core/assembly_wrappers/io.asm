@@ -1,4 +1,4 @@
-global io
+global out_wrapper
 
 out_wrapper:
     ; C Signature:
