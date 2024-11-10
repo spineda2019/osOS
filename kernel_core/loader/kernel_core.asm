@@ -39,25 +39,21 @@ kernel_core:
 
 .loop:
     ; blink the cursors around
-    mov eax, 0
     call sleep
     push 0
     call move_framebuffer_cursor
     pop eax
 
-    mov eax, 0
     call sleep
     push 79
     call move_framebuffer_cursor
     pop eax
 
-    mov eax, 0
     call sleep
     push 1920
     call move_framebuffer_cursor
     pop eax
 
-    mov eax, 0
     call sleep
     push 1999
     call move_framebuffer_cursor
@@ -66,8 +62,21 @@ kernel_core:
     jmp .loop
 
 sleep:
-    ; should start at 0
-    inc eax
-    cmp eax, 10000000000
-    jle sleep
+    push ebp
+    mov ebp, esp
+    sub esp, 16
+
+    mov DWORD [ebp - 4], 0
+    jmp .L4
+.L5:
+    add DWORD [ebp - 4], 1
+.L4:
+    cmp DWORD [ebp - 4], 999999999
+    jle .L5
+    nop
+    nop
+
+    leave
     ret
+
+
