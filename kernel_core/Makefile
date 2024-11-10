@@ -5,9 +5,12 @@ BUILD_DIR ?= build
 
 SRC_DIR = src
 FRAMEBUFFER_SRC_DIR = framebuffer
+SERIAL_SRC_DIR = serial_ports
 LOADER_SRC_DIR = loader
 ASSEMBLY_WRAPPER_SRC_DIR = assembly_wrappers
-GLOBAL_INCLUDES := $(ASSEMBLY_WRAPPER_SRC_DIR)/include
+COMMON_DATATYPE_SRC_DIR = common_datatypes
+GLOBAL_INCLUDES := $(ASSEMBLY_WRAPPER_SRC_DIR)/include \
+				   $(COMMON_DATATYPE_SRC_DIR)/include
 
 ################################################################################
 
@@ -17,6 +20,8 @@ SUB_BUILD_DIR = ${BUILD_DIR}/kernel_core
 OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o   \
 		  ${SUB_BUILD_DIR}/kmain.o         \
 		  ${SUB_BUILD_DIR}/io.o            \
+		  ${SUB_BUILD_DIR}/serial.o        \
+		  ${SUB_BUILD_DIR}/int.o           \
 		  $(SUB_BUILD_DIR)/framebuffer.o
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 	     -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c -std=c11 \
@@ -44,6 +49,12 @@ kernel.elf: $(OBJECTS)
 	ld $(LDFLAGS) $(OBJECTS) -o $(SUB_BUILD_DIR)/kernel.elf
 
 $(SUB_BUILD_DIR)/%.o: $(FRAMEBUFFER_SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(SUB_BUILD_DIR)/%.o: $(SERIAL_SRC_DIR)/%.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+$(SUB_BUILD_DIR)/%.o: $(COMMON_DATATYPE_SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 $(SUB_BUILD_DIR)/%.o: $(LOADER_SRC_DIR)/%.c
