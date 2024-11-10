@@ -9,8 +9,8 @@ SERIAL_SRC_DIR = serial_ports
 LOADER_SRC_DIR = loader
 ASSEMBLY_WRAPPER_SRC_DIR = assembly_wrappers
 COMMON_DATATYPE_SRC_DIR = common_datatypes
-GLOBAL_INCLUDES := $(ASSEMBLY_WRAPPER_SRC_DIR)/include \
-				   $(COMMON_DATATYPE_SRC_DIR)/include
+GLOBAL_INCLUDES := -I $(ASSEMBLY_WRAPPER_SRC_DIR)/include \
+				   -I $(COMMON_DATATYPE_SRC_DIR)/include
 
 ################################################################################
 
@@ -25,10 +25,10 @@ OBJECTS = ${SUB_BUILD_DIR}/kernel_core.o   \
 		  $(SUB_BUILD_DIR)/framebuffer.o
 CFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 	     -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c -std=c11 \
-		 -I $(GLOBAL_INCLUDES)
+		 $(GLOBAL_INCLUDES)
 CXXFLAGS = -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector \
 	       -nostartfiles -nodefaultlibs -Wall -Wextra -Werror -c -std=c++20 \
-		   -I $(GLOBAL_INCLUDES)
+		   $(GLOBAL_INCLUDES)
 LDFLAGS = -T link.ld -melf_i386
 ASSEMBLER = nasm
 ASSEMBLER_FLAGS = -f elf

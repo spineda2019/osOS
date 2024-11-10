@@ -2,10 +2,11 @@
  * Copyright 2024 Sebastian Pineda
  */
 
+#include <int.h>
 #include <io.h>
 
 namespace {
-constexpr unsigned int SERIAL_COM1_BASE{0x3F8};
+// constexpr unsigned int SERIAL_COM1_BASE{0x3F8};
 
 // inline unsigned int SERIAL_DATA_PORT(unsigned int base) { return base; }
 
@@ -33,10 +34,10 @@ constexpr unsigned int SERIAL_LINE_ENABLE_DLAB{0x80};
 }  // namespace
 
 extern "C" {
-inline void ConfigureSerialBaudRate(unsigned short com_port,
-                                    unsigned short divisor) {
-    out_wrapper(SERIAL_LINE_COMMAND_PORT(com_port), SERIAL_LINE_ENABLE_DLAB);
-    out_wrapper(com_port, (divisor >> 8) & 0x00FF);
-    out_wrapper(com_port, divisor & 0x00FF);
+inline void ConfigureSerialBaudRate(uint16 com_port, uint16 divisor) {
+    out_wrapper(SERIAL_LINE_COMMAND_PORT(com_port.Raw()),
+                SERIAL_LINE_ENABLE_DLAB);
+    out_wrapper(com_port.Raw(), (divisor.Raw() >> 8) & 0x00FF);
+    out_wrapper(com_port.Raw(), divisor.Raw() & 0x00FF);
 }
 }
