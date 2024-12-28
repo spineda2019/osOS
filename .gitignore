@@ -4,6 +4,8 @@ osOS.iso
 build/
 .cache/
 compile_commands.json
+zig-out/
+.zig-cache/
 
 *.elf
 # I will find a way to not have to check this in
