@@ -13,7 +13,7 @@ export fn kmain() noreturn {
     @memset(bss[0..bssSize], 0);
 
     sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
-    common.panic(@src());
+    // Causing a kernel pacnic will look like this: common.panic(@src());
 
     while (true) {
         asm volatile ("");
