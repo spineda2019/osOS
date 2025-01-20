@@ -3,6 +3,20 @@ const SbiReturn: type = struct {
     value: u32,
 };
 
+/// Make a call to the SBI API
+/// From the SBI Spec:
+/// All SBI functions share a single binary encoding, which facilitates the
+/// mixing of SBI extensions. The SBI specification follows the below calling
+/// convention.
+///    An ECALL is used as the control transfer instruction between the
+///    supervisor and the SEE.
+///    a7 encodes the SBI extension ID (EID),
+///    a6 encodes the SBI function ID (FID) for a given extension ID encoded in
+///    a7 for any SBI extension defined in or after SBI v0.2.
+///    All registers except a0 & a1 must be preserved across an SBI call by the
+///    callee.
+///    SBI functions must return a pair of values in a0 and a1, with a0
+///    returning an error code.
 fn generalSBICall(
     arg0: u32,
     arg1: u32,
@@ -13,8 +27,8 @@ fn generalSBICall(
     fid: u32,
     eid: u32,
 ) SbiReturn {
-    const sbi_error: u32 = 0;
-    const sbi_return_value: u32 = 0;
+    var sbi_error: u32 = 0;
+    var sbi_return_value: u32 = 0;
 
     asm volatile (
     // ecall handles the SBI func request
