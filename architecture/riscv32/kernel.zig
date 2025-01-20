@@ -12,8 +12,16 @@ export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
+    const exception_handler_address: u32 = @intFromPtr(&common.cpuExceptionHandler);
+
+    asm volatile ("csrw stvec, %[exception_handler]"
+        :
+        : [exception_handler] "{t3}" (exception_handler_address),
+    );
+
     sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
     // Causing a kernel pacnic will look like this: common.panic(@src());
+    // register our cpuExceptionHanlder with the stvec handler
 
     while (true) {
         asm volatile ("");
