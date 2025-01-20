@@ -1,3 +1,5 @@
+const sbi = @import("sbi.zig");
+
 const bss = @extern([*]u8, .{ .name = "__bss" });
 const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
