@@ -1,4 +1,8 @@
+//! This module provides the entry point of the kernel on RISC-V 32 bit systems
+//! Specifically, this is currently designed for the QEMU "virt" machine
+
 const sbi = @import("sbi.zig");
+const common = @import("common.zig");
 
 const bss = @extern([*]u8, .{ .name = "__bss" });
 const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
@@ -9,6 +13,7 @@ export fn kmain() noreturn {
     @memset(bss[0..bssSize], 0);
 
     sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
+    common.panic(@src());
 
     while (true) {
         asm volatile ("");
