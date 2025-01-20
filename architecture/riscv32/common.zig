@@ -44,6 +44,7 @@ const TrapFrame: type = packed struct {
 
 export fn handleTrap(trap_frame: *const TrapFrame) void {
     _ = trap_frame;
+    sbi.rawSbiPrint("Hey! I'm in the trap handler!\n");
     panic(@src());
 }
 
