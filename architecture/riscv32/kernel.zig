@@ -8,9 +8,7 @@ export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
-    for ("Hello RISC-V32 osOS!") |letter| {
-        _ = sbi.putchar(letter);
-    }
+    sbi.rawSbiPrint("Hello RISC-V32 osOS!");
 
     while (true) {
         asm volatile ("");

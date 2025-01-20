@@ -3,6 +3,8 @@ const SbiReturn: type = struct {
     value: u32,
 };
 
+const PrintFormatSpecifier: type = enum {};
+
 /// Make a call to the SBI API
 /// From the SBI Spec:
 /// All SBI functions share a single binary encoding, which facilitates the
@@ -64,4 +66,10 @@ fn generalSBICall(
 pub fn putchar(character: u8) SbiReturn {
     // eid of 1 specifies putchar to SBI
     return generalSBICall(character, 0, 0, 0, 0, 0, 0, 1);
+}
+
+pub fn rawSbiPrint(comptime string: []const u8) void {
+    for (string) |character| {
+        _ = putchar(character);
+    }
 }
