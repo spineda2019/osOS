@@ -63,7 +63,12 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     sbi.rawSbiPrint("\n");
 
     sbi.rawSbiPrint("Line: ");
-    sbi.rawSbiPrint("TODO");
+    var line_digit: u32 = source_info.line;
+    while (line_digit > 0) {
+        // int cast to u8 should be safe. Modulu will be 9 max.
+        _ = sbi.putchar(@intCast((line_digit % 10) + 48));
+        line_digit = line_digit / 10;
+    }
     sbi.rawSbiPrint("\n");
 
     sbi.rawSbiPrint("Column: ");

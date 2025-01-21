@@ -73,3 +73,144 @@ pub fn rawSbiPrint(comptime string: []const u8) void {
         _ = putchar(character);
     }
 }
+
+const p = @import("std").debug.print;
+
+// Shamelessly will admit this code is pretty much taken from the zig std lib
+// pub fn sbiPrintF(comptime string: []const u8, args: anytype) void {
+//     const ArgsType = @TypeOf(args);
+//     const args_type_info = @typeInfo(ArgsType);
+//     comptime {
+//         if (args_type_info != .Struct) {
+//             @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
+//         }
+//     }
+//
+//     const fields_info = args_type_info.Struct.fields;
+//     const max_format_args = @typeInfo(u32).Int.bits;
+//
+//     comptime {
+//         if (fields_info.len > max_format_args) {
+//             @compileError("32 arguments max are supported per format call");
+//         }
+//     }
+//
+//     comptime var arg_state: @import("std").fmt.ArgState = .{ .args_len = fields_info.len };
+//     comptime var i = 0;
+//     inline while (i < string.len) {
+//         const start_index = i;
+//
+//         inline while (i < string.len) : (i += 1) {
+//             switch (string[i]) {
+//                 '{', '}' => break,
+//                 else => {},
+//             }
+//         }
+//
+//         comptime var end_index = i;
+//         comptime var unescape_brace = false;
+//
+//         // Handle {{ and }}, those are un-escaped as single braces
+//         if (i + 1 < string.len and string[i + 1] == string[i]) {
+//             unescape_brace = true;
+//             // Make the first brace part of the literal...
+//             end_index += 1;
+//             // ...and skip both
+//             i += 2;
+//         }
+//
+//         // Write out the literal
+//         if (start_index != end_index) {
+//             rawSbiPrint(string);
+//         }
+//
+//         // We've already skipped the other brace, restart the loop
+//         if (unescape_brace) continue;
+//
+//         if (i >= string.len) break;
+//
+//         if (string[i] == '}') {
+//             @compileError("missing opening {");
+//         }
+//
+//         // Get past the {
+//         comptime {
+//             if (string[i] != '{') {
+//                 @compileError("Missing opening {");
+//             }
+//         }
+//         i += 1;
+//
+//         const fmt_begin = i;
+//         // Find the closing brace
+//         inline while (i < string.len and string[i] != '}') : (i += 1) {}
+//         const fmt_end = i;
+//
+//         if (i >= string.len) {
+//             @compileError("missing closing }");
+//         }
+//
+//         // Get past the }
+//         comptime {
+//             if (string[i] != '}') {
+//                 @compileError("Missing closing {");
+//             }
+//         }
+//         i += 1;
+//
+//         const placeholder = comptime Placeholder.parse(string[fmt_begin..fmt_end].*);
+//         const arg_pos = comptime switch (placeholder.arg) {
+//             .none => null,
+//             .number => |pos| pos,
+//             .named => |arg_name| meta.fieldIndex(ArgsType, arg_name) orelse
+//                 @compileError("no argument with name '" ++ arg_name ++ "'"),
+//         };
+//
+//         const width = switch (placeholder.width) {
+//             .none => null,
+//             .number => |v| v,
+//             .named => |arg_name| blk: {
+//                 const arg_i = comptime meta.fieldIndex(ArgsType, arg_name) orelse
+//                     @compileError("no argument with name '" ++ arg_name ++ "'");
+//                 _ = comptime arg_state.nextArg(arg_i) orelse @compileError("too few arguments");
+//                 break :blk @field(args, arg_name);
+//             },
+//         };
+//
+//         const precision = switch (placeholder.precision) {
+//             .none => null,
+//             .number => |v| v,
+//             .named => |arg_name| blk: {
+//                 const arg_i = comptime meta.fieldIndex(ArgsType, arg_name) orelse
+//                     @compileError("no argument with name '" ++ arg_name ++ "'");
+//                 _ = comptime arg_state.nextArg(arg_i) orelse @compileError("too few arguments");
+//                 break :blk @field(args, arg_name);
+//             },
+//         };
+//
+//         const arg_to_print = comptime arg_state.nextArg(arg_pos) orelse
+//             @compileError("too few arguments");
+//
+//         try formatType(
+//             @field(args, fields_info[arg_to_print].name),
+//             placeholder.specifier_arg,
+//             FormatOptions{
+//                 .fill = placeholder.fill,
+//                 .alignment = placeholder.alignment,
+//                 .width = width,
+//                 .precision = precision,
+//             },
+//             writer,
+//             std.options.fmt_max_depth,
+//         );
+//     }
+//
+//     if (comptime arg_state.hasUnusedArgs()) {
+//         const missing_count = arg_state.args_len - @popCount(arg_state.used_args);
+//         switch (missing_count) {
+//             0 => unreachable,
+//             1 => @compileError("unused argument in '" ++ fmt ++ "'"),
+//             else => @compileError(comptimePrint("{d}", .{missing_count}) ++ " unused arguments in '" ++ fmt ++ "'"),
+//         }
+//     }
+// }

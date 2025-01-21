@@ -23,6 +23,8 @@ export fn kmain() noreturn {
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 
+    asm volatile ("unimp");
+
     while (true) {
         asm volatile ("");
     }
