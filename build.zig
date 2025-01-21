@@ -106,15 +106,21 @@ pub fn build(b: *std.Build) void {
         "architecture/x86/stage2_eltorito",
         "zig-out/x86/iso/boot/grub",
     });
-
     copy_grub_files.step.dependOn(&create_x86_iso_structure.step);
+
+    const copy_grub_menu = b.addSystemCommand(&.{
+        "cp",
+        "architecture/x86/menu.lst",
+        "zig-out/x86/iso/boot/grub",
+    });
+    copy_grub_menu.step.dependOn(&copy_grub_files.step);
 
     const copy_kernel = b.addSystemCommand(&.{
         "cp",
     });
     copy_kernel.addArtifactArg(x86_exe);
     copy_kernel.addArg("zig-out/x86/iso/boot");
-    copy_kernel.step.dependOn(&copy_grub_files.step);
+    copy_kernel.step.dependOn(&copy_grub_menu.step);
 
     const x86_run = b.addSystemCommand(&.{
         "echo",
@@ -124,6 +130,7 @@ pub fn build(b: *std.Build) void {
     x86_run.step.dependOn(&copy_kernel.step);
 
     const x86_run_step = b.step("run_x86", "Boot kernel with qemu on x86");
-
     x86_run_step.dependOn(&x86_run.step);
+
+    // const x86_create_iso = b.step("iso_x86", "Create the x86 ISO");
 }
