@@ -161,12 +161,21 @@ pub fn build(b: *std.Build) void {
     const x86_run_step_qemu = b.step("run_x86_qemu", "Boot kernel with QEMU on x86");
     x86_run_step_qemu.dependOn(&x86_run_qemu.step);
 
-    const x86_run_bochs = b.addSystemCommand(&.{
-        "echo",
-        "TODO: run bochs",
+    const x86_copy_bochs = b.addSystemCommand(&.{
+        "cp",
+        "architecture/x86/bochs.config",
+        "zig-out/x86/",
     });
+    x86_copy_bochs.step.dependOn(&create_x86_iso.step);
 
-    x86_run_bochs.step.dependOn(&create_x86_iso.step);
+    const x86_run_bochs = b.addSystemCommand(&.{
+        "bochs",
+        "-f",
+        "zig-out/x86/bochs.config",
+        "-q",
+    });
+    x86_run_bochs.step.dependOn(&x86_copy_bochs.step);
+
     const x86_run_step_bochs = b.step("run_x86_bochs", "Boot kernel with BOCHS on x86");
     x86_run_step_bochs.dependOn(&x86_run_bochs.step);
 }
