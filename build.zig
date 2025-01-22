@@ -115,19 +115,39 @@ pub fn build(b: *std.Build) void {
     });
     copy_grub_menu.step.dependOn(&copy_grub_files.step);
 
-    const copy_kernel = b.addSystemCommand(&.{
+    const copy_x86_kernel = b.addSystemCommand(&.{
         "cp",
     });
-    copy_kernel.addArtifactArg(x86_exe);
-    copy_kernel.addArg("zig-out/x86/iso/boot");
-    copy_kernel.step.dependOn(&copy_grub_menu.step);
+    copy_x86_kernel.addArtifactArg(x86_exe);
+    copy_x86_kernel.addArg("zig-out/x86/iso/boot");
+    copy_x86_kernel.step.dependOn(&copy_grub_menu.step);
+
+    const create_x86_iso = b.addSystemCommand(&.{
+        "genisoimage",
+        "-R",
+        "-b",
+        "boot/grub/stage2_eltorito",
+        "-no-emul-boot",
+        "-boot-load-size",
+        "4",
+        "-A",
+        "osOS",
+        "-input-charset",
+        "utf8",
+        "-quiet",
+        "-boot-info-table",
+        "-o",
+        "zig-out/x86/osOS.iso",
+        "zig-out/x86/iso/",
+    });
+    create_x86_iso.step.dependOn(&copy_x86_kernel.step);
 
     const x86_run = b.addSystemCommand(&.{
         "echo",
         "TODO: x86 run step",
     });
 
-    x86_run.step.dependOn(&copy_kernel.step);
+    x86_run.step.dependOn(&create_x86_iso.step);
 
     const x86_run_step = b.step("run_x86", "Boot kernel with qemu on x86");
     x86_run_step.dependOn(&x86_run.step);
