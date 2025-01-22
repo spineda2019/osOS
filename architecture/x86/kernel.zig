@@ -1,5 +1,9 @@
 /// Entry point for the x86 kernel. Stack must be set up
 export fn boot() align(4) linksection(".text") callconv(.Naked) noreturn {
+    // HACK: I couldn't figure out how to link in a flat asm binary to setup
+    // the magic boot numbers and checksum, so I took the instructions from
+    // the disassembly of my C kernel (which had an entry point in a flat
+    // NASM built binary) and plopped them here...
     asm volatile (
         \\addb    0x1bad(%eax), %dh
         \\addb    %al, (%eax)
