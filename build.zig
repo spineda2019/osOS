@@ -143,7 +143,7 @@ pub fn build(b: *std.Build) void {
     });
     create_x86_iso.step.dependOn(&copy_x86_kernel.step);
 
-    const x86_run = b.addSystemCommand(&.{
+    const x86_run_qemu = b.addSystemCommand(&.{
         "qemu-system-x86_64",
         "-cdrom",
         "zig-out/x86/osOS.iso",
@@ -153,13 +153,20 @@ pub fn build(b: *std.Build) void {
         "1024",
     });
 
-    x86_run.step.dependOn(&create_x86_iso.step);
+    x86_run_qemu.step.dependOn(&create_x86_iso.step);
 
     const x86_iso_step = b.step("iso_x86", "Build the x86 ISO disc image");
     x86_iso_step.dependOn(&create_x86_iso.step);
 
     const x86_run_step_qemu = b.step("run_x86_qemu", "Boot kernel with QEMU on x86");
-    x86_run_step_qemu.dependOn(&x86_run.step);
+    x86_run_step_qemu.dependOn(&x86_run_qemu.step);
 
-    // const x86_create_iso = b.step("iso_x86", "Create the x86 ISO");
+    const x86_run_bochs = b.addSystemCommand(&.{
+        "echo",
+        "TODO: run bochs",
+    });
+
+    x86_run_bochs.step.dependOn(&create_x86_iso.step);
+    const x86_run_step_bochs = b.step("run_x86_bochs", "Boot kernel with BOCHS on x86");
+    x86_run_step_bochs.dependOn(&x86_run_bochs.step);
 }
