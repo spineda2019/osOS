@@ -149,6 +149,9 @@ pub fn build(b: *std.Build) void {
 
     x86_run.step.dependOn(&create_x86_iso.step);
 
+    const x86_iso_step = b.step("iso_x86", "Build the x86 ISO disc image");
+    x86_iso_step.dependOn(&create_x86_iso.step);
+
     const x86_run_step = b.step("run_x86", "Boot kernel with qemu on x86");
     x86_run_step.dependOn(&x86_run.step);
 
