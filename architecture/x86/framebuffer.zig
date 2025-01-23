@@ -48,30 +48,26 @@ pub const FrameBuffer: type = struct {
     // White         | 15
     frame_buffer_cell: u16,
 
-    const frame_buffer_start: *volatile u16 = @ptrFromInt(0x000B8000);
+    const frame_buffer_start: *volatile u8 = @ptrFromInt(0x000B8000);
 
     pub fn writeCell(
         row: u8,
         column: u8,
         character: u8,
-        comptime foreground_color: FrameBufferCellColor,
-        comptime background_color: FrameBufferCellColor,
+        comptime cell_color: FrameBufferCellColor,
+        comptime letter_color: FrameBufferCellColor,
     ) void {
         if (row >= 25 or column >= 80) {
             return; // out of window
         }
 
         // Cell layout
-        // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4    | 3 2 1 0         |
-        // Content: | ASCII                 | foreground | Background      |
-        const cell_address: *volatile u16 = @ptrFromInt(@intFromPtr(frame_buffer_start) + (row * 80 * 16) + (column * 16));
-        var cell_value: u16 = 0;
-        cell_value &= character;
-        cell_value <<= 8;
-        cell_value &= colorTo4BitNumber(foreground_color);
-        cell_value <<= 4;
-        cell_value &= colorTo4BitNumber(background_color);
-        cell_address.* = cell_value;
+        // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4 | 3 2 1 0 |
+        // Content: | ASCII                 | Cell    | Letter  |
+        const ascii_address: *volatile u8 = @ptrFromInt(@intFromPtr(frame_buffer_start) + (row * 80 * 16) + (column * 16));
+        const color_address: *volatile u8 = @ptrFromInt(@intFromPtr(ascii_address) + 1);
+        ascii_address.* = character;
+        color_address.* = (colorTo4BitNumber(cell_color) << 4) | (colorTo4BitNumber(letter_color));
     }
 
     pub fn clear() void {
@@ -82,7 +78,7 @@ pub const FrameBuffer: type = struct {
         }
     }
 
-    fn colorTo4BitNumber(comptime color: FrameBufferCellColor) u4 {
+    fn colorTo4BitNumber(comptime color: FrameBufferCellColor) u8 {
         return switch (color) {
             FrameBufferCellColor.Black => 0,
             FrameBufferCellColor.Blue => 1,
