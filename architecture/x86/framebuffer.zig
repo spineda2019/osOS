@@ -48,7 +48,7 @@ pub const FrameBuffer: type = struct {
     // White         | 15
     frame_buffer_cell: u16,
 
-    const frame_buffer_start: *volatile u8 = @ptrFromInt(0x000B8000);
+    const frame_buffer_start: u32 = 0x000B8000;
 
     pub fn writeCell(
         row: u8,
@@ -64,8 +64,8 @@ pub const FrameBuffer: type = struct {
         // Cell layout
         // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4 | 3 2 1 0 |
         // Content: | ASCII                 | Cell    | Letter  |
-        const ascii_address: *volatile u8 = @ptrFromInt(@intFromPtr(frame_buffer_start) + (row * 80 * 2) + (column * 2));
-        const color_address: *volatile u8 = @ptrFromInt(@intFromPtr(ascii_address) + 1);
+        const ascii_address: *volatile u8 = @ptrFromInt(frame_buffer_start + (row * 80 * 2) + (column * 2));
+        const color_address: *volatile u8 = @ptrFromInt(frame_buffer_start + (row * 80 * 2) + (column * 2) + 1);
         ascii_address.* = character;
         color_address.* = (colorTo4BitNumber(cell_color) << 4) | (colorTo4BitNumber(letter_color));
     }
