@@ -1,7 +1,5 @@
 //! This module contains logic for the setup and entry of the x86 kernel
 
-const framebuffer = @import("framebuffer.zig");
-
 /// Entry point for the x86 kernel. Stack must be set up
 /// This MUST be first func in this file for proper adressing.
 /// Honestly, may be best to have this as the only function here
