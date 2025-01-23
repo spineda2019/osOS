@@ -20,11 +20,12 @@ pub const FrameBufferCellColor: type = enum {
     White,
 };
 
-const FrameBuffer: type = struct {
+pub const FrameBuffer: type = struct {
     // memory mapped I/O for the framebuffer begins ar adress 0x000B8000
     // The framebuffer's memory is split up into 16bit chunks:
     // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4    | 3 2 1 0         |
     // Content: | ASCII                 | foreground | Background      |
+    // The above describes a single "cell" on a 80x25 framebuffer
 
     // Here is the table for the available colors:
     // Color         | Value
@@ -47,7 +48,7 @@ const FrameBuffer: type = struct {
     // White         | 15
     frame_buffer_cell: u16,
 
-    const frame_buffer_start: *volatile u8 = @ptrFromInt(0x000B8000);
+    const frame_buffer_start: *volatile u16 = @ptrFromInt(0x000B8000);
 
     pub fn writeCell(
         row: u8,
@@ -60,16 +61,23 @@ const FrameBuffer: type = struct {
             return; // out of window
         }
 
+        // Cell layout
         // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4    | 3 2 1 0         |
         // Content: | ASCII                 | foreground | Background      |
-        const adr: *volatile u8 = @ptrFromInt(@intFromPtr(frame_buffer_start) + (row * 80) + (column * 25));
-        adr.* = (character << 8) & (colorTo4BitNumber(foreground_color) << 4) & (colorTo4BitNumber(background_color));
+        const cell_address: *volatile u16 = @ptrFromInt(@intFromPtr(frame_buffer_start) + (row * 80 * 16) + (column * 16));
+        var cell_value: u16 = 0;
+        cell_value &= character;
+        cell_value <<= 8;
+        cell_value &= colorTo4BitNumber(foreground_color);
+        cell_value <<= 4;
+        cell_value &= colorTo4BitNumber(background_color);
+        cell_address.* = cell_value;
     }
 
-    fn clear() void {
+    pub fn clear() void {
         for (0..80) |column| {
             for (0..25) |row| {
-                writeCell(row, column, 0, FrameBufferCellColor.Black, FrameBufferCellColor.LightGray);
+                writeCell(@intCast(row), @intCast(column), 'T', FrameBufferCellColor.White, FrameBufferCellColor.LightGray);
             }
         }
     }
