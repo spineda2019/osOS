@@ -77,14 +77,20 @@ pub const FrameBuffer: type = struct {
         const address_int: u32 = calculatedAddress(row, column);
         const ascii_address: *volatile u8 = @ptrFromInt(address_int);
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
-        ascii_address.* = character;
         metadata_address.* = comptime (colorTo4BitNumber(cell_color) << 4) | colorTo4BitNumber(letter_color);
+        ascii_address.* = character;
     }
 
     pub fn clear() void {
         for (0..80) |column| {
             for (0..25) |row| {
-                writeCell(@intCast(row), @intCast(column), 'T', FrameBufferCellColor.White, FrameBufferCellColor.LightGray);
+                writeCell(
+                    @intCast(row),
+                    @intCast(column),
+                    'T',
+                    FrameBufferCellColor.LightBlue,
+                    FrameBufferCellColor.LightGray,
+                );
             }
         }
     }
