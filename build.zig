@@ -143,7 +143,7 @@ pub fn build(b: *std.Build) void {
     create_x86_iso.step.dependOn(&copy_x86_kernel.step);
 
     const x86_run_qemu = b.addSystemCommand(&.{
-        "qemu-system-x86_64",
+        "qemu-system-i386",
         "-cdrom",
         "zig-out/x86/osOS.iso",
         "-boot",
