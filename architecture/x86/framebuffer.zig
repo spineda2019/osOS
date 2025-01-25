@@ -78,8 +78,7 @@ pub const FrameBuffer: type = struct {
         const ascii_address: *volatile u8 = @ptrFromInt(address_int);
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
         ascii_address.* = character;
-        metadata_address.* = comptime colorTo4BitNumber(cell_color) << 4;
-        metadata_address.* |= comptime colorTo4BitNumber(letter_color) & 0b0000_1111;
+        metadata_address.* = comptime (colorTo4BitNumber(cell_color) << 4) | colorTo4BitNumber(letter_color);
     }
 
     pub fn clear() void {
