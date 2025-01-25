@@ -76,6 +76,17 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     x86_exe.entry = .disabled;
+    const x86_entry_asm_file = b.addAssembly(.{
+        .name = "foo",
+        .source_file = b.path("architecture/x86/entry.s"),
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = .x86,
+            .os_tag = .freestanding,
+            .abi = .none,
+        }),
+        .optimize = .ReleaseSmall,
+    });
+    x86_exe.addObject(x86_entry_asm_file);
     x86_exe.setLinkerScript(b.path("architecture/x86/link.ld"));
 
     const x86_step = b.step("x86", "Build the x86 Kernel");
