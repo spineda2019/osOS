@@ -10,7 +10,7 @@ pub const FrameBufferCellColor: type = enum {
     Magenta,
     Brown,
     LightGray,
-    DaryGray,
+    DarkGray,
     LightBlue,
     LightGreen,
     LightCyan,
@@ -95,6 +95,19 @@ pub const FrameBuffer: type = struct {
         }
     }
 
+    pub fn printWelcomScreen() void {
+        const message = "Welcome to osOS!";
+        for (message, 27..) |letter, column| {
+            writeCell(
+                13,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.DarkGray,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+    }
+
     fn colorTo4BitNumber(comptime color: FrameBufferCellColor) u8 {
         return switch (color) {
             FrameBufferCellColor.Black => 0,
@@ -105,7 +118,7 @@ pub const FrameBuffer: type = struct {
             FrameBufferCellColor.Magenta => 5,
             FrameBufferCellColor.Brown => 6,
             FrameBufferCellColor.LightGray => 7,
-            FrameBufferCellColor.DaryGray => 8,
+            FrameBufferCellColor.DarkGray => 8,
             FrameBufferCellColor.LightBlue => 9,
             FrameBufferCellColor.LightGreen => 10,
             FrameBufferCellColor.LightCyan => 11,

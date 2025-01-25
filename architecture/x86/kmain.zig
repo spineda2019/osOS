@@ -4,6 +4,7 @@ const framebuffer_api = @import("framebuffer.zig");
 
 pub fn kmain() noreturn {
     framebuffer_api.FrameBuffer.clear();
+    framebuffer_api.FrameBuffer.printWelcomScreen();
 
     while (true) {
         asm volatile ("");
