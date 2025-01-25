@@ -87,7 +87,7 @@ pub const FrameBuffer: type = struct {
                 writeCell(
                     @intCast(row),
                     @intCast(column),
-                    'T',
+                    'X',
                     FrameBufferCellColor.LightBlue,
                     FrameBufferCellColor.LightGray,
                 );
