@@ -48,7 +48,17 @@ pub const FrameBuffer: type = struct {
     // White         | 15
     frame_buffer_cell: u16,
 
+    /// Corresponds to top left. Other important locations:
+    /// 0x000B80A0: Top-Right
+    /// 0x000B8F00: Bottom-Left
+    /// 0x000B8F9E: Bottom-Right
     const frame_buffer_start: u32 = 0x000B8000;
+
+    fn calculatedAddress(row: u8, column: u8) u32 {
+        const row_offset: u32 = @intCast(row);
+        const column_offset: u32 = @intCast(column);
+        return frame_buffer_start + (row_offset * 160) + (column_offset * 2);
+    }
 
     pub fn writeCell(
         row: u8,
@@ -64,10 +74,12 @@ pub const FrameBuffer: type = struct {
         // Cell layout
         // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4 | 3 2 1 0 |
         // Content: | ASCII                 | Cell    | Letter  |
-        const ascii_address: *volatile u8 = @ptrFromInt(frame_buffer_start + (row * 80 * 2) + (column * 2));
-        const color_address: *volatile u8 = @ptrFromInt(frame_buffer_start + (row * 80 * 2) + (column * 2) + 1);
+        const address_int: u32 = calculatedAddress(row, column);
+        const ascii_address: *volatile u8 = @ptrFromInt(address_int);
+        const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
         ascii_address.* = character;
-        color_address.* = (colorTo4BitNumber(cell_color) << 4) | (colorTo4BitNumber(letter_color));
+        metadata_address.* = comptime colorTo4BitNumber(cell_color) << 4;
+        metadata_address.* |= comptime colorTo4BitNumber(letter_color) & 0b0000_1111;
     }
 
     pub fn clear() void {
@@ -99,3 +111,23 @@ pub const FrameBuffer: type = struct {
         };
     }
 };
+
+test "FrameBufferAddressTranslation" {
+    const std = @import("std");
+    try std.testing.expectEqual(
+        FrameBuffer.calculatedAddress(0, 0),
+        FrameBuffer.frame_buffer_start,
+    );
+    try std.testing.expectEqual(
+        FrameBuffer.calculatedAddress(0, 79),
+        0x000B809E,
+    );
+    try std.testing.expectEqual(
+        FrameBuffer.calculatedAddress(24, 0),
+        0x000B8F00,
+    );
+    try std.testing.expectEqual(
+        FrameBuffer.calculatedAddress(24, 79),
+        0x000B8F9E,
+    );
+}
