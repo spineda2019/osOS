@@ -74,7 +74,21 @@ pub fn rawSbiPrint(comptime string: []const u8) void {
     }
 }
 
-const p = @import("std").debug.print;
+pub fn printf(comptime format_string: []const u8, data: anytype) void {
+    // ensure that the data arg is a struct with less than 32 args
+    comptime {
+        const ArgsType = @TypeOf(data);
+        const args_type_info = @typeInfo(ArgsType);
+        if (args_type_info != .Struct) {
+            @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
+        }
+        const field_info = args_type_info.Struct.fields;
+        if (field_info.len > @typeInfo(u32).Int.bits) {
+            @compileError("32 arguments max are supported per format call");
+        }
+    }
+    _ = format_string;
+}
 
 // Shamelessly will admit this code is pretty much taken from the zig std lib
 // pub fn sbiPrintF(comptime string: []const u8, args: anytype) void {

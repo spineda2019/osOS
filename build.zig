@@ -8,7 +8,13 @@ const Error: type = error{
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    //**************************************************************************
+    //                               Shared Setup                              *
+    //**************************************************************************
     const kernel_name = "osOS.elf";
+    const oscommon_format = b.addModule("oscommon", .{
+        .root_source_file = b.path("architecture/common/format.zig"),
+    });
     //**************************************************************************
     //                              RISCV-32 Setup                             *
     //**************************************************************************
@@ -24,6 +30,7 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     exe.entry = .disabled;
+    exe.root_module.addImport("oscommon", oscommon_format);
     exe.setLinkerScript(b.path("architecture/riscv32/link.ld"));
 
     const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
@@ -76,17 +83,6 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     x86_exe.entry = .disabled;
-    // const x86_entry_asm_file = b.addAssembly(.{
-    // .name = "foo",
-    // .source_file = b.path("architecture/x86/entry.s"),
-    // .target = b.resolveTargetQuery(.{
-    // .cpu_arch = .x86,
-    // .os_tag = .freestanding,
-    // .abi = .none,
-    // }),
-    // .optimize = .ReleaseSmall,
-    // });
-    // x86_exe.addObject(x86_entry_asm_file);
     x86_exe.setLinkerScript(b.path("architecture/x86/link.ld"));
 
     const x86_step = b.step("x86", "Build the x86 Kernel");

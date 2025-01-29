@@ -4,6 +4,7 @@
 //! consisting of simple types and comptime functions.
 
 const sbi = @import("sbi.zig");
+const oscommon = @import("oscommon");
 const FreeStandingSourceInfo: type = @import("std").builtin.SourceLocation;
 /// Struct representing saved state of each register. Packed to guarantee field
 /// sizes. Each register shall be 32 bits wide on risv32. Order is guaranteed
@@ -62,13 +63,10 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     sbi.rawSbiPrint(source_info.fn_name);
     sbi.rawSbiPrint("\n");
 
+    const line_type: type = comptime @TypeOf(source_info.line);
+    const parsed_num = comptime oscommon.intToString(line_type, source_info.line);
     sbi.rawSbiPrint("Line: ");
-    var line_digit: u32 = source_info.line;
-    while (line_digit > 0) {
-        // int cast to u8 should be safe. Modulu will be 9 max.
-        _ = sbi.putchar(@intCast((line_digit % 10) + 48));
-        line_digit = line_digit / 10;
-    }
+    sbi.rawSbiPrint(&parsed_num);
     sbi.rawSbiPrint("\n");
 
     sbi.rawSbiPrint("Column: ");
