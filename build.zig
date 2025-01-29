@@ -12,8 +12,8 @@ pub fn build(b: *std.Build) void {
     //                               Shared Setup                              *
     //**************************************************************************
     const kernel_name = "osOS.elf";
-    const oscommon_format = b.addModule("oscommon", .{
-        .root_source_file = b.path("architecture/common/format.zig"),
+    const oscommon_module = b.addModule("oscommon", .{
+        .root_source_file = b.path("architecture/common/oscommon.zig"),
     });
     //**************************************************************************
     //                              RISCV-32 Setup                             *
@@ -30,7 +30,7 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     exe.entry = .disabled;
-    exe.root_module.addImport("oscommon", oscommon_format);
+    exe.root_module.addImport("oscommon", oscommon_module);
     exe.setLinkerScript(b.path("architecture/riscv32/link.ld"));
 
     const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
