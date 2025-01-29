@@ -7,6 +7,9 @@ compile_commands.json
 zig-out/
 .zig-cache/
 
+# Zig built docs
+docs/
+
 *.elf
 # I will find a way to not have to check this in
 # *stage2_eltorito
