@@ -25,4 +25,4 @@ jobs:
       with:
         version: master
     - name: Build Kernel
-      run: zig build
+      run: zig build --summary all
