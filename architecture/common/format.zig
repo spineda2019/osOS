@@ -1,9 +1,13 @@
-pub fn intToString(comptime int_type: type, number: int_type) [@floor(@bitSizeOf(int_type) * 0.30103) + 1]u8 {
+fn calculateStringWidth(comptime numeric_type: type) comptime_int {
+    return @floor(@bitSizeOf(numeric_type) * 0.30103) + 1;
+}
+
+pub fn intToString(comptime int_type: type, number: int_type) [calculateStringWidth(int_type)]u8 {
     if (comptime @typeInfo(int_type) != .int) {
         @compileError("Error: expected an integer type, found: " ++ @typeName(int_type));
     }
 
-    const digit_count = @floor(@bitSizeOf(int_type) * 0.30103) + 1;
+    const digit_count = calculateStringWidth(int_type);
     var remainder: int_type = number;
     var buffer: [digit_count]u8 = .{0} ** digit_count;
     var ptr = buffer.len - 1;
