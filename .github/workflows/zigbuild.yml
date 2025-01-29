@@ -1,0 +1,24 @@
+name: CI Kernel Build On Multiple Platforms
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Set fail-fast to false to ensure that feedback is delivered for all
+      # matrix combinations. Consider changing this to true when your workflow
+      # is stable.
+      fail-fast: false
+
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - name: Build Kernel
+      run: echo "Hey!"
