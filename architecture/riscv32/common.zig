@@ -66,7 +66,7 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     const line_type: type = comptime @TypeOf(source_info.line);
     const parsed_num = comptime oscommon.intToString(line_type, source_info.line);
     sbi.rawSbiPrint("Line: ");
-    sbi.rawSbiPrint(&parsed_num);
+    sbi.rawSbiPrint(parsed_num.innerSlice());
     sbi.rawSbiPrint("\n");
 
     sbi.rawSbiPrint("Column: ");

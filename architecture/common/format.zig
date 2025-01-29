@@ -1,8 +1,24 @@
+pub fn StringFromInt(
+    comptime array_size: comptime_int,
+) type {
+    return struct {
+        raw_string: [array_size]u8,
+        sentinel: usize,
+
+        pub fn innerSlice(self: @This()) []const u8 {
+            return self.raw_string[self.sentinel..];
+        }
+    };
+}
+
 fn calculateStringWidth(comptime numeric_type: type) comptime_int {
     return @floor(@bitSizeOf(numeric_type) * 0.30103) + 1;
 }
 
-pub fn intToString(comptime int_type: type, number: int_type) [calculateStringWidth(int_type)]u8 {
+pub fn intToString(
+    comptime int_type: type,
+    number: int_type,
+) StringFromInt(calculateStringWidth(int_type)) {
     if (comptime @typeInfo(int_type) != .int) {
         @compileError("Error: expected an integer type, found: " ++ @typeName(int_type));
     }
@@ -22,5 +38,8 @@ pub fn intToString(comptime int_type: type, number: int_type) [calculateStringWi
         buffer[ptr] = digit + 48;
     }
 
-    return buffer;
+    return StringFromInt(digit_count){
+        .raw_string = buffer,
+        .sentinel = ptr,
+    };
 }
