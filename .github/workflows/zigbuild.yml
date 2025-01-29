@@ -21,4 +21,7 @@ jobs:
 
     steps:
     - name: Build Kernel
-      run: echo "Hey!"
+    - uses: mlugg/setup-zig@v1
+      with:
+        version: master
+      run: zig build
