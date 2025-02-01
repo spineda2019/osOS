@@ -42,6 +42,11 @@ SECTIONS {
     }
 
     . = ALIGN(4);
-    . += 128 * 1024; /* 128KB */
+    . += 128 * 1024;        /* 128KB */
     __stack_top = .;
+
+    . = ALIGN(4096);        /* Align at 4KB */
+    __free_ram = .;         /* Set start of free ram to current address */
+    . += 64 * 1024 * 1024;  /* designate 64MB of memory for the kernel */
+    __free_ram_end = .;     /* Give the end of our memory a symbol */
 }
