@@ -1,4 +1,4 @@
-// oscommon.zig - root module of the osOS kernel's architecture agnostic API
+// common.zig - root module of common riscv32 operations
 // Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
