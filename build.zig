@@ -28,6 +28,9 @@ pub fn build(b: *std.Build) void {
     //                               Shared Setup                              *
     //**************************************************************************
     const kernel_name = "osOS.elf";
+
+    // this creates a public module, which is what we want. Every other module in
+    // the module set can add this as a dependency
     const oscommon_module = b.addModule("oscommon", .{
         .root_source_file = b.path("architecture/common/oscommon.zig"),
     });
@@ -100,6 +103,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .strip = false,
     });
+    x86_module.addImport("oscommon", oscommon_module);
     const x86_exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = x86_module,
