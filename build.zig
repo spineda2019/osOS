@@ -210,4 +210,17 @@ pub fn build(b: *std.Build) void {
 
     const x86_run_step_bochs = b.step("run_x86_bochs", "Boot kernel with BOCHS on x86");
     x86_run_step_bochs.dependOn(&x86_run_bochs.step);
+
+    // This creates a `doc` step. It will be visible in the `zig build --help`
+    // menu, and can be selected like this: `zig build doc`
+    // This will generate the package documentation from the doc comments.
+    const x86_doc_step = b.step("x86_docs", "Build x86 kernel package documentation");
+    const x86_doc_obj = b.addObject(.{ .name = "x86_src", .root_module = x86_module });
+    const x86_install_doc = b.addInstallDirectory(.{
+        .source_dir = x86_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/x86",
+    });
+    x86_doc_step.dependOn(&x86_install_doc.step);
+    b.getInstallStep().dependOn(x86_doc_step);
 }
