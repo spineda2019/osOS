@@ -34,19 +34,22 @@ pub fn build(b: *std.Build) void {
     //**************************************************************************
     //                              RISCV-32 Setup                             *
     //**************************************************************************
-    const exe = b.addExecutable(.{
-        .name = kernel_name,
+    const riscv32_module = b.createModule(.{
+        .root_source_file = b.path("architecture/riscv32/kernel.zig"),
         .target = b.resolveTargetQuery(.{
             .cpu_arch = .riscv32,
             .os_tag = .freestanding,
             .abi = .none,
         }),
-        .root_source_file = b.path("architecture/riscv32/kernel.zig"),
         .optimize = .ReleaseSmall,
         .strip = false,
     });
+    riscv32_module.addImport("oscommon", oscommon_module);
+    const exe = b.addExecutable(.{
+        .name = kernel_name,
+        .root_module = riscv32_module,
+    });
     exe.entry = .disabled;
-    exe.root_module.addImport("oscommon", oscommon_module);
     exe.setLinkerScript(b.path("architecture/riscv32/link.ld"));
 
     const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
@@ -87,16 +90,19 @@ pub fn build(b: *std.Build) void {
     //**************************************************************************
     //                                 x86 Setup                               *
     //**************************************************************************
-    const x86_exe = b.addExecutable(.{
-        .name = kernel_name,
+    const x86_module = b.createModule(.{
+        .root_source_file = b.path("architecture/x86/entry.zig"),
         .target = b.resolveTargetQuery(.{
             .cpu_arch = .x86,
             .os_tag = .freestanding,
             .abi = .none,
         }),
-        .root_source_file = b.path("architecture/x86/entry.zig"),
         .optimize = .ReleaseSmall,
         .strip = false,
+    });
+    const x86_exe = b.addExecutable(.{
+        .name = kernel_name,
+        .root_module = x86_module,
     });
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("architecture/x86/link.ld"));
