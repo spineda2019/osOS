@@ -20,9 +20,16 @@
 const sbi = @import("sbi.zig");
 const common = @import("common.zig");
 
+// The following pulls in symbols defined in the linker script
+
+/// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
+/// BSS End
 const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
+/// Address to the top of the kernel stack
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
+const free_ram_start = @extern([*]u8, .{ .name = "__free_ram" });
+const free_ram_end = @extern([*]u8, .{ .name = "__free_ram_end" });
 
 export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
