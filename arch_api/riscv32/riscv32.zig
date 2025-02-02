@@ -16,3 +16,4 @@
 
 pub const sbi = @import("sbi.zig");
 pub const exception = @import("exception.zig");
+pub const memory = @import("memory.zig");
