@@ -14,3 +14,7 @@ See the LICENSE file for information.
 ## License Notice
 Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 
+## Architecture
+For a breakdown of the architecture, see ARCHITECTURE.md. TL;DR, I want to
+make the kernel as general as possible and keep only what I must in an
+architecure dependent API.
