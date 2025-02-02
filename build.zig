@@ -31,8 +31,8 @@ pub fn build(b: *std.Build) void {
 
     // this creates a public module, which is what we want. Every other module in
     // the module set can add this as a dependency
-    const oscommon_module = b.addModule("oscommon", .{
-        .root_source_file = b.path("entry_points/common/oscommon.zig"),
+    const osformat_module = b.addModule("osformat", .{
+        .root_source_file = b.path("format/osformat.zig"),
     });
     //**************************************************************************
     //                              RISCV-32 Setup                             *
@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .strip = false,
     });
-    riscv32_module.addImport("oscommon", oscommon_module);
+    riscv32_module.addImport("osformat", osformat_module);
     const exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = riscv32_module,
@@ -103,7 +103,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .strip = false,
     });
-    x86_module.addImport("oscommon", oscommon_module);
+    x86_module.addImport("osformat", osformat_module);
     const x86_exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = x86_module,
