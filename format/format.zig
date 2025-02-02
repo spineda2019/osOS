@@ -59,3 +59,22 @@ pub fn intToString(
         .sentinel = ptr,
     };
 }
+
+/// Format print
+/// Arguments:
+///     format_string: string containing format specifiers (ex: %d) to print
+///     args: array of values corresponding to format_string
+pub fn printf(format_string: []const u8, args: anytype) void {
+    _ = format_string;
+    _ = args;
+    comptime {
+        const arch = @import("builtin").target.cpu.arch;
+        switch (arch) {
+            .x86 => {},
+            .riscv32 => {},
+            else => |a| {
+                @compileError("Unsupported target architecture: " ++ @tagName(a));
+            },
+        }
+    }
+}
