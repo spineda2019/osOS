@@ -84,7 +84,7 @@ pub fn putchar(character: u8) SbiReturn {
     return generalSBICall(character, 0, 0, 0, 0, 0, 0, 1);
 }
 
-pub fn rawSbiPrint(comptime string: []const u8) void {
+pub fn rawSbiPrint(string: []const u8) void {
     for (string) |character| {
         _ = putchar(character);
     }
