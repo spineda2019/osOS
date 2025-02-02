@@ -16,27 +16,35 @@
 
 const riscv32_common = @import("exception.zig");
 
-const page_size: u32 = 4096;
+pub const PageAllocater: type = struct {
+    free_ram_start_address: u32,
+    free_ram_end_address: u32,
+    next_physical_address: u32,
 
-pub fn allocate_pages(page_count: u32) u32 {
-    const static_wrapper = struct {
-        // HACK: I hate this. I don't trust zig to keep this behavior
-        // consistent, but for now this is how the book does it in C
-        var next_physical_address: u32 = @intFromPtr(
-            @import("kernel.zig").free_ram_start,
-        );
-    };
+    const page_size: u32 = 4096;
 
-    const physical_address: u32 = static_wrapper.next_physical_address;
-    static_wrapper.next_physical_address += page_count * page_size;
-
-    if (static_wrapper.next_physical_address > @intFromPtr(
-        @import("kernel.zig").free_ram_end,
-    )) {
-        riscv32_common.panic(@src());
+    pub fn init(ram_start: u32, ram_end: u32) PageAllocater {
+        return PageAllocater{
+            .free_ram_start_address = ram_start,
+            .free_ram_end_address = ram_end,
+            .next_physical_address = ram_start,
+        };
     }
 
-    const real_address: *anyopaque = @ptrFromInt(physical_address);
-    @memset(real_address, 0);
-    return physical_address;
-}
+    pub fn allocate(self: *PageAllocater, requested: u32) u32 {
+        // save the end boundary of the previously allocated page
+        const physical_address: u32 = self.next_physical_address;
+
+        // allocate requested number of pages
+        self.next_physical_address += requested * page_size;
+
+        // allocating past the end of free ram is pretty much unrecoverable
+        if (self.next_physical_address > self.free_ram_end_address) {
+            riscv32_common.panic(@src());
+        }
+
+        const real_address: *anyopaque = @ptrFromInt(physical_address);
+        @memset(real_address[0..(requested * page_size)], 0);
+        return physical_address;
+    }
+};
