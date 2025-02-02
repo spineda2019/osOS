@@ -52,7 +52,7 @@ Each node in the graph indicates a module in the zig build system's module set.
 
 ```
 
-## Shortcomigs
+## Shortcomings
 There are currently some arch_api modules that depend on the agnostic API.
 In a vacuum, this sounds logical, as there would be generic code it relies
 on, but this breaks our graph. This is actively being worked on.
