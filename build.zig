@@ -32,13 +32,13 @@ pub fn build(b: *std.Build) void {
     // this creates a public module, which is what we want. Every other module in
     // the module set can add this as a dependency
     const oscommon_module = b.addModule("oscommon", .{
-        .root_source_file = b.path("architecture/common/oscommon.zig"),
+        .root_source_file = b.path("entry_points/common/oscommon.zig"),
     });
     //**************************************************************************
     //                              RISCV-32 Setup                             *
     //**************************************************************************
     const riscv32_module = b.createModule(.{
-        .root_source_file = b.path("architecture/riscv32/kernel.zig"),
+        .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
         .target = b.resolveTargetQuery(.{
             .cpu_arch = .riscv32,
             .os_tag = .freestanding,
@@ -53,7 +53,7 @@ pub fn build(b: *std.Build) void {
         .root_module = riscv32_module,
     });
     exe.entry = .disabled;
-    exe.setLinkerScript(b.path("architecture/riscv32/link.ld"));
+    exe.setLinkerScript(b.path("entry_points/riscv32/link.ld"));
 
     const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
 
@@ -94,7 +94,7 @@ pub fn build(b: *std.Build) void {
     //                                 x86 Setup                               *
     //**************************************************************************
     const x86_module = b.createModule(.{
-        .root_source_file = b.path("architecture/x86/entry.zig"),
+        .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = b.resolveTargetQuery(.{
             .cpu_arch = .x86,
             .os_tag = .freestanding,
@@ -109,7 +109,7 @@ pub fn build(b: *std.Build) void {
         .root_module = x86_module,
     });
     x86_exe.entry = .disabled;
-    x86_exe.setLinkerScript(b.path("architecture/x86/link.ld"));
+    x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
 
     const x86_step = b.step("x86", "Build the x86 Kernel");
 
@@ -136,14 +136,14 @@ pub fn build(b: *std.Build) void {
 
     const copy_grub_files = b.addSystemCommand(&.{
         "cp",
-        "architecture/x86/stage2_eltorito",
+        "entry_points/x86/stage2_eltorito",
         "zig-out/x86/iso/boot/grub",
     });
     copy_grub_files.step.dependOn(&create_x86_iso_structure.step);
 
     const copy_grub_menu = b.addSystemCommand(&.{
         "cp",
-        "architecture/x86/menu.lst",
+        "entry_points/x86/menu.lst",
         "zig-out/x86/iso/boot/grub",
     });
     copy_grub_menu.step.dependOn(&copy_grub_files.step);
@@ -195,7 +195,7 @@ pub fn build(b: *std.Build) void {
 
     const x86_copy_bochs = b.addSystemCommand(&.{
         "cp",
-        "architecture/x86/bochs.config",
+        "entry_points/x86/bochs.config",
         "zig-out/x86/",
     });
     x86_copy_bochs.step.dependOn(&create_x86_iso.step);
