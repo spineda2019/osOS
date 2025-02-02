@@ -15,3 +15,4 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub const sbi = @import("sbi.zig");
+pub const exception = @import("exception.zig");

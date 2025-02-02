@@ -18,7 +18,6 @@
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
 const riscv32 = @import("riscv32");
-const common = @import("common.zig");
 
 // The following pulls in symbols defined in the linker script
 
@@ -35,7 +34,7 @@ export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
-    const exception_handler_address: u32 = @intFromPtr(&common.cpuExceptionHandler);
+    const exception_handler_address: u32 = @intFromPtr(&riscv32.exception.cpuExceptionHandler);
 
     asm volatile ("csrw stvec, %[exception_handler]"
         :

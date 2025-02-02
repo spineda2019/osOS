@@ -41,6 +41,7 @@ pub fn build(b: *std.Build) void {
     const riscv32_common_module = b.addModule("riscv32", .{
         .root_source_file = b.path("arch_api/riscv32/riscv32.zig"),
     });
+    riscv32_common_module.addImport("osformat", osformat_module);
 
     //**************************************************************************
     //                              RISCV-32 Setup                             *
