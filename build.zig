@@ -34,6 +34,14 @@ pub fn build(b: *std.Build) void {
     const osformat_module = b.addModule("osformat", .{
         .root_source_file = b.path("format/osformat.zig"),
     });
+
+    //**************************************************************************
+    //                        Architecure Specific APIs                        *
+    //**************************************************************************
+    const riscv32_common_module = b.addModule("riscv32", .{
+        .root_source_file = b.path("arch_api/riscv32/riscv32.zig"),
+    });
+
     //**************************************************************************
     //                              RISCV-32 Setup                             *
     //**************************************************************************
@@ -48,6 +56,7 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     riscv32_module.addImport("osformat", osformat_module);
+    riscv32_module.addImport("riscv32", riscv32_common_module);
     const exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = riscv32_module,

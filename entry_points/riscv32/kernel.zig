@@ -17,7 +17,7 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
-const sbi = @import("sbi.zig");
+const riscv32 = @import("riscv32");
 const common = @import("common.zig");
 
 // The following pulls in symbols defined in the linker script
@@ -42,7 +42,7 @@ export fn kmain() noreturn {
         : [exception_handler] "{t3}" (exception_handler_address),
     );
 
-    sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
+    riscv32.sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 

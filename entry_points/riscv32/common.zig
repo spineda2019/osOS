@@ -19,7 +19,7 @@
 //! targetting the freestanding target. For ease of use, I am using only types
 //! consisting of simple types and comptime functions.
 
-const sbi = @import("sbi.zig");
+const riscv32 = @import("riscv32");
 const osformat = @import("osformat");
 const FreeStandingSourceInfo: type = @import("std").builtin.SourceLocation;
 /// Struct representing saved state of each register. Packed to guarantee field
@@ -61,7 +61,7 @@ const TrapFrame: type = packed struct {
 
 export fn handleTrap(trap_frame: *const TrapFrame) void {
     _ = trap_frame;
-    sbi.rawSbiPrint("Hey! I'm in the trap handler!\n");
+    riscv32.sbi.rawSbiPrint("Hey! I'm in the trap handler!\n");
     panic(@src());
 }
 
@@ -69,27 +69,33 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// Ought to be inline, since adding stackframes to call this may not be
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
-    sbi.rawSbiPrint("Kernel Panic! Info:\n");
+    riscv32.sbi.rawSbiPrint("Kernel Panic! Info:\n");
 
-    sbi.rawSbiPrint("File: ");
-    sbi.rawSbiPrint(source_info.file);
-    sbi.rawSbiPrint("\n");
+    riscv32.sbi.rawSbiPrint("File: ");
+    riscv32.sbi.rawSbiPrint(source_info.file);
+    riscv32.sbi.rawSbiPrint("\n");
 
-    sbi.rawSbiPrint("Function: ");
-    sbi.rawSbiPrint(source_info.fn_name);
-    sbi.rawSbiPrint("\n");
+    riscv32.sbi.rawSbiPrint("Function: ");
+    riscv32.sbi.rawSbiPrint(source_info.fn_name);
+    riscv32.sbi.rawSbiPrint("\n");
 
     const line_type: type = comptime @TypeOf(source_info.line);
-    const line_num = comptime osformat.format.intToString(line_type, source_info.line);
-    sbi.rawSbiPrint("Line: ");
-    sbi.rawSbiPrint(line_num.innerSlice());
-    sbi.rawSbiPrint("\n");
+    const line_num = comptime osformat.format.intToString(
+        line_type,
+        source_info.line,
+    );
+    riscv32.sbi.rawSbiPrint("Line: ");
+    riscv32.sbi.rawSbiPrint(line_num.innerSlice());
+    riscv32.sbi.rawSbiPrint("\n");
 
     const column_type: type = comptime @TypeOf(source_info.column);
-    const column_num = comptime osformat.format.intToString(column_type, source_info.column);
-    sbi.rawSbiPrint("Column: ");
-    sbi.rawSbiPrint(column_num.innerSlice());
-    sbi.rawSbiPrint("\n");
+    const column_num = comptime osformat.format.intToString(
+        column_type,
+        source_info.column,
+    );
+    riscv32.sbi.rawSbiPrint("Column: ");
+    riscv32.sbi.rawSbiPrint(column_num.innerSlice());
+    riscv32.sbi.rawSbiPrint("\n");
 
     while (true) {
         asm volatile ("");
