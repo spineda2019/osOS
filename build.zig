@@ -35,6 +35,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("format/osformat.zig"),
     });
 
+    const osmemory_module = b.addModule("osmemory", .{
+        .root_source_file = b.path("memory/memory.zig"),
+    });
     //**************************************************************************
     //                        Architecure Specific APIs                        *
     //**************************************************************************
@@ -42,6 +45,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("arch_api/riscv32/riscv32.zig"),
     });
     riscv32_common_module.addImport("osformat", osformat_module);
+    riscv32_common_module.addImport("osmemory", osmemory_module);
 
     //**************************************************************************
     //                              RISCV-32 Setup                             *
