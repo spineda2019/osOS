@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const riscv32_common = @import("exception.zig");
+const osmemory = @import("osmemory");
 
 pub const PageAllocater: type = struct {
     free_ram_start_address: u32,
@@ -31,6 +32,11 @@ pub const PageAllocater: type = struct {
         };
     }
 
+    /// Bump allocate pages
+    /// We don't have freeing yet, we'll see if the book covers that
+    /// Returns:
+    ///     The address (as an integer) of the beginning of the chunk of
+    ///     allocated pages
     pub fn allocate(self: *PageAllocater, requested: u32) u32 {
         // save the end boundary of the previously allocated page
         const physical_address: u32 = self.next_physical_address;
@@ -43,8 +49,9 @@ pub const PageAllocater: type = struct {
             riscv32_common.panic(@src());
         }
 
-        const real_address: *anyopaque = @ptrFromInt(physical_address);
-        @memset(real_address[0..(requested * page_size)], 0);
+        const real_address: [*]u8 = @ptrFromInt(physical_address);
+        // avoid @memset, value may not be comptime known
+        osmemory.runtimeMemset(real_address, 0, requested * page_size);
         return physical_address;
     }
 };

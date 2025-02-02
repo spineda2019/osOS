@@ -45,6 +45,17 @@ export fn kmain() noreturn {
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 
+    riscv32.sbi.rawSbiPrint("Trying to allocate some memory...\n");
+    var page_allocater: riscv32.memory.PageAllocater = riscv32.memory.PageAllocater.init(
+        @intFromPtr(free_ram_start),
+        @intFromPtr(free_ram_end),
+    );
+
+    _ = page_allocater.allocate(2);
+    _ = page_allocater.allocate(1);
+
+    riscv32.sbi.rawSbiPrint("Mem allocation done!\n");
+
     asm volatile ("unimp");
 
     while (true) {
