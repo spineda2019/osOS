@@ -27,10 +27,32 @@ In general, (and I intend to keep this pattern the same), you can run
 ```
 zig build riscv-32
 zig build x86
-etc
 ```
 
+etc
+
 ## Running
+To emulate hardware running the kernel, you'll have to have either bochs or
+qemu installed on your system. Currently, the riscv32 kernel is only setup for
+qemu, while I have targets for x86 on both bochs and qemu. To run the x86
+kernel using qemu:
+
+```
+zig build run_x86_qemu
+```
+
+or using bochs:
+
+```
+zig build run_x86_bochs
+```
+
+The riscv32 kernel is only able to be run on qemu (using the virt machine). You
+can do so with:
+
+```
+zig build run_riscv32
+```
 
 ## License
 Not including the GPLv3 compatible licensed binaries packaged with osOS that I
