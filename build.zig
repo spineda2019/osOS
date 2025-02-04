@@ -104,6 +104,19 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
 
     run_step.dependOn(&run.step);
+
+    const riscv32_doc_step = b.step(
+        "riscv32_docs",
+        "Build riscv32 kernel package documentation",
+    );
+    const riscv32_doc_obj = b.addObject(.{ .name = "riscv32_src", .root_module = riscv32_module });
+    const riscv32_install_doc = b.addInstallDirectory(.{
+        .source_dir = riscv32_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/RISC-V32",
+    });
+    riscv32_doc_step.dependOn(&riscv32_install_doc.step);
+    b.getInstallStep().dependOn(riscv32_doc_step);
     //**************************************************************************
     //                                 x86 Setup                               *
     //**************************************************************************
