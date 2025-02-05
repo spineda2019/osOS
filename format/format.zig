@@ -33,6 +33,7 @@ fn calculateStringWidth(comptime numeric_type: type) comptime_int {
     return @floor(@bitSizeOf(numeric_type) * 0.30103) + 1;
 }
 
+/// Convert an arbitrary width integer to a string
 pub fn intToString(
     comptime int_type: type,
     number: int_type,
