@@ -28,6 +28,7 @@ pub fn StringFromInt(
     };
 }
 
+/// calculate (at comptime) buffer size needed to convert a number to a string
 fn calculateStringWidth(comptime numeric_type: type) comptime_int {
     return @floor(@bitSizeOf(numeric_type) * 0.30103) + 1;
 }
