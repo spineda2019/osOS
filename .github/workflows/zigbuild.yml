@@ -26,3 +26,10 @@ jobs:
         version: master
     - name: Build Kernel
       run: zig build --summary all
+    - name: Deploy to GH Pages
+      uses: peaceiris/actions-gh-pages@v4
+      with:
+        github_token: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+        publish_dir: zig-out/docs/x86
+        force_orphan: true
+        exclude_assets: '.github'
