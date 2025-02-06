@@ -250,4 +250,21 @@ pub fn build(b: *std.Build) void {
     });
     x86_doc_step.dependOn(&x86_install_doc.step);
     b.getInstallStep().dependOn(x86_doc_step);
+
+    //**************************************************************************
+    //                                 Doc Setup                               *
+    //**************************************************************************
+    const doc_page_step = b.step(
+        "doc_site",
+        "Build all docs and tie them together with the landing page",
+    );
+    const copy_landing_page = b.addSystemCommand(&.{
+        "cp",
+        "docs/index.html",
+        "zig-out/docs/",
+    });
+    copy_landing_page.step.dependOn(x86_doc_step);
+    copy_landing_page.step.dependOn(riscv32_doc_step);
+    doc_page_step.dependOn(&copy_landing_page.step);
+    b.getInstallStep().dependOn(doc_page_step);
 }
