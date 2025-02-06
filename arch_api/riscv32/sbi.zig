@@ -90,20 +90,51 @@ pub fn rawSbiPrint(comptime string: []const u8) void {
     }
 }
 
+/// Generic C printf
+/// format_string:
+///     comptime format string
+/// data:
+///     array containing anytypes
 pub fn printf(comptime format_string: []const u8, data: anytype) void {
-    // ensure that the data arg is a struct with less than 32 args
     comptime {
+        // ensure that the data arg is a struct with less than 32 args
         const ArgsType = @TypeOf(data);
         const args_type_info = @typeInfo(ArgsType);
-        if (args_type_info != .Struct) {
+        if (args_type_info != .@"struct") {
             @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
         }
-        const field_info = args_type_info.Struct.fields;
-        if (field_info.len > @typeInfo(u32).Int.bits) {
+        const field_info = args_type_info.@"struct".fields;
+        if (field_info.len > 32) {
             @compileError("32 arguments max are supported per format call");
         }
+
+        // now ensure that the number of data fields is equal to the amount
+        // of format specifers
+
+        var ignore_next: bool = false;
+        var format_count: comptime_int = 0;
+
+        for (format_string) |letter| {
+            switch (letter) {
+                '%' => {
+                    if (!ignore_next) {
+                        format_count += 1;
+                    }
+                    ignore_next = false;
+                },
+                '\\' => {
+                    ignore_next = true;
+                },
+                else => {
+                    ignore_next = false;
+                },
+            }
+        }
+
+        if (format_count != field_info.len) {
+            @compileError("Amount of format specifiers and passed data do not match");
+        }
     }
-    _ = format_string;
 }
 
 // Shamelessly will admit this code is pretty much taken from the zig std lib

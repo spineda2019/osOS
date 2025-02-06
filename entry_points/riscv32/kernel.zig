@@ -51,10 +51,14 @@ export fn kmain() noreturn {
         @intFromPtr(free_ram_end),
     );
 
-    _ = page_allocater.allocate(2);
-    _ = page_allocater.allocate(1);
+    const address_1 = page_allocater.allocate(2);
+    const address_2 = page_allocater.allocate(1);
 
     riscv32.sbi.rawSbiPrint("Mem allocation done!\n");
+    riscv32.sbi.printf("Address 1: %d\nAddress 2: %d", .{
+        address_1,
+        address_2,
+    });
 
     asm volatile ("unimp");
 
