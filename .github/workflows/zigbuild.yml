@@ -31,7 +31,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: docs
-        path: ./zig-out/docs/x86
+        path: ./zig-out/docs/
 
   deploy:
     if: github.ref == 'refs/heads/main'
