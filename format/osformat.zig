@@ -14,4 +14,5 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/// The import containing code for formatting, such as converting ints to strs
 pub const format = @import("format.zig");
