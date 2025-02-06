@@ -132,7 +132,14 @@ pub fn printf(comptime format_string: []const u8, data: anytype) void {
         }
 
         if (format_count != field_info.len) {
-            @compileError("Amount of format specifiers and passed data do not match");
+            const msg = blk: {
+                if (format_count > field_info.len) {
+                    break :blk "More format specifiers than passed args";
+                } else {
+                    break :blk "More passed args than format specifiers";
+                }
+            };
+            @compileError("Amount of format specifiers and passed data do not match: " ++ msg);
         }
     }
 }
