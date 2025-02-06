@@ -27,7 +27,7 @@ jobs:
     - name: Build Kernel
       run: zig build --summary all
     - name: Upload Built Docs
-      if: os.matrix == 'ubuntu-latest'
+      if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
         name: docs
