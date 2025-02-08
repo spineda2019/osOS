@@ -55,7 +55,7 @@ export fn kmain() noreturn {
     const address_2 = page_allocater.allocate(1);
 
     riscv32.sbi.rawSbiPrint("Mem allocation done!\n");
-    riscv32.sbi.printf("Address 1: %d\nAddress 2: %d", .{
+    riscv32.sbi.printf("Address 1: %d\nAddress 2: %d \\%", .{
         address_1,
         address_2,
     });

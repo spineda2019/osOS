@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const kcommon = @import("kcommon");
+
 const SbiReturn: type = struct {
     err: u32,
     value: u32,
@@ -84,7 +86,7 @@ pub fn putchar(character: u8) SbiReturn {
     return generalSBICall(character, 0, 0, 0, 0, 0, 0, 1);
 }
 
-pub fn rawSbiPrint(comptime string: []const u8) void {
+pub fn rawSbiPrint(string: []const u8) void {
     for (string) |character| {
         _ = putchar(character);
     }
@@ -96,52 +98,8 @@ pub fn rawSbiPrint(comptime string: []const u8) void {
 /// data:
 ///     array containing anytypes
 pub fn printf(comptime format_string: []const u8, data: anytype) void {
-    comptime {
-        // ensure that the data arg is a struct with less than 32 args
-        const ArgsType = @TypeOf(data);
-        const args_type_info = @typeInfo(ArgsType);
-        if (args_type_info != .@"struct") {
-            @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
-        }
-        const field_info = args_type_info.@"struct".fields;
-        if (field_info.len > 32) {
-            @compileError("32 arguments max are supported per format call");
-        }
-
-        // now ensure that the number of data fields is equal to the amount
-        // of format specifers
-
-        var ignore_next: bool = false;
-        var format_count: comptime_int = 0;
-
-        for (format_string) |letter| {
-            switch (letter) {
-                '%' => {
-                    if (!ignore_next) {
-                        format_count += 1;
-                    }
-                    ignore_next = false;
-                },
-                '\\' => {
-                    ignore_next = true;
-                },
-                else => {
-                    ignore_next = false;
-                },
-            }
-        }
-
-        if (format_count != field_info.len) {
-            const msg = blk: {
-                if (format_count > field_info.len) {
-                    break :blk "More format specifiers than passed args";
-                } else {
-                    break :blk "More passed args than format specifiers";
-                }
-            };
-            @compileError("Amount of format specifiers and passed data do not match: " ++ msg);
-        }
-    }
+    const fmt = kcommon.kformat.format(comptime format_string, data);
+    rawSbiPrint(fmt);
 }
 
 // Shamelessly will admit this code is pretty much taken from the zig std lib

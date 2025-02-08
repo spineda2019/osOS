@@ -79,22 +79,29 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     sbi.rawSbiPrint(source_info.fn_name);
     sbi.rawSbiPrint("\n");
 
-    const line_type: type = comptime @TypeOf(source_info.line);
-    const line_num = comptime osformat.format.intToString(
-        line_type,
-        source_info.line,
-    );
+    const line_num_slice: []const u8 = comptime line_calc: {
+        const line_type: type = @TypeOf(source_info.line);
+        const line_num = osformat.format.intToString(
+            line_type,
+            source_info.line,
+        );
+        break :line_calc line_num.innerSlice();
+    };
+
     sbi.rawSbiPrint("Line: ");
-    sbi.rawSbiPrint(line_num.innerSlice());
+    sbi.rawSbiPrint(line_num_slice);
     sbi.rawSbiPrint("\n");
 
-    const column_type: type = comptime @TypeOf(source_info.column);
-    const column_num = comptime osformat.format.intToString(
-        column_type,
-        source_info.column,
-    );
+    const column_num_slice: []const u8 = comptime column_calc: {
+        const column_type: type = @TypeOf(source_info.column);
+        const column_num = osformat.format.intToString(
+            column_type,
+            source_info.column,
+        );
+        break :column_calc column_num.innerSlice();
+    };
     sbi.rawSbiPrint("Column: ");
-    sbi.rawSbiPrint(column_num.innerSlice());
+    sbi.rawSbiPrint(column_num_slice);
     sbi.rawSbiPrint("\n");
 
     while (true) {

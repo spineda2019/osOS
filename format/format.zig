@@ -53,7 +53,7 @@ pub fn intToString(
         remainder /= 10;
     }) {
         // int cast to u8 should be safe. Modulo will be 9 max.
-        const digit: u8 = remainder % 10;
+        const digit: u8 = @intCast(remainder % 10);
         buffer[ptr] = digit + 48;
     }
 
