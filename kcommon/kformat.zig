@@ -17,6 +17,49 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
+fn Specifier(comptime datatype: type) type {
+    return struct {
+        format_specifier: u8, // a char
+        wrapped_data: datatype,
+
+        pub fn init(specifier: u8, data: datatype) @This() {
+            comptime {
+                switch (specifier) {
+                    'c' => {
+                        if (datatype != u8) {
+                            @compileError(
+                                "Expected u8 type for format specifier %c, found: " ++ @typeName(datatype),
+                            );
+                        }
+                    },
+                    'd' => {
+                        if (@typeInfo(data) != .int) {
+                            @compileError(
+                                "Expected integer type for format specifier %d, found: " ++ @typeName(datatype),
+                            );
+                        }
+                    },
+                    'f' => {
+                        if (@typeInfo(data) != .float) {
+                            @compileError(
+                                "Expected float type for format specifier %f, found: " ++ @typeName(datatype),
+                            );
+                        }
+                    },
+                    else => {
+                        @compileError("Unrecognized format specifier: " ++ specifier);
+                    },
+                }
+            }
+
+            return .{
+                .wrapped_data = data,
+                .format_specifier = specifier,
+            };
+        }
+    };
+}
+
 pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
     comptime {
         // ensure that the data arg is a struct with less than 32 args
@@ -33,22 +76,20 @@ pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
         // now ensure that the number of data fields is equal to the amount
         // of format specifers
 
-        var ignore_next: bool = false;
+        var flag: bool = false;
         var format_count: comptime_int = 0;
 
         for (format_string) |letter| {
             switch (letter) {
                 '%' => {
-                    if (!ignore_next) {
-                        format_count += 1;
-                    }
-                    ignore_next = false;
-                },
-                '\\' => {
-                    ignore_next = true;
+                    // don't count %% as a fmt specifier, %% just gives %
+                    flag = !flag;
                 },
                 else => {
-                    ignore_next = false;
+                    if (flag) {
+                        format_count += 1;
+                        flag = false;
+                    }
                 },
             }
         }
@@ -63,6 +104,10 @@ pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
             };
             @compileError("Amount of format specifiers and passed data do not match: " ++ msg);
         }
+
+        // now that we verified the format count == the arg count
+        // validate the types.
+        // var specifier_buffer: [format_count]u8 = undefined;
     }
 
     return "TODO\n";
