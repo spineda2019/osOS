@@ -60,8 +60,29 @@ fn Specifier(comptime datatype: type) type {
     };
 }
 
+fn isPrintableType(t: type) bool {
+    // first check if it's a simple formattable type. Numeric types are more
+    // tricky since zig supports arbitrary bit width ints, like u32, u12, u3,
+    // etc
+    const acceptable: [1]type = .{bool};
+    for (acceptable) |acceptable_type| {
+        if (acceptable_type == t) {
+            return true;
+        }
+    }
+
+    // all is not yet lost, numeric types are also formatable
+    const info = @typeInfo(t);
+
+    if (info == .int or info == .float) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
-    comptime {
+    const bufsize = comptime buf_size_calc: {
         // ensure that the data arg is a struct with less than 32 args
         const ArgsType = @TypeOf(data);
         const args_type_info = @typeInfo(ArgsType);
@@ -105,9 +126,22 @@ pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
             @compileError("Amount of format specifiers and passed data do not match: " ++ msg);
         }
 
+        break :buf_size_calc field_info.len;
+    };
+
+    const specifier_buffer: [bufsize][]const u8 = undefined;
+    _ = specifier_buffer;
+
+    comptime {
         // now that we verified the format count == the arg count
         // validate the types.
-        // var specifier_buffer: [format_count]u8 = undefined;
+        const meta = @import("std").meta;
+        for (meta.fields(@TypeOf(data))) |field| {
+            const field_type: type = field.type;
+            if (!isPrintableType(field_type)) {
+                @compileError("Unsupported format type: " ++ @typeName(field_type));
+            }
+        }
     }
 
     return "TODO\n";
