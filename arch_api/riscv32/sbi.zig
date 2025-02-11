@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const kcommon = @import("kcommon");
-
 const SbiReturn: type = struct {
     err: u32,
     value: u32,
@@ -98,8 +96,8 @@ pub fn rawSbiPrint(string: []const u8) void {
 /// data:
 ///     array containing anytypes
 pub fn printf(comptime format_string: []const u8, data: anytype) void {
-    const fmt = kcommon.kformat.format(comptime format_string, data);
-    rawSbiPrint(fmt);
+    _ = format_string;
+    _ = data;
 }
 
 // Shamelessly will admit this code is pretty much taken from the zig std lib

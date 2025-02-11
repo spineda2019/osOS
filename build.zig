@@ -39,10 +39,6 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("memory/memory.zig"),
     });
 
-    const kcommon = b.addModule("kcommon", .{
-        .root_source_file = b.path("kcommon/kcommon.zig"),
-    });
-
     //**************************************************************************
     //                        Architecure Specific APIs                        *
     //**************************************************************************
@@ -51,7 +47,6 @@ pub fn build(b: *std.Build) void {
     });
     riscv32_common_module.addImport("osformat", osformat_module);
     riscv32_common_module.addImport("osmemory", osmemory_module);
-    riscv32_common_module.addImport("kcommon", kcommon);
 
     //**************************************************************************
     //                              RISCV-32 Setup                             *
