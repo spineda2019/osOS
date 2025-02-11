@@ -17,6 +17,8 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
+const meta = @import("std").meta;
+
 fn Specifier(comptime datatype: type) type {
     return struct {
         format_specifier: u8, // a char
@@ -126,23 +128,25 @@ pub fn format(comptime format_string: []const u8, data: anytype) []const u8 {
             @compileError("Amount of format specifiers and passed data do not match: " ++ msg);
         }
 
+        // now that we verified the format count == the arg count
+        // validate the types are actually formattable.
+        for (meta.fields(@TypeOf(data))) |field| {
+            const field_type: type = field.type;
+            if (!isPrintableType(field_type)) {
+                // TODO: use @field
+                @field(field, field.name);
+                @compileError("Unsupported format type: " ++ @typeName(field_type));
+            }
+        }
+
+        // finally assign the bufsize of our data struct
         break :buf_size_calc field_info.len;
     };
 
     const specifier_buffer: [bufsize][]const u8 = undefined;
     _ = specifier_buffer;
 
-    comptime {
-        // now that we verified the format count == the arg count
-        // validate the types.
-        const meta = @import("std").meta;
-        for (meta.fields(@TypeOf(data))) |field| {
-            const field_type: type = field.type;
-            if (!isPrintableType(field_type)) {
-                @compileError("Unsupported format type: " ++ @typeName(field_type));
-            }
-        }
-    }
+    // now it's fine to iterate through the runtime data
 
     return "TODO\n";
 }

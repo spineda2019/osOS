@@ -69,7 +69,7 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// Ought to be inline, since adding stackframes to call this may not be
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
-    sbi.rawSbiPrint("Kernel Panic! Info:\n");
+    sbi.rawSbiPrint("Kernel Panic!\nInfo:\n");
 
     sbi.rawSbiPrint("File: ");
     sbi.rawSbiPrint(source_info.file);
