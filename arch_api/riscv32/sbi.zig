@@ -14,6 +14,192 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const exception = @import("exception.zig");
+const osformat = @import("osformat");
+
+/// Generic C printf
+/// format_string:
+///     comptime format string
+/// data:
+///     array containing anytypes
+pub fn printf(comptime format_string: []const u8, args: anytype) void {
+    comptime {
+        // args needs to be an anon struct type
+        const ArgsType = @TypeOf(args);
+        const args_type_info = @typeInfo(ArgsType);
+        if (args_type_info != .@"struct") {
+            @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
+        }
+
+        const arg_len: comptime_int = args_type_info.@"struct".fields.len;
+        if (arg_len > 32) {
+            @compileError("32 arguments max are supported per format call");
+        }
+
+        var flag: bool = false;
+        var format_specifiers: comptime_int = 0;
+        for (format_string) |letter| {
+            switch (letter) {
+                '%' => {
+                    flag = !flag;
+                },
+                else => {
+                    if (flag and letter != '%') {
+                        format_specifiers += 1;
+                        flag = false;
+                    }
+                },
+            }
+        }
+
+        const arg_len_string = osformat.format.intToString(
+            @TypeOf(arg_len),
+            arg_len,
+        );
+        const specifier_length_string = osformat.format.intToString(
+            @TypeOf(format_specifiers),
+            format_specifiers,
+        );
+        var message: []const u8 = "Mismatching number of format specifiers and arguments. Args: ";
+        message = message ++ arg_len_string.innerSlice();
+        message = message ++ ". Specifiers: " ++ specifier_length_string.innerSlice();
+        if (format_specifiers != arg_len) {
+            @compileError(message);
+        }
+    }
+
+    var flag: bool = false;
+    var letter_buffer: [8]u8 = undefined;
+    var buffer_ptr: u8 = 0;
+    for (format_string) |letter| {
+        switch (letter) {
+            '%' => {
+                if (flag) {
+                    // write only the single % literal
+                    if (buffer_ptr == letter_buffer.len) {
+                        // buffer is full
+                        rawSbiPrint(letter_buffer[0..]);
+                        buffer_ptr = 0;
+                        letter_buffer[0] = '%';
+                    } else {
+                        letter_buffer[buffer_ptr] = letter;
+                        buffer_ptr += 1;
+                    }
+                }
+
+                flag = !flag;
+            },
+            else => {
+                if (flag) {
+                    //TODO: Print arg in data
+                    rawSbiPrint("TODO");
+                } else {
+                    if (buffer_ptr == letter_buffer.len) {
+                        // buffer is full
+                        rawSbiPrint(letter_buffer[0..]);
+                        buffer_ptr = 0;
+                    } else {
+                        letter_buffer[buffer_ptr] = letter;
+                        buffer_ptr += 1;
+                    }
+                }
+            },
+        }
+    }
+    rawSbiPrint(letter_buffer[0..buffer_ptr]); // flush
+}
+
+pub const Writer = struct {
+    /// Calls print and then flushes the buffer.
+    pub fn print(self: *Writer, comptime format: []const u8, args: anytype) void {
+        const State = enum {
+            start,
+            open_brace,
+            close_brace,
+        };
+
+        comptime var start_index: usize = 0;
+        comptime var state = State.start;
+        comptime var next_arg: usize = 0;
+
+        inline for (format, 0..) |c, i| {
+            switch (state) {
+                State.start => switch (c) {
+                    '{' => {
+                        if (start_index < i) {
+                            self.write(format[start_index..i]) catch {
+                                exception.panic(@src());
+                            };
+                        }
+                        state = State.open_brace;
+                    },
+                    '}' => {
+                        if (start_index < i) self.write(format[start_index..i]) catch {
+                            exception.panic(@src());
+                        };
+                        state = State.close_brace;
+                    },
+                    else => {},
+                },
+                State.open_brace => switch (c) {
+                    '{' => {
+                        state = State.start;
+                        start_index = i;
+                    },
+                    '}' => {
+                        self.printValue(args[next_arg]) catch {
+                            exception.panic(@src());
+                        };
+                        next_arg += 1;
+                        state = State.start;
+                        start_index = i + 1;
+                    },
+                    's' => {
+                        continue;
+                    },
+                    else => @compileError("Unknown format character: " ++ [1]u8{c}),
+                },
+                State.close_brace => switch (c) {
+                    '}' => {
+                        state = State.start;
+                        start_index = i;
+                    },
+                    else => @compileError("Single '}' encountered in format string"),
+                },
+            }
+        }
+        comptime {
+            if (args.len != next_arg) {
+                @compileError("Unused arguments");
+            }
+            if (state != State.start) {
+                @compileError("Incomplete format string: " ++ format);
+            }
+        }
+        if (start_index < format.len) {
+            self.write(format[start_index..format.len]) catch {
+                exception.panic(@src());
+            };
+        }
+
+        self.flush() catch {
+            exception.panic(@src());
+        };
+    }
+
+    fn write(self: *Writer, value: []const u8) !void {
+        _ = self;
+        rawSbiPrint(value);
+    }
+    pub fn printValue(self: *Writer, value: anytype) !void {
+        _ = self;
+        _ = value;
+    }
+    fn flush(self: *Writer) !void {
+        _ = self;
+    }
+};
+
 const SbiReturn: type = struct {
     err: u32,
     value: u32,
@@ -90,25 +276,8 @@ pub fn rawSbiPrint(string: []const u8) void {
     }
 }
 
-/// Generic C printf
-/// format_string:
-///     comptime format string
-/// data:
-///     array containing anytypes
-pub fn printf(comptime format_string: []const u8, data: anytype) void {
-    _ = format_string;
-    _ = data;
-}
-
 // Shamelessly will admit this code is pretty much taken from the zig std lib
 // pub fn sbiPrintF(comptime string: []const u8, args: anytype) void {
-//     const ArgsType = @TypeOf(args);
-//     const args_type_info = @typeInfo(ArgsType);
-//     comptime {
-//         if (args_type_info != .Struct) {
-//             @compileError("expected tuple or struct argument, found " ++ @typeName(ArgsType));
-//         }
-//     }
 //
 //     const fields_info = args_type_info.Struct.fields;
 //     const max_format_args = @typeInfo(u32).Int.bits;
