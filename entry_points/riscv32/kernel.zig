@@ -17,6 +17,7 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
+/// Common riscv32 specific API
 const riscv32 = @import("riscv32");
 
 // The following pulls in symbols defined in the linker script
@@ -27,7 +28,9 @@ const bss = @extern([*]u8, .{ .name = "__bss" });
 const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
 /// Address to the top of the kernel stack
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
+/// Defined externally by the linker script.
 pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
+/// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
 export fn kmain() noreturn {
