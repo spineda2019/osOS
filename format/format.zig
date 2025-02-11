@@ -38,7 +38,7 @@ pub fn intToString(
     comptime int_type: type,
     number: int_type,
 ) StringFromInt(calculateStringWidth(int_type)) {
-    if (comptime @typeInfo(int_type) != .int) {
+    if (comptime @typeInfo(int_type) != .int and int_type != comptime_int) {
         @compileError("Error: expected an integer type, found: " ++ @typeName(int_type));
     }
 
