@@ -72,19 +72,18 @@ pub fn printf(comptime format_string: []const u8, args: anytype) void {
     var letter_buffer: [8]u8 = undefined;
     var buffer_ptr: u8 = 0;
     for (format_string) |letter| {
+        if (buffer_ptr == letter_buffer.len) {
+            // flush and reset ptr
+            rawSbiPrint(&letter_buffer);
+            buffer_ptr = 0;
+        }
+
         switch (letter) {
             '%' => {
                 if (flag) {
-                    // write only the single % literal
-                    if (buffer_ptr == letter_buffer.len) {
-                        // buffer is full
-                        rawSbiPrint(letter_buffer[0..]);
-                        buffer_ptr = 0;
-                        letter_buffer[0] = '%';
-                    } else {
-                        letter_buffer[buffer_ptr] = letter;
-                        buffer_ptr += 1;
-                    }
+                    // write only the single % literal for '%%'
+                    letter_buffer[buffer_ptr] = '%';
+                    buffer_ptr += 1;
                 }
 
                 flag = !flag;
@@ -92,20 +91,17 @@ pub fn printf(comptime format_string: []const u8, args: anytype) void {
             else => {
                 if (flag) {
                     //TODO: Print arg in data
-                    rawSbiPrint("TODO");
+                    letter_buffer[buffer_ptr] = 'X';
+                    buffer_ptr += 1;
+                    flag = false;
                 } else {
-                    if (buffer_ptr == letter_buffer.len) {
-                        // buffer is full
-                        rawSbiPrint(letter_buffer[0..]);
-                        buffer_ptr = 0;
-                    } else {
-                        letter_buffer[buffer_ptr] = letter;
-                        buffer_ptr += 1;
-                    }
+                    letter_buffer[buffer_ptr] = letter;
+                    buffer_ptr += 1;
                 }
             },
         }
     }
+
     rawSbiPrint(letter_buffer[0..buffer_ptr]); // flush
 }
 
