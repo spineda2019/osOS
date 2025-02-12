@@ -37,15 +37,15 @@ const Process = struct {
 /// In the C counterpart, this would be marked Naked to avoid preamble
 /// and post-amble asm generation. In zig however, you can't call naked
 /// functions, but making this inline should have the same effect.
+/// Registers: a0 will hold calle sp to save, a1 shall hold caller sp to store
 pub inline fn switch_context(
-    previous_stack_ptr: *u32,
-    new_stack_ptr: *u32,
+    previous_stack_ptr: *usize,
+    new_stack_ptr: *usize,
 ) void {
-    _ = previous_stack_ptr;
-    _ = new_stack_ptr;
-
     switch (comptime @import("builtin").target.cpu.arch) {
         .riscv32 => {
+            const previous_stack_address = @intFromPtr(previous_stack_ptr);
+            const new_stack_address = @intFromPtr(new_stack_ptr);
             // Save callee-saved registers onto the current process's stack.
             // line 1: Allocate stack space for 13 4-byte registers
             // line 2: Save callee-saved registers only
@@ -84,6 +84,9 @@ pub inline fn switch_context(
                 \\lw s10, 11 * 4(sp)
                 \\lw s11, 12 * 4(sp)
                 \\addi sp, sp, 13 * 4
+                :
+                : [previous_stack_address] "{a0}" (previous_stack_address),
+                  [new_stack_address] "{a0}" (new_stack_address),
             );
         },
         else => |arch| {
