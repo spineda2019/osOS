@@ -75,24 +75,42 @@ pub const SbiWriter = struct {
         }
     }
 
-    fn writeRaw(self: *SbiWriter, raw_string: []const u8) void {
-        self.flush();
+    fn writeRaw(_: *SbiWriter, raw_string: []const u8) void {
         _ = rawSbiPrint(raw_string);
     }
 
     fn writeValue(self: *SbiWriter, value: anytype) void {
+        self.flush();
         if (value == null) {
-            self.writeRaw("NULL");
+            self.writeRaw("NULLVAL");
         }
 
-        switch (@typeInfo(@TypeOf(value))) {
-            .int => {
-                const converted = osformat.format.intToString(@TypeOf(value), value);
-                self.writeRaw(converted.innerSlice());
-            },
-            else => {
-                self.writeRaw("NULL");
-            },
+        const nullable: bool = comptime nullable_check: {
+            break :nullable_check @typeInfo(@TypeOf(value)) == .optional;
+        };
+
+        if (nullable) {
+            if (value) |unwrapped| {
+                switch (@typeInfo(@TypeOf(unwrapped))) {
+                    .int => {
+                        const converted = osformat.format.intToString(@TypeOf(unwrapped), unwrapped);
+                        self.writeRaw(converted.innerSlice());
+                    },
+                    else => {
+                        self.writeRaw("UNEXPECTED " ++ @typeName(@TypeOf(unwrapped)));
+                    },
+                }
+            }
+        } else {
+            switch (@typeInfo(@TypeOf(value))) {
+                .int => {
+                    const converted = osformat.format.intToString(@TypeOf(value), value);
+                    self.writeRaw(converted.innerSlice());
+                },
+                else => {
+                    self.writeRaw("UNEXPECTED " ++ @typeName(@TypeOf(value)));
+                },
+            }
         }
     }
 
