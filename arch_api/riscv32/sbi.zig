@@ -122,6 +122,13 @@ pub fn printf(comptime format_string: []const u8, args: anytype) void {
             @compileError("32 arguments max are supported per format call");
         }
 
+        for (args_type_info.@"struct".fields) |field| {
+            const field_type: type = field.type;
+            if (!SbiWriter.isWritableType(field_type)) {
+                @compileError("Invalid type for printf: " ++ @typeName(field_type));
+            }
+        }
+
         var flag: bool = false;
         var format_specifiers: comptime_int = 0;
         for (format_string) |letter| {
