@@ -17,12 +17,90 @@
 const exception = @import("exception.zig");
 const osformat = @import("osformat");
 
+pub const SbiWriter = struct {
+    buffer: [32]u8,
+    internal_sentinel: u8,
+
+    pub fn init() SbiWriter {
+        return .{
+            .buffer = .{0} ** 32,
+            .internal_sentinel = 0,
+        };
+    }
+
+    pub fn printf(
+        self: *SbiWriter,
+        comptime format_string: []const u8,
+        args: anytype,
+    ) void {
+        comptime {
+            const arg_type = @TypeOf(args);
+            const arg_info = @typeInfo(arg_type);
+            if (arg_info != .pointer) {
+                @compileError("Expected a pointer to an anonymous struct. Found: " ++ @typeName(arg_type));
+            }
+        }
+
+        defer self.flush();
+
+        var flag: bool = false;
+        for (format_string) |letter| {
+            if (self.internal_sentinel == self.buffer.len) {
+                // flush and reset ptr
+                self.writeRaw(&self.buffer);
+                self.internal_sentinel = 0;
+            }
+
+            switch (letter) {
+                '%' => {
+                    if (flag) {
+                        // write only the single % literal for '%%'
+                        self.buffer[self.internal_sentinel] = '%';
+                        self.internal_sentinel += 1;
+                    }
+
+                    flag = !flag;
+                },
+                else => {
+                    if (flag) {
+                        //TODO: Print arg in data
+                        self.buffer[self.internal_sentinel] = 'X';
+                        self.internal_sentinel += 1;
+                        flag = false;
+                    } else {
+                        self.buffer[self.internal_sentinel] = letter;
+                        self.internal_sentinel += 1;
+                    }
+                },
+            }
+        }
+    }
+
+    fn writeRaw(_: *const SbiWriter, raw_string: []const u8) void {
+        _ = rawSbiPrint(raw_string);
+    }
+
+    fn writeValue(_: *const SbiWriter, value: anytype) void {
+        _ = value;
+    }
+
+    fn flush(self: *const SbiWriter) void {
+        _ = rawSbiPrint(self.buffer[0..self.internal_sentinel]);
+    }
+
+    pub fn isWritableType(comptime t: type) bool {
+        _ = t;
+        return true;
+    }
+};
+
 /// Generic C printf
 /// format_string:
 ///     comptime format string
 /// data:
 ///     array containing anytypes
 pub fn printf(comptime format_string: []const u8, args: anytype) void {
+    var sbi_writer = SbiWriter.init();
     comptime {
         // args needs to be an anon struct type
         const ArgsType = @TypeOf(args);
@@ -68,41 +146,7 @@ pub fn printf(comptime format_string: []const u8, args: anytype) void {
         }
     }
 
-    var flag: bool = false;
-    var letter_buffer: [8]u8 = undefined;
-    var buffer_ptr: u8 = 0;
-    for (format_string) |letter| {
-        if (buffer_ptr == letter_buffer.len) {
-            // flush and reset ptr
-            rawSbiPrint(&letter_buffer);
-            buffer_ptr = 0;
-        }
-
-        switch (letter) {
-            '%' => {
-                if (flag) {
-                    // write only the single % literal for '%%'
-                    letter_buffer[buffer_ptr] = '%';
-                    buffer_ptr += 1;
-                }
-
-                flag = !flag;
-            },
-            else => {
-                if (flag) {
-                    //TODO: Print arg in data
-                    letter_buffer[buffer_ptr] = 'X';
-                    buffer_ptr += 1;
-                    flag = false;
-                } else {
-                    letter_buffer[buffer_ptr] = letter;
-                    buffer_ptr += 1;
-                }
-            },
-        }
-    }
-
-    rawSbiPrint(letter_buffer[0..buffer_ptr]); // flush
+    sbi_writer.printf(format_string, &args);
 }
 
 pub const Writer = struct {
