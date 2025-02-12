@@ -16,15 +16,18 @@
 
 const exception = @import("exception.zig");
 const osformat = @import("osformat");
+const meta = @import("std").meta;
 
 pub const SbiWriter = struct {
     buffer: [32]u8,
     internal_sentinel: u8,
+    arg_sentinel: u8,
 
     pub fn init() SbiWriter {
         return .{
             .buffer = .{0} ** 32,
             .internal_sentinel = 0,
+            .arg_sentinel = 0,
         };
     }
 
@@ -33,13 +36,20 @@ pub const SbiWriter = struct {
         comptime format_string: []const u8,
         args: anytype,
     ) void {
-        comptime {
-            const arg_type = @TypeOf(args);
-            const arg_info = @typeInfo(arg_type);
-            if (arg_info != .pointer) {
-                @compileError("Expected a pointer to an anonymous struct. Found: " ++ @typeName(arg_type));
+        const field_name_buffer = comptime field_block: {
+            const ArgsType = @TypeOf(args);
+            const args_type_info = @typeInfo(ArgsType);
+            const arg_len: comptime_int = args_type_info.@"struct".fields.len;
+            var buf: [arg_len][]const u8 = .{""} ** arg_len;
+            var ptr = 0;
+            for (args_type_info.@"struct".fields) |field| {
+                buf[ptr] = field.name;
+                ptr += 1;
             }
-        }
+            break :field_block buf;
+        };
+
+        _ = field_name_buffer;
 
         defer self.flush();
 
@@ -63,9 +73,7 @@ pub const SbiWriter = struct {
                 },
                 else => {
                     if (flag) {
-                        //TODO: Print arg in data
-                        self.buffer[self.internal_sentinel] = 'X';
-                        self.internal_sentinel += 1;
+                        self.writeValue(null);
                         flag = false;
                     } else {
                         self.buffer[self.internal_sentinel] = letter;
@@ -80,7 +88,10 @@ pub const SbiWriter = struct {
         _ = rawSbiPrint(raw_string);
     }
 
-    fn writeValue(_: *const SbiWriter, value: anytype) void {
+    fn writeValue(self: *SbiWriter, value: anytype) void {
+        //TODO: Print arg in data
+        self.buffer[self.internal_sentinel] = 'X';
+        self.internal_sentinel += 1;
         _ = value;
     }
 
@@ -161,7 +172,7 @@ pub fn printf(comptime format_string: []const u8, args: anytype) void {
         }
     }
 
-    sbi_writer.printf(format_string, &args);
+    sbi_writer.printf(format_string, args);
 }
 
 pub const Writer = struct {
