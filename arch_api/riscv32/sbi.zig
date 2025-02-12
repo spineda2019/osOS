@@ -36,21 +36,6 @@ pub const SbiWriter = struct {
         comptime format_string: []const u8,
         args: anytype,
     ) void {
-        const field_name_buffer = comptime field_block: {
-            const ArgsType = @TypeOf(args);
-            const args_type_info = @typeInfo(ArgsType);
-            const arg_len: comptime_int = args_type_info.@"struct".fields.len;
-            var buf: [arg_len][]const u8 = .{""} ** arg_len;
-            var ptr = 0;
-            for (args_type_info.@"struct".fields) |field| {
-                buf[ptr] = field.name;
-                ptr += 1;
-            }
-            break :field_block buf;
-        };
-
-        _ = field_name_buffer;
-
         defer self.flush();
 
         var flag: bool = false;
@@ -73,7 +58,13 @@ pub const SbiWriter = struct {
                 },
                 else => {
                     if (flag) {
-                        self.writeValue(null);
+                        self.writeValue(inline for (args, 0..) |arg, i| {
+                            if (i == self.arg_sentinel) {
+                                break arg;
+                            }
+
+                            break null;
+                        });
                         flag = false;
                     } else {
                         self.buffer[self.internal_sentinel] = letter;
@@ -84,19 +75,30 @@ pub const SbiWriter = struct {
         }
     }
 
-    fn writeRaw(_: *const SbiWriter, raw_string: []const u8) void {
+    fn writeRaw(self: *SbiWriter, raw_string: []const u8) void {
+        self.flush();
         _ = rawSbiPrint(raw_string);
     }
 
     fn writeValue(self: *SbiWriter, value: anytype) void {
-        //TODO: Print arg in data
-        self.buffer[self.internal_sentinel] = 'X';
-        self.internal_sentinel += 1;
-        _ = value;
+        if (value == null) {
+            self.writeRaw("NULL");
+        }
+
+        switch (@typeInfo(@TypeOf(value))) {
+            .int => {
+                const converted = osformat.format.intToString(@TypeOf(value), value);
+                self.writeRaw(converted.innerSlice());
+            },
+            else => {
+                self.writeRaw("NULL");
+            },
+        }
     }
 
-    fn flush(self: *const SbiWriter) void {
+    fn flush(self: *SbiWriter) void {
         _ = rawSbiPrint(self.buffer[0..self.internal_sentinel]);
+        self.internal_sentinel = 0;
     }
 
     pub fn isWritableType(comptime t: type) bool {
