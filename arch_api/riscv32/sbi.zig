@@ -89,8 +89,16 @@ pub const SbiWriter = struct {
     }
 
     pub fn isWritableType(comptime t: type) bool {
-        _ = t;
-        return true;
+        if (t == bool) {
+            return true;
+        }
+
+        return switch (@typeInfo(t)) {
+            .int => true,
+            .float => true,
+            .pointer => true,
+            else => false,
+        };
     }
 };
 
