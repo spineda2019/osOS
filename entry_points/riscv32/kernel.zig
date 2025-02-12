@@ -19,6 +19,7 @@
 
 /// Common riscv32 specific API
 const riscv32 = @import("riscv32");
+const osprocess = @import("osprocess");
 
 // The following pulls in symbols defined in the linker script
 
