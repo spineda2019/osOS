@@ -46,6 +46,7 @@ pub const ProcessPool = struct {
     pool: [MAX_PROCESS_COUNT]?Process,
 
     pub fn createProcess(self: *ProcessPool, program_counter: usize) void {
+        var slot_found: bool = false;
         for (self.pool, 0..) |process, i| {
             if (process == null) {
                 self.pool[i] = Process{
@@ -54,10 +55,13 @@ pub const ProcessPool = struct {
                     .stack = undefined,
                     .stack_pointer = program_counter,
                 };
+                slot_found = true;
             }
         }
 
-        // TODO: Panic
+        if (!slot_found) {
+            // TODO: Panic
+        }
     }
 };
 
