@@ -51,7 +51,6 @@ pub fn build(b: *std.Build) void {
     });
     riscv32_common_module.addImport("osformat", osformat_module);
     riscv32_common_module.addImport("osmemory", osmemory_module);
-    riscv32_common_module.addImport("osprocess", osprocess_module);
 
     //**************************************************************************
     //                              RISCV-32 Setup                             *
@@ -68,6 +67,7 @@ pub fn build(b: *std.Build) void {
     });
     riscv32_module.addImport("osformat", osformat_module);
     riscv32_module.addImport("riscv32", riscv32_common_module);
+    riscv32_module.addImport("osprocess", osprocess_module);
     const exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = riscv32_module,

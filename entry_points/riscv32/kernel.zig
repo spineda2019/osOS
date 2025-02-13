@@ -64,6 +64,9 @@ export fn kmain() noreturn {
         address_2,
     });
 
+    var pool: osprocess.ProcessPool = osprocess.Process.initializePool();
+    pool.createProcess(0);
+
     asm volatile ("unimp");
 
     while (true) {

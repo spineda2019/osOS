@@ -17,14 +17,15 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
+const MAX_PROCESS_COUNT: comptime_int = 8;
+
 /// Universal construct representing an osOS process
-const Process = struct {
+pub const Process = struct {
     const ProcessState = enum {
         unused,
         runnable,
     };
     const KERNEL_STACK_SIZE: comptime_int = 8192;
-    const MAX_PROCESS_COUNT: comptime_int = 8;
 
     pid: usize, // this is generic code, don't assume arch size
     state: ProcessState,
@@ -32,13 +33,42 @@ const Process = struct {
 
     /// each process gets their own stack
     stack: [KERNEL_STACK_SIZE]u8,
+
+    pub fn initializePool() ProcessPool {
+        return ProcessPool{
+            .pool = .{null} ** MAX_PROCESS_COUNT,
+        };
+    }
+};
+
+/// Representation of the kernel's pool of total available process slots
+pub const ProcessPool = struct {
+    pool: [MAX_PROCESS_COUNT]?Process,
+
+    pub fn createProcess(self: *ProcessPool, program_counter: usize) void {
+        for (self.pool, 0..) |process, i| {
+            if (process == null) {
+                self.pool[i] = Process{
+                    .pid = i + 1,
+                    .state = .runnable,
+                    .stack = undefined,
+                    .stack_pointer = program_counter,
+                };
+            }
+        }
+
+        // TODO: Panic
+    }
 };
 
 /// In the C counterpart, this would be marked Naked to avoid preamble
 /// and post-amble asm generation. In zig however, you can't call naked
 /// functions, but making this inline should have the same effect.
+/// This function saves all callee registers (including stack ptr)
+/// and loads in callers.
+///
 /// Registers: a0 will hold calle sp to save, a1 shall hold caller sp to store
-pub inline fn switch_context(
+pub inline fn switchContext(
     previous_stack_ptr: *usize,
     new_stack_ptr: *usize,
 ) void {
@@ -85,6 +115,8 @@ pub inline fn switch_context(
                 \\lw s11, 12 * 4(sp)
                 \\addi sp, sp, 13 * 4
                 :
+                // a0 needs to hold the old stack address, and a1 must hold
+                // the new one
                 : [previous_stack_address] "{a0}" (previous_stack_address),
                   [new_stack_address] "{a0}" (new_stack_address),
             );
