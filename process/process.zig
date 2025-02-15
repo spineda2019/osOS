@@ -45,7 +45,7 @@ pub const Process = struct {
 pub const ProcessPool = struct {
     pool: [MAX_PROCESS_COUNT]?Process,
 
-    pub fn createProcess(self: *ProcessPool, program_counter: usize) void {
+    pub fn createProcess(self: *ProcessPool, program_counter: usize) *Process {
         var slot: usize = 0;
         var end_of_process_stack: [*]usize = calc_block: {
             for (self.pool, 0..) |process, i| {
@@ -97,6 +97,7 @@ pub const ProcessPool = struct {
         end_of_process_stack[0] = program_counter; // ra
         end_of_process_stack -= 1;
         self.pool[slot].?.stack_pointer = @intFromPtr(end_of_process_stack);
+        return &(self.pool[slot].?);
     }
 };
 

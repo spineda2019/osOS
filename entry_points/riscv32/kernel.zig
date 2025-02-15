@@ -34,6 +34,41 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 /// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
+fn delay() void {
+    for (0..30000000) |_| {
+        asm volatile (
+            \\nop
+        );
+    }
+}
+
+var process_a: *osprocess.Process = @ptrFromInt(4);
+var process_b: *osprocess.Process = @ptrFromInt(4);
+
+fn proc_a_entry() void {
+    riscv32.sbi.rawSbiPrint("starting process A\n");
+    while (true) {
+        riscv32.sbi.rawSbiPrint("A");
+        osprocess.switchContext(
+            &(process_a.*.stack_pointer),
+            &(process_b.*.stack_pointer),
+        );
+        delay();
+    }
+}
+
+fn proc_b_entry() void {
+    riscv32.sbi.rawSbiPrint("starting process B\n");
+    while (true) {
+        riscv32.sbi.rawSbiPrint("B");
+        osprocess.switchContext(
+            &(process_b.*.stack_pointer),
+            &(process_a.*.stack_pointer),
+        );
+        delay();
+    }
+}
+
 export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
@@ -65,7 +100,10 @@ export fn kmain() noreturn {
     });
 
     var pool: osprocess.ProcessPool = osprocess.Process.initializePool();
-    pool.createProcess(0);
+    process_a = pool.createProcess(@intFromPtr(&proc_a_entry));
+    process_b = pool.createProcess(@intFromPtr(&proc_b_entry));
+
+    proc_a_entry();
 
     asm volatile ("unimp");
 
