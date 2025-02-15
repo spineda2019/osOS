@@ -46,22 +46,57 @@ pub const ProcessPool = struct {
     pool: [MAX_PROCESS_COUNT]?Process,
 
     pub fn createProcess(self: *ProcessPool, program_counter: usize) void {
-        var slot_found: bool = false;
-        for (self.pool, 0..) |process, i| {
-            if (process == null) {
-                self.pool[i] = Process{
-                    .pid = i + 1,
-                    .state = .runnable,
-                    .stack = undefined,
-                    .stack_pointer = program_counter,
-                };
-                slot_found = true;
+        var slot: usize = 0;
+        var end_of_process_stack: [*]usize = calc_block: {
+            for (self.pool, 0..) |process, i| {
+                if (process == null) {
+                    self.pool[i] = Process{
+                        .pid = i + 1,
+                        .state = .runnable,
+                        .stack = undefined, // init with garbage data
+                        .stack_pointer = undefined, // will be calculated below
+                    };
+                    slot = i;
+                    // .? is now safe as we just initialized that memory
+                    const stack_len = self.pool[i].?.stack.len;
+                    break :calc_block @alignCast(@ptrCast(
+                        &(self.pool[i].?.stack[stack_len - 1]),
+                    ));
+                }
             }
-        }
 
-        if (!slot_found) {
             // TODO: Panic
-        }
+            unreachable;
+        };
+
+        // don't use a loop for the sake of self documentation
+        end_of_process_stack[0] = 0; // s11
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s10
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s9
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s8
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s7
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s6
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s5
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s4
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s3
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s2
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s1
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = 0; // s0
+        end_of_process_stack -= 1;
+        end_of_process_stack[0] = program_counter; // ra
+        end_of_process_stack -= 1;
+        self.pool[slot].?.stack_pointer = @intFromPtr(end_of_process_stack);
     }
 };
 
