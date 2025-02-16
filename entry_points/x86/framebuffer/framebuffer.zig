@@ -76,6 +76,9 @@ pub const FrameBuffer: type = struct {
     const high_byte_command: u8 = 14;
     const low_byte_command: u8 = 15;
 
+    current_row: u8,
+    current_column: u8,
+
     /// calculate the address to write in terms of an x,y coordinate.
     ///
     /// Return type is a bare u32 for sake of math, which will be converted
@@ -86,7 +89,25 @@ pub const FrameBuffer: type = struct {
         return frame_buffer_start + (row_offset * 160) + (column_offset * 2);
     }
 
-    pub fn writeCell(
+    pub fn init() FrameBuffer {
+        clear();
+        printWelcomScreen();
+        for (0..16384) |_| {
+            for (0..32768) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+
+        printRawPrompt();
+        return .{
+            .current_row = 0,
+            .current_column = 0,
+        };
+    }
+
+    fn writeCell(
         row: u8,
         column: u8,
         character: u8,
@@ -121,7 +142,7 @@ pub const FrameBuffer: type = struct {
         }
     }
 
-    pub fn printWelcomScreen() void {
+    fn printWelcomScreen() void {
         const message = "Welcome to osOS!";
         for (message, 27..) |letter, column| {
             writeCell(
@@ -136,7 +157,7 @@ pub const FrameBuffer: type = struct {
 
     /// This doesn't display a "real" prompt, since we haven't escaped real
     /// mode yet.
-    pub fn printRawPrompt() void {
+    fn printRawPrompt() void {
         clear();
         const message = "shell> ";
         var cursor: u8 = 0;
@@ -175,7 +196,7 @@ pub const FrameBuffer: type = struct {
         };
     }
 
-    pub fn moveCursor(row: u8, column: u8) void {
+    fn moveCursor(row: u8, column: u8) void {
         const position: u16 = (row * 80) + (column);
         const low_byte: u8 = @truncate(position);
         const high_byte: u8 = @truncate(position >> 8);
