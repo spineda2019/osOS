@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const riscv32_common = @import("exception.zig");
+const riscv32_common = @import("../exception.zig");
 const osmemory = @import("osmemory");
 
 pub const PageAllocater: type = struct {

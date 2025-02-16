@@ -18,8 +18,13 @@
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
 /// Common riscv32 specific API
-const riscv32 = @import("riscv32");
 const osprocess = @import("osprocess");
+
+const sbi = @import("format/sbi.zig");
+
+const exception = @import("exception.zig");
+
+const memory = @import("memory/memory.zig");
 
 // The following pulls in symbols defined in the linker script
 
@@ -46,9 +51,9 @@ var process_a: *osprocess.Process = @ptrFromInt(4);
 var process_b: *osprocess.Process = @ptrFromInt(4);
 
 fn proc_a_entry() void {
-    riscv32.sbi.rawSbiPrint("starting process A\n");
+    sbi.rawSbiPrint("starting process A\n");
     while (true) {
-        riscv32.sbi.rawSbiPrint("A");
+        sbi.rawSbiPrint("A");
         osprocess.switchContext(
             &(process_a.*.stack_pointer),
             &(process_b.*.stack_pointer),
@@ -58,9 +63,9 @@ fn proc_a_entry() void {
 }
 
 fn proc_b_entry() void {
-    riscv32.sbi.rawSbiPrint("starting process B\n");
+    sbi.rawSbiPrint("starting process B\n");
     while (true) {
-        riscv32.sbi.rawSbiPrint("B");
+        sbi.rawSbiPrint("B");
         osprocess.switchContext(
             &(process_b.*.stack_pointer),
             &(process_a.*.stack_pointer),
@@ -73,19 +78,19 @@ export fn kmain() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
-    const exception_handler_address: u32 = @intFromPtr(&riscv32.exception.cpuExceptionHandler);
+    const exception_handler_address: u32 = @intFromPtr(&exception.cpuExceptionHandler);
 
     asm volatile ("csrw stvec, %[exception_handler]"
         :
         : [exception_handler] "{t3}" (exception_handler_address),
     );
 
-    riscv32.sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
+    sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 
-    riscv32.sbi.rawSbiPrint("Trying to allocate some memory...\n");
-    var page_allocater: riscv32.memory.PageAllocater = riscv32.memory.PageAllocater.init(
+    sbi.rawSbiPrint("Trying to allocate some memory...\n");
+    var page_allocater: memory.PageAllocater = memory.PageAllocater.init(
         @intFromPtr(free_ram_start),
         @intFromPtr(free_ram_end),
     );
@@ -93,8 +98,8 @@ export fn kmain() noreturn {
     const address_1 = page_allocater.allocate(2);
     const address_2 = page_allocater.allocate(1);
 
-    riscv32.sbi.rawSbiPrint("Mem allocation done!\n");
-    riscv32.sbi.printf("Address 1: %d\nAddress 2: %d\n", .{
+    sbi.rawSbiPrint("Mem allocation done!\n");
+    sbi.printf("Address 1: %d\nAddress 2: %d\n", .{
         address_1,
         address_2,
     });

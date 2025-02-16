@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const exception = @import("exception.zig");
+const exception = @import("../exception.zig");
 const osformat = @import("osformat");
 const meta = @import("std").meta;
 

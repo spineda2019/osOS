@@ -20,7 +20,7 @@
 //! consisting of simple types and comptime functions.
 
 const osformat = @import("osformat");
-const sbi = @import("sbi.zig");
+const sbi = @import("format/sbi.zig");
 const FreeStandingSourceInfo: type = @import("std").builtin.SourceLocation;
 /// Struct representing saved state of each register. Packed to guarantee field
 /// sizes. Each register shall be 32 bits wide on risv32. Order is guaranteed
