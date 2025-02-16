@@ -13,3 +13,21 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+/// Zig wrapper for the x86 "out" instruction
+///
+/// In x86, the "out" instruction send a byte to an IO port at a specific
+/// address. It has the following syntax:
+///
+/// out REGISTER, REGISTER
+///
+/// Where the first register is the address of the IO port, and the second is
+/// the data byte to send to that port
+pub fn x86_out(port_address: u8, data: u8) void {
+    asm volatile (
+        \\out %[port_address], %[data]
+        :
+        : [port_address] "{dx}" (port_address),
+          [data] "{al}" (data),
+    );
+}
