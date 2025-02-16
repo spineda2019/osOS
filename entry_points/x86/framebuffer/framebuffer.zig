@@ -62,7 +62,6 @@ pub const FrameBuffer: type = struct {
     // Light Magenta | 13
     // Light Brown   | 14
     // White         | 15
-    frame_buffer_cell: u16,
 
     /// Corresponds to top left. Other important locations:
     /// 0x000B80A0: Top-Right
@@ -70,6 +69,10 @@ pub const FrameBuffer: type = struct {
     /// 0x000B8F9E: Bottom-Right
     const frame_buffer_start: u32 = 0x000B8000;
 
+    /// calculate the address to write in terms of an x,y coordinate.
+    ///
+    /// Return type is a bare u32 for sake of math, which will be converted
+    /// into a volatile pointer for the actual memory mapped IO
     fn calculatedAddress(row: u8, column: u8) u32 {
         const row_offset: u32 = @intCast(row);
         const column_offset: u32 = @intCast(column);
@@ -124,7 +127,7 @@ pub const FrameBuffer: type = struct {
         }
     }
 
-    fn colorTo4BitNumber(comptime color: FrameBufferCellColor) u8 {
+    fn colorTo4BitNumber(color: FrameBufferCellColor) u8 {
         return switch (color) {
             FrameBufferCellColor.Black => 0,
             FrameBufferCellColor.Blue => 1,
