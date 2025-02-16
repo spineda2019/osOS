@@ -100,11 +100,20 @@ pub const FrameBuffer: type = struct {
             }
         }
 
-        printRawPrompt();
+        const cursor_position = printRawPrompt();
         return .{
             .current_row = 0,
-            .current_column = 0,
+            .current_column = cursor_position,
         };
+    }
+
+    /// Based zig lets us pass a safe slice and use the
+    /// len field rather than depend on the caller giving us the
+    /// write thing
+    pub fn write(buffer: []const u8) void {
+        for (buffer) |letter| {
+            _ = letter;
+        }
     }
 
     fn writeCell(
@@ -157,7 +166,7 @@ pub const FrameBuffer: type = struct {
 
     /// This doesn't display a "real" prompt, since we haven't escaped real
     /// mode yet.
-    fn printRawPrompt() void {
+    fn printRawPrompt() u8 {
         clear();
         const message = "shell> ";
         var cursor: u8 = 0;
@@ -173,6 +182,7 @@ pub const FrameBuffer: type = struct {
         }
 
         moveCursor(0, cursor);
+        return cursor;
     }
 
     fn colorTo4BitNumber(color: FrameBufferCellColor) u8 {
