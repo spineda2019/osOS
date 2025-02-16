@@ -18,11 +18,39 @@
 
 const framebuffer_api = @import("framebuffer/framebuffer.zig");
 
+fn delay() void {
+    for (0..4096) |_| {
+        for (0..32768) |_| {
+            asm volatile (
+                \\nop
+            );
+        }
+    }
+}
+
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
     framebuffer_api.FrameBuffer.clear();
     framebuffer_api.FrameBuffer.printWelcomScreen();
+
+    // after the welcome screen is printed, move the cursor in an X shape,
+    // then print a prompt. Why: it's fun
     framebuffer_api.FrameBuffer.moveCursor(1, 0);
+    var row: u8 = 0;
+    var column: u8 = 0;
+    while (row <= 24 and column <= 79) {
+        framebuffer_api.FrameBuffer.moveCursor(row, column);
+        row = position_calc: {
+            if (column < 79) {
+                column += 1;
+                break :position_calc row;
+            } else {
+                column = 0;
+                break :position_calc (row + 1);
+            }
+        };
+        delay();
+    }
 
     while (true) {
         asm volatile ("");
