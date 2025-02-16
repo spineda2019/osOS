@@ -22,8 +22,11 @@
 /// out REGISTER, REGISTER
 ///
 /// Where the first register is the address of the IO port, and the second is
-/// the data byte to send to that port
-pub fn x86_out(port_address: u16, data: u8) void {
+/// the data byte to send to that port.
+///
+/// Since this is a wrapper for an inline assembly call, this should be
+/// inline
+pub inline fn x86_out(port_address: u16, data: u8) void {
     asm volatile (
     // move the data (src) to address. Curse backwards AT&T syntax
         \\outb %[data], %[port_address]
