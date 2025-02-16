@@ -113,7 +113,7 @@ pub const FrameBuffer: type = struct {
                 writeCell(
                     @intCast(row),
                     @intCast(column),
-                    'X',
+                    ' ',
                     FrameBufferCellColor.LightBlue,
                     FrameBufferCellColor.LightGray,
                 );
@@ -132,6 +132,26 @@ pub const FrameBuffer: type = struct {
                 FrameBufferCellColor.LightBrown,
             );
         }
+    }
+
+    /// This doesn't display a "real" prompt, since we haven't escaped real
+    /// mode yet.
+    pub fn printRawPrompt() void {
+        clear();
+        const message = "shell> ";
+        var cursor: u8 = 0;
+        for (message, 0..) |letter, column| {
+            writeCell(
+                0,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.DarkGray,
+                FrameBufferCellColor.LightBrown,
+            );
+            cursor += 1;
+        }
+
+        moveCursor(0, cursor);
     }
 
     fn colorTo4BitNumber(color: FrameBufferCellColor) u8 {
