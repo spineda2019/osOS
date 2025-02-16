@@ -17,6 +17,8 @@
 //! This module contains logic for writing to the x86 framebuffer
 //! (on most machines)
 
+const as = @import("x86asm");
+
 pub const FrameBufferCellColor: type = enum {
     Black,
     Blue,
@@ -68,6 +70,11 @@ pub const FrameBuffer: type = struct {
     /// 0x000B8F00: Bottom-Left
     /// 0x000B8F9E: Bottom-Right
     const frame_buffer_start: u32 = 0x000B8000;
+
+    const command_port_address: u16 = 0x3D4;
+    const data_port_address: u16 = 0x3D5;
+    const high_byte_command: u8 = 14;
+    const low_byte_command: u8 = 15;
 
     /// calculate the address to write in terms of an x,y coordinate.
     ///
@@ -146,6 +153,16 @@ pub const FrameBuffer: type = struct {
             FrameBufferCellColor.LightBrown => 14,
             FrameBufferCellColor.White => 15,
         };
+    }
+
+    pub fn moveCursor(row: u8, column: u8) void {
+        const position: u16 = (row * 80) + (column);
+        const low_byte: u8 = @truncate(position);
+        const high_byte: u8 = @truncate(position >> 8);
+        as.assembly_wrappers.x86_out(command_port_address, high_byte_command);
+        as.assembly_wrappers.x86_out(data_port_address, high_byte);
+        as.assembly_wrappers.x86_out(command_port_address, low_byte_command);
+        as.assembly_wrappers.x86_out(data_port_address, low_byte);
     }
 };
 

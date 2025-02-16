@@ -1,4 +1,4 @@
-// kmain.zig - The central core of osOS on x86; where the boot routine jumps to
+// asm.zig - root module for asm utilities in x86 kernel
 // Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //
 // This program is free software: you can redistribute it and/or modify
@@ -14,17 +14,5 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! This module contains logic for the setup and entry of the x86 kernel
-
-const framebuffer_api = @import("framebuffer/framebuffer.zig");
-
-/// Actual root "main" function of the x86 kernel. Jumped to from entry point
-pub fn kmain() noreturn {
-    framebuffer_api.FrameBuffer.clear();
-    framebuffer_api.FrameBuffer.printWelcomScreen();
-    framebuffer_api.FrameBuffer.moveCursor(1, 0);
-
-    while (true) {
-        asm volatile ("");
-    }
-}
+/// Module in charge of wrapping (small) x86 instructions
+pub const assembly_wrappers = @import("assembly_wrappers.zig");

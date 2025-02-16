@@ -23,9 +23,10 @@
 ///
 /// Where the first register is the address of the IO port, and the second is
 /// the data byte to send to that port
-pub fn x86_out(port_address: u8, data: u8) void {
+pub fn x86_out(port_address: u16, data: u8) void {
     asm volatile (
-        \\out %[port_address], %[data]
+    // move the data (src) to address. Curse backwards AT&T syntax
+        \\outb %[data], %[port_address]
         :
         : [port_address] "{dx}" (port_address),
           [data] "{al}" (data),

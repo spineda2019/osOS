@@ -117,6 +117,9 @@ pub fn build(b: *std.Build) void {
     //**************************************************************************
     //                                 x86 Setup                               *
     //**************************************************************************
+    const x86_asm_module = b.addModule("x86asm", .{
+        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+    });
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = b.resolveTargetQuery(.{
@@ -128,6 +131,7 @@ pub fn build(b: *std.Build) void {
         .strip = false,
     });
     x86_module.addImport("osformat", osformat_module);
+    x86_module.addImport("x86asm", x86_asm_module);
     const x86_exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = x86_module,
