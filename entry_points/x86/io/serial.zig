@@ -51,17 +51,8 @@ pub const SerialPort: type = struct {
     pub fn init(port_number: u16) SerialPort {
         configureBaudRate(port_number, 1);
         configureLine(port_number);
-
-        const fifo_config: u8 = 0xC7;
-        const modem_config: u8 = 0x03;
-        as.assembly_wrappers.x86_out(
-            calculateFIFOCommandPort(port_number),
-            fifo_config,
-        );
-        as.assembly_wrappers.x86_out(
-            calculateModemCommandPort(port_number),
-            modem_config,
-        );
+        configureFIFO(port_number);
+        configureModem(port_number);
 
         return .{
             .port = port_number,
@@ -84,6 +75,24 @@ pub const SerialPort: type = struct {
     /// Bit 5 of the read data (using "in") will be set to 1 if the buffer is ready
     fn isFIFOClear(self: *SerialPort) bool {
         return as.assembly_wrappers.x86_inb(self.port) & 0b0010_0000 > 0;
+    }
+
+    // *************************************************************************
+    //                  Initialization Configuration Helpers                   *
+    // *************************************************************************
+
+    fn configureModem(port: u16) void {
+        as.assembly_wrappers.x86_out(
+            calculateModemCommandPort(port),
+            @as(u8, 0x03),
+        );
+    }
+
+    fn configureFIFO(port: u16) void {
+        as.assembly_wrappers.x86_out(
+            calculateFIFOCommandPort(port),
+            @as(u8, 0xC7),
+        );
     }
 
     /// Configure the baud rate of the serial port by sending a divisor.
