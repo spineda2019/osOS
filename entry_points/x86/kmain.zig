@@ -28,8 +28,8 @@ fn delay() void {
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
-    const framebuffer = framebuffer_api.FrameBuffer.init();
-    _ = framebuffer;
+    var framebuffer = framebuffer_api.FrameBuffer.init();
+    framebuffer.write("foo && bar && baz");
 
     while (true) {
         asm volatile ("");

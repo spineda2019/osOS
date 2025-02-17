@@ -128,12 +128,37 @@ pub const FrameBuffer: type = struct {
         };
     }
 
+    fn incrementCursor(self: *FrameBuffer) void {
+        self.current_row = position_calculation: {
+            if (self.current_row >= 24 and self.current_column >= 79) {
+                // wrap around
+                self.current_column = 0;
+                break :position_calculation 0;
+            } else if (self.current_column < 79) {
+                self.current_column += 1;
+                break :position_calculation self.current_row;
+            } else {
+                self.current_column = 0;
+                break :position_calculation self.current_row + 1;
+            }
+        };
+
+        moveCursor(self.current_row, self.current_column);
+    }
+
     /// Based zig lets us pass a safe slice and use the
     /// len field rather than depend on the caller giving us the
     /// write thing
-    pub fn write(buffer: []const u8) void {
+    pub fn write(self: *FrameBuffer, buffer: []const u8) void {
         for (buffer) |letter| {
-            _ = letter;
+            writeCell(
+                self.current_row,
+                self.current_column,
+                letter,
+                .DarkGray,
+                .LightBrown,
+            );
+            self.incrementCursor();
         }
     }
 
