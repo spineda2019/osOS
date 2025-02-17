@@ -16,8 +16,10 @@
 
 const std = @import("std");
 
-const Error: type = error{
-    UnsupportedTarget,
+const ModuleDocObject = struct {
+    name: []const u8,
+    root_file: std.Build.LazyPath,
+    output_folder: []const u8,
 };
 
 // Although this function looks imperative, note that its job is to
@@ -259,6 +261,22 @@ pub fn build(b: *std.Build) void {
     //**************************************************************************
     //                                 Doc Setup                               *
     //**************************************************************************
+
+    // make dummy objects for the modules, will be used for doc generation
+    const t = b.standardTargetOptions(.{});
+    const module_doc_objects: [2]ModuleDocObject = .{
+        .{
+            .name = "OSProcess",
+            .root_file = b.path("process/process.zig"),
+            .output_folder = "docs/modules/process",
+        },
+        .{
+            .name = "OSFormat",
+            .root_file = b.path("format/osformat.zig"),
+            .output_folder = "docs/modules/format",
+        },
+    };
+
     const doc_page_step = b.step(
         "doc_site",
         "Build all docs and tie them together with the landing page",
@@ -275,6 +293,25 @@ pub fn build(b: *std.Build) void {
     });
     copy_landing_page.step.dependOn(x86_doc_step);
     copy_landing_page.step.dependOn(riscv32_doc_step);
+
+    // dump in all modules
+    for (module_doc_objects) |doc_object| {
+        const module_doc_object = b.addObject(.{
+            .name = doc_object.name,
+            .root_module = b.createModule(.{
+                .root_source_file = doc_object.root_file,
+                .target = t,
+                .optimize = .Debug, // just for docs, opt for fast build
+            }),
+        });
+        const install_module_doc = b.addInstallDirectory(.{
+            .source_dir = module_doc_object.getEmittedDocs(),
+            .install_dir = .prefix,
+            .install_subdir = doc_object.output_folder,
+        });
+        copy_landing_page.step.dependOn(&install_module_doc.step);
+    }
+
     copy_landing_style.step.dependOn(&copy_landing_page.step);
     doc_page_step.dependOn(&copy_landing_page.step);
     doc_page_step.dependOn(&copy_landing_style.step);
