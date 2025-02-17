@@ -268,8 +268,15 @@ pub fn build(b: *std.Build) void {
         "docs/index.html",
         "zig-out/docs/",
     });
+    const copy_landing_style = b.addSystemCommand(&.{
+        "cp",
+        "docs/styles.css",
+        "zig-out/docs/",
+    });
     copy_landing_page.step.dependOn(x86_doc_step);
     copy_landing_page.step.dependOn(riscv32_doc_step);
+    copy_landing_style.step.dependOn(&copy_landing_page.step);
     doc_page_step.dependOn(&copy_landing_page.step);
+    doc_page_step.dependOn(&copy_landing_style.step);
     b.getInstallStep().dependOn(doc_page_step);
 }
