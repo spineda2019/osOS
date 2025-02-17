@@ -33,6 +33,7 @@ pub fn kmain() noreturn {
     const message = "foo && bar && baz";
     framebuffer.write(message);
     serial.write(message);
+    framebuffer.write(" COM1 succesfully written to!");
 
     while (true) {
         asm volatile ("");
