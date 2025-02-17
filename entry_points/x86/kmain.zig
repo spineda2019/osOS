@@ -30,9 +30,11 @@ fn delay() void {
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
     var framebuffer = framebuffer_api.FrameBuffer.init();
-    const message = "foo && bar && baz";
+    var serial_port = serial.SerialPort.defaultInit();
+    const message = "foo && bar && baz!";
+
     framebuffer.write(message);
-    serial.write(message);
+    serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to!");
 
     while (true) {

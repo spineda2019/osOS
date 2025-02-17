@@ -18,75 +18,96 @@
 
 const as = @import("x86asm");
 
-/// The value of COM1
-const com1_base: u16 = 0x3F8;
+pub const SerialPort: type = struct {
+    port: u16,
 
-fn calculateFIFOCommandPort(comptime basePort: u16) u16 {
-    return basePort + 2;
-}
+    /// The value of COM1
+    const com1_base: u16 = 0x3F8;
 
-fn calculateLineCommandPort(comptime basePort: u16) u16 {
-    return basePort + 3;
-}
+    // Tells the serial port to expect first the highest 8 bits on the data port,
+    // then the lowest 8 bits will follow
+    const serial_line_enable_dlab: u16 = 0x80;
 
-fn calculateModemCommandPort(comptime basePort: u16) u16 {
-    return basePort + 4;
-}
+    inline fn calculateFIFOCommandPort(basePort: u16) u16 {
+        return basePort + 2;
+    }
 
-fn calculateLineStatusPort(comptime basePort: u16) u16 {
-    return basePort + 5;
-}
+    inline fn calculateLineCommandPort(basePort: u16) u16 {
+        return basePort + 3;
+    }
 
-// Tells the serial port to expect first the highest 8 bits on the data port,
-// then the lowest 8 bits will follow
-const serial_line_enable_dlab: u16 = 0x80;
+    inline fn calculateModemCommandPort(basePort: u16) u16 {
+        return basePort + 4;
+    }
 
-/// Configure the baud rate of the serial port by sending a divisor.
-///
-/// Here, the serial port has an internal clock. The divisor (1, 2, 3, etc)
-/// indicates how to divide this clock speed, essentially setting up the speed
-/// of a singular message we'll send.
-pub fn configureBaudRate(port: u16, divisor: u16) void {
-    // specify to expect high bits then low bits (can only send 8 bits at a time)
-    as.assembly_wrappers.x86_out(port + 3, serial_line_enable_dlab);
-    as.assembly_wrappers.x86_out(port, divisor >> 8); // high 8 bits
-    as.assembly_wrappers.x86_out(port, divisor & 0b0000_0000_1111_1111); // low
-}
+    inline fn calculateLineStatusPort(basePort: u16) u16 {
+        return basePort + 5;
+    }
 
-/// Configured with a byte:
-///
-/// Layout of configuration byte by bit:
-///
-///  ___________________________________________________________________________
-/// |      7      |      6       |      5 4 3      |       2      |     1 0    |
-/// | Enable DLAB | Enable Break | Parity Bit Num  | Stop Bit Num | datalength |
-pub fn configureLine(port: u16) void {
-    // Length of 8 bits, disable everything else and use no parity or stop bits
-    as.assembly_wrappers.x86_out(port + 3, 0b0_0_000_0_11);
-}
+    pub fn defaultInit() SerialPort {
+        return init(com1_base);
+    }
 
-/// Check if the FIFO buffer for a serial port is free
-///
-/// Bit 5 of the read data (using "in") will be set to 1 if the buffer is ready
-pub fn isFIFOClear(port: u16) bool {
-    return as.assembly_wrappers.x86_inb(port) & 0b0010_0000 > 0;
-}
+    pub fn init(port_number: u16) SerialPort {
+        configureBaudRate(port_number, 1);
+        configureLine(port_number);
 
-fn init() void {
-    const fifo_config: u8 = 0xC7;
-    const modem_config: u8 = 0x03;
-    as.assembly_wrappers.x86_out(com1_base + 2, fifo_config);
-    as.assembly_wrappers.x86_out(com1_base + 4, modem_config);
-}
-
-pub fn write(buffer: []const u8) void {
-    init();
-    while (!isFIFOClear(com1_base)) {
-        asm volatile (
-            \\nop
+        const fifo_config: u8 = 0xC7;
+        const modem_config: u8 = 0x03;
+        as.assembly_wrappers.x86_out(
+            calculateFIFOCommandPort(port_number),
+            fifo_config,
         );
+        as.assembly_wrappers.x86_out(
+            calculateModemCommandPort(port_number),
+            modem_config,
+        );
+
+        return .{
+            .port = port_number,
+        };
     }
-    for (buffer) |letter| {
-        as.assembly_wrappers.x86_out(com1_base, letter);
+
+    pub fn write(self: *SerialPort, buffer: []const u8) void {
+        while (!self.isFIFOClear()) {
+            asm volatile (
+                \\nop
+            );
+        }
+        for (buffer) |letter| {
+            as.assembly_wrappers.x86_out(self.port, letter);
+        }
     }
-}
+
+    /// Check if the FIFO buffer for a serial port is free
+    ///
+    /// Bit 5 of the read data (using "in") will be set to 1 if the buffer is ready
+    fn isFIFOClear(self: *SerialPort) bool {
+        return as.assembly_wrappers.x86_inb(self.port) & 0b0010_0000 > 0;
+    }
+
+    /// Configure the baud rate of the serial port by sending a divisor.
+    ///
+    /// Here, the serial port has an internal clock. The divisor (1, 2, 3, etc)
+    /// indicates how to divide this clock speed, essentially setting up the speed
+    /// of a singular message we'll send.
+    fn configureBaudRate(port: u16, divisor: u16) void {
+        // specify to expect high bits then low bits (can only send 8 bits at a time)
+        as.assembly_wrappers.x86_out(port + 3, serial_line_enable_dlab);
+        as.assembly_wrappers.x86_out(port, divisor >> 8); // high 8 bits
+        as.assembly_wrappers.x86_out(port, divisor & 0b0000_0000_1111_1111); // low
+    }
+
+    /// Configured with a byte:
+    ///
+    /// Layout of configuration byte by bit:
+    ///
+    ///  ___________________________________________________________________________
+    /// |      7      |      6       |      5 4 3      |       2      |     1 0    |
+    /// | Enable DLAB | Enable Break | Parity Bit Num  | Stop Bit Num | datalength |
+    fn configureLine(port: u16) void {
+        // Length of 8 bits, disable everything else and use no parity or stop bits
+        const config: u8 = 0b0000_0011;
+        as.assembly_wrappers.x86_out(port + 3, config);
+    }
+};
