@@ -79,10 +79,17 @@ pub inline fn x86_inb(port_address: u16) u8 {
     );
 }
 
+/// Wrapper for the x86 LGDT instruction, which is used to (L)oad the (G)lobal
+/// (D)escriptor (T)able. This has the following syntax:
+///
+/// lgdt [REGISTER]
+///
+/// Where the REGISTER has the address of the table (the brackets in x86) will
+/// cause a lookup in RAM to this address, and feed that to the lgdt instruction
 pub inline fn x86_lgdt(table_address: *gdt.GlobalDescriptorTable) void {
     asm volatile (
-        \\lgdt [%[table_address]]
+        \\lgdtl (%[table_address])
         :
-        : [table_address] "" (table_address),
+        : [table_address] "{eax}" (@intFromPtr(table_address)),
     );
 }

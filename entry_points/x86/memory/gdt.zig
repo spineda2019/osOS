@@ -15,7 +15,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const GlobalDescriptorTable = packed struct {
+pub const GlobalDescriptorTable = packed struct {
     address: u32,
     size: u16,
 };

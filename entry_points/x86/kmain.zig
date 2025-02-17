@@ -16,6 +16,8 @@
 
 const framebuffer_api = @import("framebuffer/framebuffer.zig");
 const serial = @import("io/serial.zig");
+const memory = @import("x86memory");
+const as = @import("x86asm");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -36,6 +38,14 @@ pub fn kmain() noreturn {
     framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to!");
+
+    var gd_table = memory.gdt.GlobalDescriptorTable{
+        .address = undefined,
+        .size = 2,
+    };
+    gd_table.address = @intFromPtr(&gd_table);
+
+    as.assembly_wrappers.x86_lgdt(&gd_table);
 
     while (true) {
         asm volatile ("");

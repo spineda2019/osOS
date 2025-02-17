@@ -119,12 +119,13 @@ pub fn build(b: *std.Build) void {
     //**************************************************************************
     //                                 x86 Setup                               *
     //**************************************************************************
-    const x86_asm_module = b.addModule("x86asm", .{
-        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
-    });
     const x86_memory_module = b.addModule("x86memory", .{
         .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
     });
+    const x86_asm_module = b.addModule("x86asm", .{
+        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+    });
+    x86_asm_module.addImport("x86memory", x86_memory_module);
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = b.resolveTargetQuery(.{
