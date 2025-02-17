@@ -83,22 +83,43 @@ pub const SerialPort: type = struct {
 
     /// Configure the port's modem. Configuration is done with a single byte:
     ///
+    ///           _________________________________________
+    /// Bit:     | 7 | 6 | 5  | 4  | 3   | 2   | 1   | 0   |
+    /// Content: | r | r | af | lb | ao2 | ao1 | rts | dtr |
     ///
+    /// r(7): Reserved
+    /// r(6): Reserved
+    /// af:   Autoflow control enabled
+    /// lb:   Loopback Mode
+    /// ao2:  Auxillary Output 2. For receiving interrupts
+    /// ao1:  Auxillary Output 1
+    /// rts:  Ready to transmit
+    /// dtr:  Data terminal ready
     fn configureModem(port: u16) void {
         as.assembly_wrappers.x86_out(
             calculateModemCommandPort(port),
-            @as(u8, 0x03),
+            @as(u8, 0x0000_0011),
         );
     }
 
     /// Configure the port's FIFO buffer. Configuration is done with a single
     /// byte:
     ///
+    ///           ____________________________________
+    /// Bit:     | 7 6 | 5  | 4 | 3   | 2   | 1   | 0 |
+    /// Content: | lvl | bs | r | dma | clt | clr | e |
     ///
+    /// lvl: How many bytes should be stored in FIFO buffer
+    /// bs:  If buffer should be 16 or 64 bytes large
+    /// r:   Reserved
+    /// dma: How serial port should be accessed
+    /// clt: Clear transmission buffer
+    /// clr: Clear receiver buffer
+    /// e:   If FIFO should be enabled
     fn configureFIFO(port: u16) void {
         as.assembly_wrappers.x86_out(
             calculateFIFOCommandPort(port),
-            @as(u8, 0xC7),
+            @as(u8, 0b1100_0111),
         );
     }
 
