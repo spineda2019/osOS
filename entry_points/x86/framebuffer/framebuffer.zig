@@ -36,6 +36,27 @@ pub const FrameBufferCellColor: type = enum {
     LightMagenta,
     LightBrown,
     White,
+
+    pub fn byteValue(self: FrameBufferCellColor) u8 {
+        return switch (self) {
+            FrameBufferCellColor.Black => 0,
+            FrameBufferCellColor.Blue => 1,
+            FrameBufferCellColor.Green => 2,
+            FrameBufferCellColor.Cyan => 3,
+            FrameBufferCellColor.Red => 4,
+            FrameBufferCellColor.Magenta => 5,
+            FrameBufferCellColor.Brown => 6,
+            FrameBufferCellColor.LightGray => 7,
+            FrameBufferCellColor.DarkGray => 8,
+            FrameBufferCellColor.LightBlue => 9,
+            FrameBufferCellColor.LightGreen => 10,
+            FrameBufferCellColor.LightCyan => 11,
+            FrameBufferCellColor.LightRed => 12,
+            FrameBufferCellColor.LightMagenta => 13,
+            FrameBufferCellColor.LightBrown => 14,
+            FrameBufferCellColor.White => 15,
+        };
+    }
 };
 
 pub const FrameBuffer: type = struct {
@@ -90,8 +111,8 @@ pub const FrameBuffer: type = struct {
     }
 
     pub fn init() FrameBuffer {
-        clear();
-        printWelcomScreen();
+        clear(FrameBufferCellColor.LightBlue);
+        printWelcomeScreen();
         for (0..16384) |_| {
             for (0..32768) |_| {
                 asm volatile (
@@ -133,25 +154,25 @@ pub const FrameBuffer: type = struct {
         const address_int: u32 = calculatedAddress(row, column);
         const ascii_address: *volatile u8 = @ptrFromInt(address_int);
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
-        metadata_address.* = comptime (colorTo4BitNumber(cell_color) << 4) | colorTo4BitNumber(letter_color);
+        metadata_address.* = comptime (cell_color.byteValue() << 4) | letter_color.byteValue();
         ascii_address.* = character;
     }
 
-    pub fn clear() void {
+    pub fn clear(comptime background_color: FrameBufferCellColor) void {
         for (0..80) |column| {
             for (0..25) |row| {
                 writeCell(
                     @intCast(row),
                     @intCast(column),
                     ' ',
-                    FrameBufferCellColor.LightBlue,
+                    background_color,
                     FrameBufferCellColor.LightGray,
                 );
             }
         }
     }
 
-    fn printWelcomScreen() void {
+    fn printWelcomeScreen() void {
         const message = "Welcome to osOS!";
         for (message, 27..) |letter, column| {
             writeCell(
@@ -167,7 +188,7 @@ pub const FrameBuffer: type = struct {
     /// This doesn't display a "real" prompt, since we haven't escaped real
     /// mode yet.
     fn printRawPrompt() u8 {
-        clear();
+        clear(FrameBufferCellColor.DarkGray);
         const message = "shell> ";
         var cursor: u8 = 0;
         for (message, 0..) |letter, column| {
@@ -183,27 +204,6 @@ pub const FrameBuffer: type = struct {
 
         moveCursor(0, cursor);
         return cursor;
-    }
-
-    fn colorTo4BitNumber(color: FrameBufferCellColor) u8 {
-        return switch (color) {
-            FrameBufferCellColor.Black => 0,
-            FrameBufferCellColor.Blue => 1,
-            FrameBufferCellColor.Green => 2,
-            FrameBufferCellColor.Cyan => 3,
-            FrameBufferCellColor.Red => 4,
-            FrameBufferCellColor.Magenta => 5,
-            FrameBufferCellColor.Brown => 6,
-            FrameBufferCellColor.LightGray => 7,
-            FrameBufferCellColor.DarkGray => 8,
-            FrameBufferCellColor.LightBlue => 9,
-            FrameBufferCellColor.LightGreen => 10,
-            FrameBufferCellColor.LightCyan => 11,
-            FrameBufferCellColor.LightRed => 12,
-            FrameBufferCellColor.LightMagenta => 13,
-            FrameBufferCellColor.LightBrown => 14,
-            FrameBufferCellColor.White => 15,
-        };
     }
 
     fn moveCursor(row: u8, column: u8) void {
