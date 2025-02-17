@@ -56,3 +56,23 @@ pub inline fn x86_out(port_address: u16, data: anytype) void {
           [data] "{al}" (data),
     );
 }
+
+/// Zig wrapper for the x86 "in" instruction
+///
+/// In x86, the "in" instruction reads a byte from an IO port at a specific
+/// address. It has the following syntax:
+///
+/// in REGISTER, REGISTER
+///
+/// Where the first register is the address of the IO port to read from, and
+/// the second register specifies where the read data will be placed
+///
+/// Since this is a wrapper for an inline assembly call, this should be
+/// inline
+pub inline fn x86_outb(port_address: u16) u8 {
+    return asm volatile (
+        \\inb %[port_address], %[ret]
+        : [ret] "={al}" (-> u8),
+        : [port_address] "{dx}" (port_address),
+    );
+}
