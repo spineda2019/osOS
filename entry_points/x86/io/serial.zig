@@ -81,6 +81,9 @@ pub const SerialPort: type = struct {
     //                  Initialization Configuration Helpers                   *
     // *************************************************************************
 
+    /// Configure the port's modem. Configuration is done with a single byte:
+    ///
+    ///
     fn configureModem(port: u16) void {
         as.assembly_wrappers.x86_out(
             calculateModemCommandPort(port),
@@ -88,6 +91,10 @@ pub const SerialPort: type = struct {
         );
     }
 
+    /// Configure the port's FIFO buffer. Configuration is done with a single
+    /// byte:
+    ///
+    ///
     fn configureFIFO(port: u16) void {
         as.assembly_wrappers.x86_out(
             calculateFIFOCommandPort(port),
@@ -116,7 +123,6 @@ pub const SerialPort: type = struct {
     /// | Enable DLAB | Enable Break | Parity Bit Num  | Stop Bit Num | datalength |
     fn configureLine(port: u16) void {
         // Length of 8 bits, disable everything else and use no parity or stop bits
-        const config: u8 = 0b0000_0011;
-        as.assembly_wrappers.x86_out(port + 3, config);
+        as.assembly_wrappers.x86_out(port + 3, @as(u8, 0b0000_0011));
     }
 };
