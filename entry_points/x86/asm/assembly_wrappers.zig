@@ -69,7 +69,7 @@ pub inline fn x86_out(port_address: u16, data: anytype) void {
 ///
 /// Since this is a wrapper for an inline assembly call, this should be
 /// inline
-pub inline fn x86_outb(port_address: u16) u8 {
+pub inline fn x86_inb(port_address: u16) u8 {
     return asm volatile (
         \\inb %[port_address], %[ret]
         : [ret] "={al}" (-> u8),

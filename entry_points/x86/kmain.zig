@@ -15,6 +15,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const framebuffer_api = @import("framebuffer/framebuffer.zig");
+const serial = @import("io/serial.zig");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -29,7 +30,9 @@ fn delay() void {
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
     var framebuffer = framebuffer_api.FrameBuffer.init();
-    framebuffer.write("foo && bar && baz");
+    const message = "foo && bar && baz";
+    framebuffer.write(message);
+    serial.write(message);
 
     while (true) {
         asm volatile ("");
