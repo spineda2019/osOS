@@ -1,5 +1,0 @@
-BasedOnStyle: Google
-
-CommentPragmas:  '^ IWYU pragma:'
-AccessModifierOffset: -3
-IndentWidth: 4
