@@ -34,10 +34,10 @@ export fn boot() align(4) linksection(".text") callconv(.Naked) noreturn {
         \\    movl $kernel_stack + KERNEL_STACK_SIZE, %ESP  # setup stack pointer to end of kernel_stack
         \\
     );
-    const kmain_address: u32 = @intFromPtr(&@import("kmain.zig").kmain);
+    const kmain_address: *const fn () noreturn = &@import("kmain.zig").kmain;
     asm volatile (
-        \\    jmp *%ECX
+        \\    jmp *%[kmain_address]
         :
-        : [kmain_address] "{ECX}" (kmain_address),
+        : [kmain_address] "r" (kmain_address),
     );
 }
