@@ -66,3 +66,13 @@ Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 For a breakdown of the architecture, see ARCHITECTURE.md. TL;DR, I want to
 make the kernel as general as possible and keep only what I must in an
 architecure dependent API.
+
+## Legacy Code
+This codebase uses a few resources as guides for development. The x86 kernel
+took a lot of inspiration from
+<i>
+<a href=https://littleosbook.github.io/>The little book about OS development</a>
+</i> by Erik Helin and Adam Renberg. That however was in C, and this kernel
+will continue to be in Zig. My original C implementation (didn't get farther
+than moving the cursor with I/O instructions) can be found in the git branch
+<code>legacy</code>.
