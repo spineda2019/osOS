@@ -18,6 +18,7 @@ const framebuffer_api = @import("framebuffer/framebuffer.zig");
 const serial = @import("io/serial.zig");
 const memory = @import("x86memory");
 const as = @import("x86asm");
+const interrupts = @import("interrupts/interrupts.zig");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -46,6 +47,12 @@ pub fn kmain() noreturn {
     gd_table.address = @intFromPtr(&gd_table);
 
     as.assembly_wrappers.x86_lgdt(&gd_table);
+    const address = &interrupts.interrupt_0_handler;
+    asm volatile (
+        \\movl %[addr], %eax
+        :
+        : [addr] "r" (address),
+    );
 
     while (true) {
         asm volatile ("");

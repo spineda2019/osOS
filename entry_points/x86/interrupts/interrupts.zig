@@ -28,7 +28,10 @@ pub const InterruptDescriptionTable = struct {
     entry_high_bits: [512]u32,
 };
 
-const CpuState = struct {
+/// Memory layout must be packed, as we will push registers on the stack from
+/// assembly, then jump to a function with the cdecl calling convention
+/// to utilize this struct as an argument
+const CpuState = packed struct {
     eax: u32,
     ebx: u32,
     ecx: u32,
@@ -39,28 +42,73 @@ const CpuState = struct {
     ebp: u32,
 };
 
-/// Interrupt 0 has no associated error code
-pub fn interrupt_0_handler() callconv(.Naked) void {
-    // save CPU registers
-    const prior_state: CpuState = undefined;
+export fn common_interrupt_handler() void {
+    const cpu_state = CpuState{
+        .ebp = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .esp = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .edi = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .esi = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .edx = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .ecx = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .ebx = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+        .eax = asm volatile (
+            \\ popl %eax
+            : [ret] "={eax}" (-> u32),
+        ),
+    };
+
     asm volatile (
-        \\ movl %eax, [%[old_eax]]
-        \\ movl %ebx, [%[old_ebx]]
-        \\ movl %ecx, [%[old_ecx]]
-        \\ movl %edx, [%[old_edx]]
-        \\ movl %esi, [%[old_esi]]
-        \\ movl %edi, [%[old_edi]]
-        \\ movl %esp, [%[old_esp]]
-        \\ movl %ebp, [%[old_ebp]]
+        \\ movl %eax, %eax
         :
-        : [old_eax] "{eax}" (&prior_state.eax),
-          [old_ebx] "{ebx}" (&prior_state.ebx),
-          [old_ecx] "{ecx}" (&prior_state.ecx),
-          [old_edx] "{edx}" (&prior_state.edx),
-          [old_esi] "{esi}" (&prior_state.esi),
-          [old_edi] "{edi}" (&prior_state.edi),
-          [old_esp] "{esp}" (&prior_state.esp),
-          [old_ebp] "{ebp}" (&prior_state.ebp),
-        : "memory"
+        : [foo] "{eax}" (&cpu_state),
+    );
+}
+
+/// Interrupt 0 has no associated error code
+pub fn interrupt_0_handler() callconv(.naked) void {
+    // save CPU registers
+    asm volatile (
+        \\pushl %eax
+        \\pushl %ebx
+        \\pushl %ecx
+        \\pushl %edx
+        \\pushl %esi
+        \\pushl %edi
+        \\pushl %esp
+        \\pushl %ebp
+        \\
+        \\jmp common_interrupt_handler  # label must be globally exported
+        \\
+        \\popl %eax
+        \\popl %ebx
+        \\popl %ecx
+        \\popl %edx
+        \\popl %esi
+        \\popl %edi
+        \\popl %esp
+        \\popl %ebp
+        \\
+        \\iret
     );
 }
