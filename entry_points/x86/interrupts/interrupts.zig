@@ -27,3 +27,40 @@ pub const InterruptDescriptionTable = struct {
     /// r:                Reserved.
     entry_high_bits: [512]u32,
 };
+
+const CpuState = struct {
+    eax: u32,
+    ebx: u32,
+    ecx: u32,
+    edx: u32,
+    esi: u32,
+    edi: u32,
+    esp: u32,
+    ebp: u32,
+};
+
+/// Interrupt 0 has no associated error code
+pub fn interrupt_0_handler() callconv(.Naked) void {
+    // save CPU registers
+    const prior_state: CpuState = undefined;
+    asm volatile (
+        \\ movl %eax, [%[old_eax]]
+        \\ movl %ebx, [%[old_ebx]]
+        \\ movl %ecx, [%[old_ecx]]
+        \\ movl %edx, [%[old_edx]]
+        \\ movl %esi, [%[old_esi]]
+        \\ movl %edi, [%[old_edi]]
+        \\ movl %esp, [%[old_esp]]
+        \\ movl %ebp, [%[old_ebp]]
+        :
+        : [old_eax] "{eax}" (&prior_state.eax),
+          [old_ebx] "{ebx}" (&prior_state.ebx),
+          [old_ecx] "{ecx}" (&prior_state.ecx),
+          [old_edx] "{edx}" (&prior_state.edx),
+          [old_esi] "{esi}" (&prior_state.esi),
+          [old_edi] "{edi}" (&prior_state.edi),
+          [old_esp] "{esp}" (&prior_state.esp),
+          [old_ebp] "{ebp}" (&prior_state.ebp),
+        : "memory"
+    );
+}
