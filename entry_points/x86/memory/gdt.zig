@@ -15,6 +15,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const SegmentDescriptorError = error{};
+
 /// Essentially a fat pointer to our actual table structure. To properly set up
 /// the GDT, a pointer poitning to this structure must be loaded into the GDTR
 /// register (using the lgdt instruction)
@@ -130,6 +132,10 @@ pub const SegmentDescriptor = packed struct {
     /// higher_base). Contains the linear address where the segment
     /// this is describing begins.
     higher_base_final: u8,
+
+    /// Helper function to create a Segmenr Descriptor (since an entry is kind
+    /// of complex and fields are split up).
+    pub fn create() SegmentDescriptorError!SegmentDescriptor {}
 };
 
 test "table" {}
