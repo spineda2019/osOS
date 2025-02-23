@@ -67,7 +67,7 @@ pub const SegmentDescriptor = packed struct {
     /// Content: | P | DPL | S | E | DC | RW | A |
     ///
     /// A: Accessed Bit. CPU sets this to 1 when the segment is accessed (unless
-    /// initialized to 1). Settign will trigger a page fault if this is in RO
+    /// initialized to 1). Setting will trigger a page fault if this is in RO
     /// memory.
     ///
     /// RW: Readable/Writable bit. For code segments: Readable bit. If clear
