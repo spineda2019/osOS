@@ -89,7 +89,7 @@ pub fn build(b: *std.Build) void {
         "virt",
         "-bios",
         "default",
-        "-nographic",
+        // "-nographic",
         "-serial",
         "mon:stdio",
         "--no-reboot",
