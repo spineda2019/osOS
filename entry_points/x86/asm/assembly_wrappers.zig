@@ -56,6 +56,7 @@ pub inline fn x86_out(port_address: u16, data: anytype) void {
         :
         : [port_address] "{dx}" (port_address),
           [data] "{al}" (data),
+        : "memory"
     );
 }
 

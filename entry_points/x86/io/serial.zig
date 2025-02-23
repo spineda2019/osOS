@@ -98,7 +98,7 @@ pub const SerialPort: type = struct {
     fn configureModem(port: u16) void {
         as.assembly_wrappers.x86_out(
             calculateModemCommandPort(port),
-            @as(u8, 0x0000_0011),
+            @as(u8, 0b0000_0011),
         );
     }
 
