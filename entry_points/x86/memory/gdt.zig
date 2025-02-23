@@ -19,7 +19,8 @@ const SegmentDescriptorError = error{};
 
 /// Essentially a fat pointer to our actual table structure. To properly set up
 /// the GDT, a pointer poitning to this structure must be loaded into the GDTR
-/// register (using the lgdt instruction)
+/// register (using the lgdt instruction). This 48 byte structure is specific
+/// to x86. x64 has a 79 bit structure
 pub const GlobalDescriptorTablePointer = struct {
     /// Linear address of the actual Global Descriptor Table
     address: u32,
@@ -28,20 +29,12 @@ pub const GlobalDescriptorTablePointer = struct {
 
     /// Given a created table structure, setup this structure type to feed to
     /// the GDTR register
-    pub fn init(table: *GlobalDescriptorTable) GlobalDescriptorTablePointer {
-        _ = table;
+    pub fn init(table: []const SegmentDescriptor) GlobalDescriptorTablePointer {
+        return GlobalDescriptorTablePointer{
+            .size = @truncate(table.len & 0b1111_1111_1111_1111),
+            .address = @as(u32, @intFromPtr(&table)),
+        };
     }
-};
-
-/// Size will be 48 bytes on x86. x64 is 79
-pub const GlobalDescriptorTable = packed struct {
-    address: u32,
-    size: u16,
-
-    /// "Modern" systems don't actually use segmentation for memory protection
-    /// and use paging instead. From what forums and docs say, we should set up
-    /// the GDT with the bare minimum in a flat model, and use paging.
-    pub fn flatInit() GlobalDescriptorTable {}
 };
 
 /// Each entry in the GDT is 64 bytes long. All Base and Limit fields are
@@ -151,8 +144,6 @@ pub const SegmentDescriptor = packed struct {
         access_byte: u8,
         flags: u4,
     ) SegmentDescriptorError!SegmentDescriptor {
-        // TODO: safety checks for acces byte and flags
-
         return SegmentDescriptor{
             .lower_limit = @truncate(limit & 0b0000_1111_1111_1111_1111),
             .higher_limit = @truncate(
@@ -169,6 +160,44 @@ pub const SegmentDescriptor = packed struct {
             ),
             .access_byte = access_byte,
             .flags = flags,
+        };
+    }
+
+    /// Create the descriptor for the kernel's Data Segment
+    pub fn createDefaultDataSegmentDescriptor() SegmentDescriptor {
+        return SegmentDescriptor{
+            .lower_base = 0,
+            .higher_base = 0,
+            .higher_base_final = 0,
+            .lower_limit = 0b1111_1111_1111_1111,
+            .higher_limit = 0b1111,
+            .access_byte = 0b1001_0010,
+            .flags = 0b1100,
+        };
+    }
+
+    /// Create the descriptor for the kernel's Code Segment
+    pub fn createDefaultCodeSegmentDescriptor() SegmentDescriptor {
+        return SegmentDescriptor{
+            .lower_base = 0,
+            .higher_base = 0,
+            .higher_base_final = 0,
+            .lower_limit = 0b1111_1111_1111_1111,
+            .higher_limit = 0b1111,
+            .access_byte = 0b1001_1010,
+            .flags = 0b1100,
+        };
+    }
+
+    pub fn createNullDescriptor() SegmentDescriptor {
+        return SegmentDescriptor{
+            .higher_limit = 0,
+            .lower_limit = 0,
+            .lower_base = 0,
+            .higher_base = 0,
+            .higher_base_final = 0,
+            .access_byte = 0,
+            .flags = 0,
         };
     }
 };
