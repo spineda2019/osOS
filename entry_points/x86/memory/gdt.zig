@@ -135,7 +135,42 @@ pub const SegmentDescriptor = packed struct {
 
     /// Helper function to create a Segmenr Descriptor (since an entry is kind
     /// of complex and fields are split up).
-    pub fn create() SegmentDescriptorError!SegmentDescriptor {}
+    ///
+    /// limit: Tells the maximum addressable unit either in 1 byte units or 4KiB
+    /// pages.
+    ///
+    /// base: Contains the linear address where the segment this is describing
+    /// begins.
+    ///
+    /// access_byte:
+    ///
+    /// flags:
+    pub fn create(
+        limit: u20,
+        base: u32,
+        access_byte: u8,
+        flags: u4,
+    ) SegmentDescriptorError!SegmentDescriptor {
+        // TODO: safety checks for acces byte and flags
+
+        return SegmentDescriptor{
+            .lower_limit = @truncate(limit & 0b0000_1111_1111_1111_1111),
+            .higher_limit = @truncate(
+                (limit & 0b1111_0000_0000_0000_0000) >> 16,
+            ),
+            .lower_base = @truncate(
+                base & 0b0000_0000_0000_0000_1111_1111_1111_1111,
+            ),
+            .higher_base = @truncate(
+                (base & 0b0000_0000_1111_1111_0000_0000_0000_0000) >> 16,
+            ),
+            .higher_base_final = @truncate(
+                (base & 0b1111_1111_0000_0000_0000_0000_0000_0000) >> 24,
+            ),
+            .access_byte = access_byte,
+            .flags = flags,
+        };
+    }
 };
 
 test "table" {}

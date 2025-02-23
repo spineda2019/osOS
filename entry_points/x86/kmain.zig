@@ -34,6 +34,8 @@ fn delay() void {
 pub fn kmain() noreturn {
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
+    var idt: interrupts.InterruptDescriptionTable = undefined;
+
     const message = "foo && bar && baz!";
 
     framebuffer.write(message);
@@ -45,6 +47,19 @@ pub fn kmain() noreturn {
         .size = 2,
     };
     gd_table.address = @intFromPtr(&gd_table);
+    const gdt_entry = memory.gdt.SegmentDescriptor.create(
+        1048575,
+        @intFromPtr(&kmain),
+        0,
+        0,
+    );
+    asm volatile (
+        \\ and %[foo], %[foo]
+        :
+        : [foo] "r" (&gdt_entry),
+    );
+
+    _ = &idt;
 
     // as.assembly_wrappers.x86_lgdt(&gd_table);
 
