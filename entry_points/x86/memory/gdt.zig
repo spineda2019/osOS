@@ -15,7 +15,13 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/// Size will be 48 bytes on x86. x64 is 79
 pub const GlobalDescriptorTable = packed struct {
     address: u32,
     size: u16,
+
+    /// "Modern" systems don't actually use segmentation for memory protection
+    /// and use paging instead. From what forums and docs say, we should set up
+    /// the GDT with the bare minimum in a flat model, and use paging.
+    pub fn flatInit() GlobalDescriptorTable {}
 };

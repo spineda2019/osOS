@@ -39,8 +39,6 @@ pub fn kmain() noreturn {
     framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to!");
-    serial_port.write("\r\nHi Again!");
-    framebuffer.write(" COM1 succesfully written to again!");
 
     var gd_table = memory.gdt.GlobalDescriptorTable{
         .address = undefined,
@@ -48,7 +46,8 @@ pub fn kmain() noreturn {
     };
     gd_table.address = @intFromPtr(&gd_table);
 
-    as.assembly_wrappers.x86_lgdt(&gd_table);
+    // as.assembly_wrappers.x86_lgdt(&gd_table);
+
     const address = &interrupts.interrupt_0_handler;
     asm volatile (
         \\movl %[addr], %eax
