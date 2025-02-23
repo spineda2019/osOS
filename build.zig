@@ -212,6 +212,8 @@ pub fn build(b: *std.Build) void {
 
     const x86_run_qemu = b.addSystemCommand(&.{
         "qemu-system-i386",
+        "-machine",
+        "pc",
         "-cdrom",
         "zig-out/x86/osOS.iso",
         "-boot",
