@@ -87,7 +87,9 @@ pub inline fn x86_inb(port_address: u16) u8 {
 ///
 /// Where the REGISTER has the address of the table (the brackets in x86) will
 /// cause a lookup in RAM to this address, and feed that to the lgdt instruction
-pub inline fn x86_lgdt(table_address: *gdt.GlobalDescriptorTable) void {
+pub inline fn x86_lgdt(
+    table_address: *const gdt.GlobalDescriptorTablePointer,
+) void {
     asm volatile (
         \\lgdtl (%[table_address])
         :

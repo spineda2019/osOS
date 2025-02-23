@@ -32,7 +32,7 @@ pub const GlobalDescriptorTablePointer = struct {
     pub fn init(table: []const SegmentDescriptor) GlobalDescriptorTablePointer {
         return GlobalDescriptorTablePointer{
             .size = @truncate(table.len & 0b1111_1111_1111_1111),
-            .address = @as(u32, @intFromPtr(&table)),
+            .address = @as(u32, @intFromPtr(&table)) - 1,
         };
     }
 };
