@@ -39,6 +39,8 @@ pub fn kmain() noreturn {
     framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to!");
+    serial_port.write("\r\nHi Again!");
+    framebuffer.write(" COM1 succesfully written to again!");
 
     var gd_table = memory.gdt.GlobalDescriptorTable{
         .address = undefined,

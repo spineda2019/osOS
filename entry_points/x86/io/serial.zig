@@ -74,7 +74,7 @@ pub const SerialPort: type = struct {
     ///
     /// Bit 5 of the read data (using "in") will be set to 1 if the buffer is ready
     fn isFIFOClear(self: *SerialPort) bool {
-        return as.assembly_wrappers.x86_inb(self.port) & 0b0010_0000 > 0;
+        return as.assembly_wrappers.x86_inb(calculateLineStatusPort(self.port)) & 0b0010_0000 > 0;
     }
 
     // *************************************************************************
