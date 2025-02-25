@@ -50,10 +50,11 @@ pub fn kmain() noreturn {
     gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
 
     const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
+    _ = &gdt_ptr;
 
-    as.assembly_wrappers.disable_x86_interrupts();
+    // as.assembly_wrappers.disable_x86_interrupts();
     // load GDT and the respective segment registers
-    as.assembly_wrappers.x86_lgdt(&gdt_ptr);
+    // as.assembly_wrappers.x86_lgdt(&gdt_ptr);
     asm volatile (
         \\#jmp $0x08, $.kmain_long_jump
         \\#.kmain_long_jump:
