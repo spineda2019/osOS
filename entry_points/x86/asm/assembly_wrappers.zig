@@ -96,3 +96,15 @@ pub inline fn x86_lgdt(
         : [table_address] "{eax}" (@intFromPtr(table_address)),
     );
 }
+
+pub inline fn disable_x86_interrupts() void {
+    asm volatile (
+        \\cli
+    );
+}
+
+pub inline fn enable_x86_interrupts() void {
+    asm volatile (
+        \\sti
+    );
+}
