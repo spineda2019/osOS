@@ -40,28 +40,30 @@ pub fn kmain() noreturn {
 
     framebuffer.write(message);
     serial_port.write(message);
-    framebuffer.write(" COM1 succesfully written to!");
+    framebuffer.write(" COM1 succesfully written to! Setting up GDT");
 
-    var gd_table = memory.gdt.GlobalDescriptorTable{
-        .address = undefined,
-        .size = 2,
-    };
-    gd_table.address = @intFromPtr(&gd_table);
-    const gdt_entry = memory.gdt.SegmentDescriptor.create(
-        1048575,
-        @intFromPtr(&kmain),
-        0,
-        0,
-    );
+    // only set up 3 segments for now: null descriptor and descriptor's for
+    // kernel's code and data segments
+    var gdt: [3]memory.gdt.SegmentDescriptor = undefined;
+    gdt[0] = memory.gdt.SegmentDescriptor.createNullDescriptor();
+    gdt[1] = memory.gdt.SegmentDescriptor.createDefaultCodeSegmentDescriptor();
+    gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
+
+    const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
+
+    as.assembly_wrappers.disable_x86_interrupts();
+    // load GDT and the respective segment registers
+    as.assembly_wrappers.x86_lgdt(&gdt_ptr);
     asm volatile (
-        \\ and %[foo], %[foo]
-        :
-        : [foo] "r" (&gdt_entry),
+        \\#jmp $0x08, $.kmain_long_jump
+        \\#.kmain_long_jump:
+        \\#movw 0x10, %ds  # data segment is third in our GDT table
+        \\#movw 0x10, %ss  # 0x10 is 16, which matches the offset to be 3rd 
+        \\#movw 0x10, %es
     );
+    // as.assembly_wrappers.enable_x86_interrupts();
 
     _ = &idt;
-
-    // as.assembly_wrappers.x86_lgdt(&gd_table);
 
     const address = &interrupts.interrupt_0_handler;
     asm volatile (
