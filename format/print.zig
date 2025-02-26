@@ -16,16 +16,21 @@
 
 /// Kernal wide interface for storing the arch dependent implementation details
 /// of writing to the screen.
-pub const VTable = struct {
-    /// Write a string
-    write: *const fn (raw_string: []const u8) void,
+pub const Writer = struct {
+    instance: *anyopaque,
+    vtable: *const VTable,
+
+    pub const VTable = struct {
+        /// Write a string
+        write: *const fn (self: *anyopaque, raw_string: []const u8) void,
+    };
 };
 
 /// Classic C-style printf for the kernel
 pub fn kprintf(
     comptime format_string: []const u8,
     args: anytype,
-    writer: VTable,
+    writer: Writer,
 ) void {
     var buffer: [32]u8 = .{0} ** 32;
     var internal_sentinel: u8 = 0;
@@ -33,14 +38,14 @@ pub fn kprintf(
 
     defer {
         // flush
-        writer.write(buffer[0..internal_sentinel]);
+        writer.vtable.write(writer.instance, buffer[0..internal_sentinel]);
     }
 
     var flag: bool = false;
     for (format_string) |letter| {
         if (internal_sentinel == buffer.len) {
             // flush and reset ptr
-            writer.write(&buffer);
+            writer.vtable.write(writer.instance, &buffer);
             internal_sentinel = 0;
         }
 
