@@ -19,6 +19,7 @@ const serial = @import("io/serial.zig");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("interrupts/interrupts.zig");
+const osformat = @import("osformat");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -41,6 +42,12 @@ pub fn kmain() noreturn {
     framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to! Setting up GDT");
+    asm volatile (
+        \\and %eax, %eax
+    );
+
+    // const writer = framebuffer.writer();
+    // osformat.print.kprintf(" We have printf too!", .{}, writer);
 
     // only set up 3 segments for now: null descriptor and descriptor's for
     // kernel's code and data segments
@@ -49,20 +56,11 @@ pub fn kmain() noreturn {
     gdt[1] = memory.gdt.SegmentDescriptor.createDefaultCodeSegmentDescriptor();
     gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
 
-    const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
-    _ = &gdt_ptr;
-
     // as.assembly_wrappers.disable_x86_interrupts();
-    // load GDT and the respective segment registers
-    // as.assembly_wrappers.x86_lgdt(&gdt_ptr);
-    asm volatile (
-        \\#jmp $0x08, $.kmain_long_jump
-        \\#.kmain_long_jump:
-        \\#movw 0x10, %ds  # data segment is third in our GDT table
-        \\#movw 0x10, %ss  # 0x10 is 16, which matches the offset to be 3rd 
-        \\#movw 0x10, %es
-    );
-    // as.assembly_wrappers.enable_x86_interrupts();
+    const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
+    // load GDT and the respective segment registers. CS and DS are already set
+    // to 0x08 and 0x10 respectively by the bootloader.
+    as.assembly_wrappers.x86_lgdt(&gdt_ptr);
 
     _ = &idt;
 
@@ -71,6 +69,11 @@ pub fn kmain() noreturn {
         \\movl %[addr], %eax
         :
         : [addr] "r" (address),
+    );
+
+    // set EAX just so we know where we are in the log
+    asm volatile (
+        \\mov $0x4242, %eax
     );
 
     while (true) {
