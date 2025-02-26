@@ -18,6 +18,7 @@
 //! (on most machines)
 
 const as = @import("x86asm");
+const osformat = @import("osformat");
 
 pub const FrameBufferCellColor: type = enum {
     Black,
@@ -160,6 +161,22 @@ pub const FrameBuffer: type = struct {
             );
             self.incrementCursor();
         }
+    }
+
+    /// Indirect function for use when creating the kernel Writer interface.
+    /// Simply redirects to the proper framebuffer implementation
+    fn opaqueWrite(opaque_self: *anyopaque, buffer: []const u8) void {
+        const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+        self.write(buffer);
+    }
+
+    pub fn writer(self: *FrameBuffer) osformat.print.Writer {
+        return .{
+            .instance = self,
+            .vtable = &.{
+                .write = &opaqueWrite,
+            },
+        };
     }
 
     fn writeCell(
