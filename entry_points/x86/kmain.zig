@@ -60,10 +60,15 @@ pub fn kmain() noreturn {
     _ = gdt_ptr;
     // gdt_ptr.loadGDT();
 
-    _ = &idt;
+    const interrupt_function_table = interrupts.InterruptHandlerTable.init();
 
-    const address = &interrupts.interrupt_0_handler;
-    _ = address;
+    asm volatile (
+        \\mov %[tmp], %eax
+        : // no outputs
+        : [tmp] "r" (&interrupt_function_table),
+    );
+
+    _ = &idt;
 
     // set EAX just so we know where we are in the log
     asm volatile (
