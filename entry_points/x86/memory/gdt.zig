@@ -15,6 +15,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const as = @import("x86asm");
+
 const SegmentDescriptorError = error{};
 
 /// Essentially a fat pointer to our actual table structure. To properly set up
@@ -31,9 +33,17 @@ pub const GlobalDescriptorTablePointer = struct {
     /// the GDTR register
     pub fn init(table: []const SegmentDescriptor) GlobalDescriptorTablePointer {
         return GlobalDescriptorTablePointer{
-            .size = @truncate(table.len & 0b1111_1111_1111_1111),
-            .address = @as(u32, @intFromPtr(&table)) - 1,
+            .address = @as(u32, @intFromPtr(&table)),
+            .size = @truncate((@bitSizeOf(SegmentDescriptor) * table.len) - 1),
         };
+    }
+
+    pub fn loadGDT(self: *const GlobalDescriptorTablePointer) void {
+        as.assembly_wrappers.disable_x86_interrupts();
+        defer as.assembly_wrappers.enable_x86_interrupts();
+        // load GDT and the respective segment registers. CS and DS are already set
+        // to 0x08 and 0x10 respectively by the bootloader.
+        as.assembly_wrappers.x86_lgdt(@intFromPtr(self));
     }
 };
 

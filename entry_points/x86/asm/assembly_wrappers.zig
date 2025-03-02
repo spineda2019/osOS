@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const gdt = @import("x86memory").gdt;
-
 /// Zig wrapper for the x86 "out" instruction
 ///
 /// In x86, the "out" instruction send a byte to an IO port at a specific
@@ -87,13 +85,11 @@ pub inline fn x86_inb(port_address: u16) u8 {
 ///
 /// Where the REGISTER has the address of the table (the brackets in x86) will
 /// cause a lookup in RAM to this address, and feed that to the lgdt instruction
-pub inline fn x86_lgdt(
-    table_address: *const gdt.GlobalDescriptorTablePointer,
-) void {
+pub inline fn x86_lgdt(table_address: u32) void {
     asm volatile (
         \\lgdtl (%[table_address])
         :
-        : [table_address] "{eax}" (@intFromPtr(table_address)),
+        : [table_address] "{eax}" (table_address),
     );
 }
 

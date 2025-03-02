@@ -125,7 +125,7 @@ pub fn build(b: *std.Build) void {
     const x86_asm_module = b.addModule("x86asm", .{
         .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
     });
-    x86_asm_module.addImport("x86memory", x86_memory_module);
+    x86_memory_module.addImport("x86asm", x86_asm_module);
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = b.resolveTargetQuery(.{

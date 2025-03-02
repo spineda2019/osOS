@@ -56,20 +56,13 @@ pub fn kmain() noreturn {
     gdt[1] = memory.gdt.SegmentDescriptor.createDefaultCodeSegmentDescriptor();
     gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
 
-    // as.assembly_wrappers.disable_x86_interrupts();
     const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
-    // load GDT and the respective segment registers. CS and DS are already set
-    // to 0x08 and 0x10 respectively by the bootloader.
-    as.assembly_wrappers.x86_lgdt(&gdt_ptr);
+    gdt_ptr.loadGDT();
 
     _ = &idt;
 
     const address = &interrupts.interrupt_0_handler;
-    asm volatile (
-        \\movl %[addr], %eax
-        :
-        : [addr] "r" (address),
-    );
+    _ = address;
 
     // set EAX just so we know where we are in the log
     asm volatile (
