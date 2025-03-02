@@ -245,8 +245,25 @@ pub fn build(b: *std.Build) void {
     });
     x86_run_bochs.step.dependOn(&x86_copy_bochs.step);
 
-    const x86_run_step_bochs = b.step("run_x86_bochs", "Boot kernel with BOCHS on x86");
+    const x86_run_step_bochs = b.step(
+        "run_x86_bochs",
+        "Boot kernel with BOCHS on x86",
+    );
     x86_run_step_bochs.dependOn(&x86_run_bochs.step);
+
+    const x86_run_bochs_debugger = b.addSystemCommand(&.{
+        "bochs",
+        "-f",
+        "zig-out/x86/bochs.config",
+        "-q",
+        "-debugger",
+    });
+    x86_run_bochs_debugger.step.dependOn(&x86_copy_bochs.step);
+    const x86_run_step_bochs_debugger = b.step(
+        "run_x86_bochs_debugger",
+        "Boot kernel with BOCHS on x86 using the built in debugger",
+    );
+    x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
 
     // This creates a `doc` step. It will be visible in the `zig build --help`
     // menu, and can be selected like this: `zig build doc`
