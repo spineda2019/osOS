@@ -57,7 +57,8 @@ pub fn kmain() noreturn {
     gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
 
     const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
-    gdt_ptr.loadGDT();
+    _ = gdt_ptr;
+    // gdt_ptr.loadGDT();
 
     _ = &idt;
 
