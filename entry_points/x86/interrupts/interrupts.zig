@@ -169,6 +169,11 @@ pub const InterruptHandlerTable = struct {
     }
 };
 
+/// General interrupt handler that pushes register state to stack and calls
+/// the internal zig interrupt handler. This function will only be called
+/// by each interrupt number's handler. That handler will have (optionally)
+/// pushed an error code on the stack, and pushed it's interrupt number on the
+/// stack (so it'll be on the top once registers are popped off).
 export fn commonInteruptHandler() callconv(.naked) void {
     // save CPU registers
     asm volatile (
@@ -180,9 +185,11 @@ export fn commonInteruptHandler() callconv(.naked) void {
         \\pushl %edi
         \\pushl %esp
         \\pushl %ebp
-        \\
-        \\#jmp common_interrupt_handler  # label must be globally exported
-        \\
+    );
+
+    // TODO: Actual handling
+
+    asm volatile (
         \\popl %eax
         \\popl %ebx
         \\popl %ecx
