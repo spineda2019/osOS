@@ -14,6 +14,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const kmain = @import("kmain.zig").kmain;
+
 export fn boot() align(4) linksection(".text") callconv(.Naked) noreturn {
     asm volatile (
         \\.equ MAGIC_NUMBER,      0x1BADB002
@@ -34,10 +36,9 @@ export fn boot() align(4) linksection(".text") callconv(.Naked) noreturn {
         \\    movl $kernel_stack + KERNEL_STACK_SIZE, %ESP  # setup stack pointer to end of kernel_stack
         \\
     );
-    const kmain_address: *const fn () noreturn = &@import("kmain.zig").kmain;
     asm volatile (
         \\    jmp *%[kmain_address]
         :
-        : [kmain_address] "r" (kmain_address),
+        : [kmain_address] "r" (&kmain),
     );
 }
