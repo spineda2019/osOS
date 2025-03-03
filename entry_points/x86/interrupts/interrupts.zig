@@ -4,6 +4,22 @@ pub const InterruptError = error{
     InvalidInterruptNumber,
 };
 
+pub const InterruptDescriptionTablePtr = packed struct {
+    size: u16,
+    offset: u32,
+
+    pub fn init(idt: *const InterruptDescriptionTable) InterruptDescriptionTablePtr {
+        const table_size: u16 = comptime size_calc: {
+            break :size_calc (@bitSizeOf(InterruptDescriptionTable) / 8) - 1;
+        };
+
+        return .{
+            .size = table_size,
+            .offset = @intFromPtr(idt),
+        };
+    }
+};
+
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
 /// pushed onto the stack by the CPU when triggered, so this structure need
@@ -11,27 +27,26 @@ pub const InterruptError = error{
 pub const InterruptDescriptionTable = struct {
     entries: [256]InterruptDescriptor,
 
-    pub fn addEntry(
-        self: *InterruptDescriptionTable,
-        interrupt_number: u16,
-        entry: u32,
-    ) InterruptError!void {
-        if (interrupt_number > 255) {
-            return InterruptError.InvalidInterruptNumber;
-        } else {
-            self.entries[interrupt_number] = .{
-                .offset_low = entry & 0b0000_0000_1111_1111,
-                .offset_high = entry & 0b1111_1111_0000_0000,
-                .segment_selector = 0x8, // TODO: needs to point to offest in GDT holding cs
+    pub fn init(handler_table: *const InterruptHandlerTable) InterruptDescriptionTable {
+        var entries: [256]InterruptDescriptor = undefined;
+        for (handler_table.handlers, 0..) |fn_ptr, interrupt_number| {
+            entries[interrupt_number] = .{
+                .offset_low = @truncate(@intFromPtr(fn_ptr)),
+                .offset_high = @truncate(@intFromPtr(fn_ptr) >> 8),
+                .segment_selector = 0x8, // code segment
                 .unused = 0,
-                .gate_type = 0b1,
-                .gate_stuffing = 0b11, // must be 0b11
+                .gate_type = 0b1, // trap gate
+                .gate_stuffing = 0b11, // must be 0b11 for trap gate
                 .gate_size = 0b1, // 32 bit
                 .zero = 0,
-                .descriptor_privilege_level = 0,
+                .descriptor_privilege_level = 0, // kernel mode
                 .present_bit = 0b1,
             };
         }
+
+        return .{
+            .entries = entries,
+        };
     }
 };
 

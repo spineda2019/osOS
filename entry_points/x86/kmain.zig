@@ -35,16 +35,12 @@ fn delay() void {
 pub fn kmain() noreturn {
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
-    var idt: interrupts.InterruptDescriptionTable = undefined;
 
     const message = "foo && bar && baz!";
 
     framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to! Setting up GDT");
-    asm volatile (
-        \\and %eax, %eax
-    );
 
     // const writer = framebuffer.writer();
     // osformat.print.kprintf(" We have printf too!", .{}, writer);
@@ -60,15 +56,15 @@ pub fn kmain() noreturn {
     _ = gdt_ptr;
     // gdt_ptr.loadGDT();
 
-    const interrupt_function_table = interrupts.InterruptHandlerTable.init();
+    // const interrupt_function_table = interrupts.InterruptHandlerTable.init();
+    // const idt = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
+    // const idt_ptr = interrupts.InterruptDescriptionTablePtr.init(&idt);
 
     asm volatile (
-        \\mov %[tmp], %eax
+        \\#lidtl (%[idt_address])
         : // no outputs
-        : [tmp] "r" (&interrupt_function_table),
+        : [idt_address] "r" (0),
     );
-
-    _ = &idt;
 
     // set EAX just so we know where we are in the log
     asm volatile (
