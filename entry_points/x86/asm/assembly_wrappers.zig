@@ -104,3 +104,28 @@ pub inline fn enable_x86_interrupts() void {
         \\sti
     );
 }
+
+/// Enable SSE instructions on the CPU, including use of the xmm# registers
+/// and their various SIMD capabilities.
+///
+/// To do this, the CR0 and CR4 registers need to be altered:
+///
+/// CR0: The EM (x87 FPU Emulation) bit (bit 2) must be cleared and the MP
+/// (Monitor Processor) bit (bit 1) must be set.
+///
+/// CR4: The OSFXR (Operating system support for FXSAVE and FXRSTOR
+/// instructions) bit (bit 9) and OSXMMEXCPT (Operating System Support for
+/// Unmasked SIMD Floating-Point Exceptions) bit (10) must both be set.
+pub noinline fn enableSSE() void {
+    asm volatile (
+        \\mov %cr0, %eax
+        \\and 0xFFFB, %ax # clear coprocessor emulation CR0.EM
+        \\                # 0x FFFB is all 1s except bit 2
+        \\or 0b10, %ax    # set coprocessor monitoring  CR0.MP
+        \\mov %eax, %cr0  # Store back CR0
+        \\mov %cr4, %eax
+        \\or $0b0000000000000001000000000, %ax      # set CR4.OSFXSR (bit 9)
+        \\or $0b0000000000000010000000000, %ax      # set CR4.OSXMMEXCPT (bit 10)
+        \\mov %eax, %cr4  # Store back CR4
+    );
+}

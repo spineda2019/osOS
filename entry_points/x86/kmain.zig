@@ -33,6 +33,7 @@ fn delay() void {
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
+    as.assembly_wrappers.enableSSE();
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
 
@@ -40,10 +41,7 @@ pub fn kmain() noreturn {
 
     framebuffer.write(message);
     serial_port.write(message);
-    framebuffer.write(" COM1 succesfully written to! Setting up GDT");
-
-    // const writer = framebuffer.writer();
-    // osformat.print.kprintf(" We have printf too!", .{}, writer);
+    framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
     // only set up 3 segments for now: null descriptor and descriptor's for
     // kernel's code and data segments
@@ -65,6 +63,9 @@ pub fn kmain() noreturn {
         : // no outputs
         : [idt_address] "r" (&interrupt_function_table),
     );
+
+    const writer = framebuffer.writer();
+    osformat.print.kprintf(" We have printf too!", .{}, writer);
 
     // set EAX just so we know where we are in the log
     asm volatile (

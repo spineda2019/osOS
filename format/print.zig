@@ -27,7 +27,7 @@ pub const Writer = struct {
 };
 
 /// Classic C-style printf for the kernel
-pub fn kprintf(
+pub noinline fn kprintf(
     comptime format_string: []const u8,
     args: anytype,
     writer: Writer,
