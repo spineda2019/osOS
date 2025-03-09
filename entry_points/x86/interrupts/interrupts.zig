@@ -4,6 +4,11 @@ pub const InterruptError = error{
     InvalidInterruptNumber,
 };
 
+pub const HandlerType = enum {
+    WithErrorCode,
+    NoErrorCode,
+};
+
 pub const InterruptDescriptionTablePtr = packed struct {
     size: u16,
     offset: u32,
@@ -158,28 +163,25 @@ pub const InterruptHandlerTable = struct {
     /// Generate interrupt handler functions at comptime, them take and store
     /// their addresses at runtime.
     pub fn init() InterruptHandlerTable {
-        const address_table = comptime address_calculation: {
-            var table: [256]*const fn () callconv(.naked) void = undefined;
-            for (0..table.len) |interrupt_number| {
-                const function = function_generation: {
-                    // .. range is not inclusive on the right
-                    break :function_generation switch (interrupt_number) {
-                        8, 10, 11, 12, 13, 14, 17 => makeErrorCodeInterruptHandler(
-                            interrupt_number,
-                        ),
-                        else => makeInterruptHandlerWithoutErrorCode(
-                            interrupt_number,
-                        ),
-                    };
+        const table: [256]*const fn () callconv(.naked) void = comptime calc: {
+            var inner: [256]*const fn () callconv(.naked) void = undefined;
+            for (0..inner.len) |interrupt_number| {
+                // .. range is not inclusive on the right
+                inner[interrupt_number] = switch (interrupt_number) {
+                    8, 10, 11, 12, 13, 14, 17 => makeErrorCodeInterruptHandler(
+                        interrupt_number,
+                    ),
+                    else => makeInterruptHandlerWithoutErrorCode(
+                        interrupt_number,
+                    ),
                 };
-                table[interrupt_number] = &function;
             }
 
-            break :address_calculation table;
+            break :calc inner;
         };
 
         return .{
-            .handlers = address_table,
+            .handlers = table,
         };
     }
 };
@@ -223,22 +225,18 @@ export fn commonInteruptHandler() callconv(.naked) void {
 /// which would be used if were using something like NASM for example.
 pub fn makeErrorCodeInterruptHandler(
     comptime interrupt_number: comptime_int,
-) fn () callconv(.naked) void {
-    comptime {
-        const T = struct {
-            fn genericErrorCodeHandler() callconv(.naked) void {
-                asm volatile (
-                    \\pushl 0                    # push 0 as error code
-                    \\pushl %[interrupt_number]  # push interrupt number
-                    \\jmp commonInteruptHandler
-                    : // no outputs
-                    : [interrupt_number] "i" (interrupt_number),
-                );
-            }
-        };
-
-        return T.genericErrorCodeHandler;
-    }
+) *const fn () callconv(.naked) void {
+    return &struct {
+        pub fn genericErrorCodeHandler() callconv(.naked) void {
+            asm volatile (
+                \\pushl 0                    # push 0 as error code
+                \\pushl %[interrupt_number]  # push interrupt number
+                \\jmp commonInteruptHandler
+                : // no outputs
+                : [interrupt_number] "i" (interrupt_number),
+            );
+        }
+    }.genericErrorCodeHandler;
 }
 
 /// Generic function to generate an interrupt handler. This handler will NOT
@@ -246,19 +244,15 @@ pub fn makeErrorCodeInterruptHandler(
 /// macros, which would be used if were using something like NASM for example.
 pub fn makeInterruptHandlerWithoutErrorCode(
     comptime interrupt_number: comptime_int,
-) fn () callconv(.naked) void {
-    comptime {
-        const T = struct {
-            fn genericErrorCodeHandler() callconv(.naked) void {
-                asm volatile (
-                    \\pushl %[interrupt_number]  # push interrupt number
-                    \\jmp commonInteruptHandler
-                    : // no outputs
-                    : [interrupt_number] "i" (interrupt_number),
-                );
-            }
-        };
-
-        return T.genericErrorCodeHandler;
-    }
+) *const fn () callconv(.naked) void {
+    return &struct {
+        pub fn genericErrorCodeHandler() callconv(.naked) void {
+            asm volatile (
+                \\pushl %[interrupt_number]  # push interrupt number
+                \\jmp commonInteruptHandler
+                : // no outputs
+                : [interrupt_number] "i" (interrupt_number),
+            );
+        }
+    }.genericErrorCodeHandler;
 }

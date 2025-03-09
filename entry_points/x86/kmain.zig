@@ -56,14 +56,14 @@ pub fn kmain() noreturn {
     _ = gdt_ptr;
     // gdt_ptr.loadGDT();
 
-    // const interrupt_function_table = interrupts.InterruptHandlerTable.init();
+    const interrupt_function_table = interrupts.InterruptHandlerTable.init();
     // const idt = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
     // const idt_ptr = interrupts.InterruptDescriptionTablePtr.init(&idt);
 
     asm volatile (
         \\#lidtl (%[idt_address])
         : // no outputs
-        : [idt_address] "r" (0),
+        : [idt_address] "r" (&interrupt_function_table),
     );
 
     // set EAX just so we know where we are in the log
