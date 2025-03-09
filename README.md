@@ -6,6 +6,14 @@ If an update to zig breaks (one of) the loader, the bundled llvm assembler
 may be placing symbols at wonky addresses. Use the readelf tool to ensure
 symbols are loaded where you would expect
 
+## Zig Version Used
+I try to use the most up to date zig version from the ziglang project's master
+branch: <a href=https://ziglang.org/download/>Zig Release Page</a>. This is
+quite important as this project uses modules in it's build system, which I
+believe (I could be wrong) don't exist in zig 0.13 and earlier. I have also
+encountered buggy code generation from some versions of 0.14 causing some triple
+faults. If you want to build this, please use the zig-master.
+
 ## Building
 The kernel currently uses the zig build system (and only the zig build system)
 for building. To build the kernel for all supported architectures
