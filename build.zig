@@ -26,28 +26,26 @@ const ModuleDocObject = struct {
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
-    //**************************************************************************
-    //                               Shared Setup                              *
-    //**************************************************************************
     const kernel_name = "osOS.elf";
 
-    // this creates a public module, which is what we want. Every other module in
-    // the module set can add this as a dependency
-    const osformat_module = b.addModule("osformat", .{
+    //**************************************************************************
+    //                               Module Setup                              *
+    //**************************************************************************
+
+    //* ******************************* Shared ******************************* *
+    const osformat_module = b.createModule(.{
         .root_source_file = b.path("format/osformat.zig"),
     });
 
-    const osmemory_module = b.addModule("osmemory", .{
+    const osmemory_module = b.createModule(.{
         .root_source_file = b.path("memory/memory.zig"),
     });
 
-    const osprocess_module = b.addModule("osprocess", .{
+    const osprocess_module = b.createModule(.{
         .root_source_file = b.path("process/process.zig"),
     });
 
-    //**************************************************************************
-    //                              RISCV-32 Setup                             *
-    //**************************************************************************
+    //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
         .target = b.resolveTargetQuery(.{
@@ -61,28 +59,82 @@ pub fn build(b: *std.Build) void {
     riscv32_module.addImport("osformat", osformat_module);
     riscv32_module.addImport("osmemory", osmemory_module);
     riscv32_module.addImport("osprocess", osprocess_module);
-    const exe = b.addExecutable(.{
+
+    //* *************************** x86 Specific ***************************** *
+    const x86_memory_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
+    });
+    const x86_asm_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+    });
+    const x86_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/entry.zig"),
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = .x86,
+            .os_tag = .freestanding,
+            .abi = .none,
+        }),
+        .optimize = .ReleaseSmall,
+        .strip = false,
+    });
+    x86_module.addImport("osformat", osformat_module);
+    x86_module.addImport("x86asm", x86_asm_module);
+    x86_module.addImport("x86memory", x86_memory_module);
+
+    //**************************************************************************
+    //                           Compile Step Setup                            *
+    //**************************************************************************
+
+    //* *************************** RISC Specific **************************** *
+    const riscv32_exe = b.addExecutable(.{
         .name = kernel_name,
         .root_module = riscv32_module,
     });
-    exe.entry = .disabled;
-    exe.setLinkerScript(b.path("entry_points/riscv32/link.ld"));
+    riscv32_exe.entry = .disabled;
+    riscv32_exe.setLinkerScript(b.path("entry_points/riscv32/link.ld"));
 
+    //* *************************** x86 Specific ***************************** *
+    const x86_exe = b.addExecutable(.{
+        .name = kernel_name,
+        .root_module = x86_module,
+    });
+    x86_exe.entry = .disabled;
+    x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
+
+    //**************************************************************************
+    //                          Install Artifact Setup                         *
+    //**************************************************************************
+
+    //* *************************** RISC Specific **************************** *
     const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
-
-    const out = b.addInstallArtifact(exe, .{
+    const riscv32_out = b.addInstallArtifact(riscv32_exe, .{
         .dest_dir = .{
             .override = .{
                 .custom = "RISC-v32",
             },
         },
     });
+    riscv32_step.dependOn(&riscv32_out.step);
+    b.getInstallStep().dependOn(&riscv32_out.step);
 
-    riscv32_step.dependOn(&out.step);
+    //* *************************** x86 Specific ***************************** *
+    const x86_step = b.step("x86", "Build the x86 Kernel");
+    const x86_out = b.addInstallArtifact(x86_exe, .{
+        .dest_dir = .{
+            .override = .{
+                .custom = "x86",
+            },
+        },
+    });
+    x86_step.dependOn(&x86_out.step);
+    b.getInstallStep().dependOn(&x86_out.step);
 
-    // this makes the install target build everything
-    b.getInstallStep().dependOn(&out.step);
+    //**************************************************************************
+    //                             Run Step Setup                              *
+    //**************************************************************************
 
+    //* *************************** RISC Specific **************************** *
+    const run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
     const run = b.addSystemCommand(&.{
         "qemu-system-riscv32",
         "-machine",
@@ -95,13 +147,8 @@ pub fn build(b: *std.Build) void {
         "--no-reboot",
         "-kernel",
     });
-
-    run.addArtifactArg(exe);
-
+    run.addArtifactArg(riscv32_exe);
     run.step.dependOn(riscv32_step);
-
-    const run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
-
     run_step.dependOn(&run.step);
 
     const riscv32_doc_step = b.step(
@@ -116,51 +163,8 @@ pub fn build(b: *std.Build) void {
     });
     riscv32_doc_step.dependOn(&riscv32_install_doc.step);
     b.getInstallStep().dependOn(riscv32_doc_step);
-    //**************************************************************************
-    //                                 x86 Setup                               *
-    //**************************************************************************
-    const x86_memory_module = b.addModule("x86memory", .{
-        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
-    });
-    const x86_asm_module = b.addModule("x86asm", .{
-        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
-    });
-    x86_memory_module.addImport("x86asm", x86_asm_module);
-    const x86_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/entry.zig"),
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = .x86,
-            .os_tag = .freestanding,
-            .abi = .none,
-        }),
-        .optimize = .ReleaseSmall,
-        .strip = false,
-    });
-    x86_module.addImport("osformat", osformat_module);
-    x86_module.addImport("x86asm", x86_asm_module);
-    x86_module.addImport("x86memory", x86_memory_module);
-    const x86_exe = b.addExecutable(.{
-        .name = kernel_name,
-        .root_module = x86_module,
-    });
-    x86_exe.entry = .disabled;
-    x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
 
-    const x86_step = b.step("x86", "Build the x86 Kernel");
-
-    const x86_out = b.addInstallArtifact(x86_exe, .{
-        .dest_dir = .{
-            .override = .{
-                .custom = "x86",
-            },
-        },
-    });
-
-    x86_step.dependOn(&x86_out.step);
-
-    // this makes the install target build everything
-    b.getInstallStep().dependOn(&x86_out.step);
-
+    //* *************************** x86 Specific ***************************** *
     // TODO: Make these copy steps system agnostic
     const create_x86_iso_structure = b.addSystemCommand(&.{
         "mkdir",
