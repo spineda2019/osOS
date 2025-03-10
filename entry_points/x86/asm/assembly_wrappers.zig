@@ -116,6 +116,8 @@ pub inline fn enable_x86_interrupts() void {
 /// CR4: The OSFXR (Operating system support for FXSAVE and FXRSTOR
 /// instructions) bit (bit 9) and OSXMMEXCPT (Operating System Support for
 /// Unmasked SIMD Floating-Point Exceptions) bit (10) must both be set.
+///
+/// Note: CR0 register is 32 bits wide, CR4 is 25 bits wide.
 pub noinline fn enableSSE() void {
     asm volatile (
         \\mov %cr0, %eax
