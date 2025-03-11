@@ -1,4 +1,3 @@
-// kernel.zig - boot entry point for osOS on riscv32
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -14,6 +13,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
+//! kernel.zig - boot entry point for osOS on riscv32
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
