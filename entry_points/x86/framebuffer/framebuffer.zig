@@ -165,6 +165,7 @@ pub const FrameBuffer: type = struct {
                 .DarkGray,
                 .LightBrown,
             );
+            self.buffer[self.current_row][self.current_column] = letter;
             self.incrementCursor();
         }
     }
