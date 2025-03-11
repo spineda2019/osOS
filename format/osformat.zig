@@ -1,4 +1,3 @@
-// oscommon.zig - root module of the osOS kernel's architecture agnostic fmt API
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -13,6 +12,8 @@
 //!
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//!
+//! Root module of the osOS kernel's architecture agnostic fmt API.
 
 /// The import containing code for formatting, such as converting ints to strs
 pub const format = @import("format.zig");

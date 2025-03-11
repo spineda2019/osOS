@@ -1,4 +1,3 @@
-// print.zig - module of the osOS kernel's architecture agnostic print API
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -13,6 +12,7 @@
 //!
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//! print.zig - module of the osOS kernel's architecture agnostic print API
 
 /// Kernal wide interface for storing the arch dependent implementation details
 /// of writing to the screen.
@@ -26,7 +26,13 @@ pub const Writer = struct {
     };
 };
 
-/// Classic C-style printf for the kernel
+/// Format print
+///
+/// Arguments:
+///
+///     format_string: string containing format specifiers (ex: %d) to print
+///
+///     args: array of values corresponding to format_string
 pub fn kprintf(
     comptime format_string: []const u8,
     args: anytype,

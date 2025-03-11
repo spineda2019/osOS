@@ -1,4 +1,3 @@
-// format.zig - Architecture agnostic API for numeric formatting
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -13,6 +12,7 @@
 //!
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//! format.zig - Architecture agnostic API for numeric formatting
 
 /// Convert an integer to a string representation at compile time
 pub fn StringFromInt(
@@ -61,23 +61,4 @@ pub fn intToString(
         .raw_string = buffer,
         .sentinel = ptr,
     };
-}
-
-/// Format print
-/// Arguments:
-///     format_string: string containing format specifiers (ex: %d) to print
-///     args: array of values corresponding to format_string
-pub fn printf(format_string: []const u8, args: anytype) void {
-    _ = format_string;
-    _ = args;
-    comptime {
-        const arch = @import("builtin").target.cpu.arch;
-        switch (arch) {
-            .x86 => {},
-            .riscv32 => {},
-            else => |a| {
-                @compileError("Unsupported target architecture: " ++ @tagName(a));
-            },
-        }
-    }
 }
