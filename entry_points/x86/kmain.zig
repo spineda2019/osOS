@@ -39,12 +39,9 @@ fn panic() noreturn {
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
+    as.assembly_wrappers.enableSSE();
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
-
-    framebuffer.write("Enabling SSE...");
-    as.assembly_wrappers.enableSSE();
-    framebuffer.write(" Done.");
 
     const message = "foo && bar && baz!";
 
