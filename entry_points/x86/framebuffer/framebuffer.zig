@@ -163,6 +163,10 @@ pub const FrameBuffer: type = struct {
         }
     }
 
+    /// Delete top line in buffer and move all lines up one. Will leave bottom
+    /// line clear for writing.
+    pub fn scrollScreen() void {}
+
     /// Exactly like write, but adds a newline and reshows the shell prompt
     pub fn writeln() void {}
 
