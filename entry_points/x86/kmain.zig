@@ -45,7 +45,6 @@ pub fn kmain() noreturn {
 
     const message = "foo && bar && baz!";
 
-    framebuffer.write(message);
     serial_port.write(message);
     framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
