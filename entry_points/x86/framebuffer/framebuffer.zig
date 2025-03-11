@@ -163,6 +163,9 @@ pub const FrameBuffer: type = struct {
         }
     }
 
+    /// Exactly like write, but adds a newline and reshows the shell prompt
+    pub fn writeln() void {}
+
     /// Indirect function for use when creating the kernel Writer interface.
     /// Simply redirects to the proper framebuffer implementation
     fn opaqueWrite(opaque_self: *anyopaque, buffer: []const u8) void {
