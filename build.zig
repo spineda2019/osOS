@@ -27,6 +27,7 @@ const ModuleDocObject = struct {
 // runner.
 pub fn build(b: *std.Build) void {
     const kernel_name = "osOS.elf";
+    const t = b.standardTargetOptions(.{});
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -101,6 +102,16 @@ pub fn build(b: *std.Build) void {
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
 
+    //* *************************** Doc Specific ***************************** *
+    const x86_doc_obj = b.addObject(.{
+        .name = "x86_src",
+        .root_module = x86_module,
+    });
+    const riscv32_doc_obj = b.addObject(.{
+        .name = "riscv32_src",
+        .root_module = riscv32_module,
+    });
+
     //**************************************************************************
     //                          Install Artifact Setup                         *
     //**************************************************************************
@@ -131,7 +142,6 @@ pub fn build(b: *std.Build) void {
 
     //* *************************** Doc Specific ***************************** *
     const x86_doc_step = b.step("x86_docs", "Build x86 kernel package documentation");
-    const x86_doc_obj = b.addObject(.{ .name = "x86_src", .root_module = x86_module });
     const x86_install_doc = b.addInstallDirectory(.{
         .source_dir = x86_doc_obj.getEmittedDocs(),
         .install_dir = .prefix,
@@ -144,7 +154,6 @@ pub fn build(b: *std.Build) void {
         "riscv32_docs",
         "Build riscv32 kernel package documentation",
     );
-    const riscv32_doc_obj = b.addObject(.{ .name = "riscv32_src", .root_module = riscv32_module });
     const riscv32_install_doc = b.addInstallDirectory(.{
         .source_dir = riscv32_doc_obj.getEmittedDocs(),
         .install_dir = .prefix,
@@ -153,7 +162,6 @@ pub fn build(b: *std.Build) void {
     riscv32_doc_step.dependOn(&riscv32_install_doc.step);
     b.getInstallStep().dependOn(riscv32_doc_step);
     // make dummy objects for the modules, will be used for doc generation
-    const t = b.standardTargetOptions(.{});
     const module_doc_objects: [2]ModuleDocObject = .{
         .{
             .name = "OSProcess",
