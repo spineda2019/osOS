@@ -27,7 +27,21 @@ const ModuleDocObject = struct {
 // runner.
 pub fn build(b: *std.Build) void {
     const kernel_name = "osOS.elf";
-    const t = b.standardTargetOptions(.{});
+    const x86_target = b.resolveTargetQuery(.{
+        .cpu_arch = .x86,
+        .os_tag = .freestanding,
+        .abi = .none,
+    });
+    const riscv32_target = b.resolveTargetQuery(.{
+        .cpu_arch = .riscv32,
+        .os_tag = .freestanding,
+        .abi = .none,
+    });
+    const doc_target = b.resolveTargetQuery(.{
+        .cpu_arch = null, // native
+        .os_tag = .freestanding,
+        .abi = .none,
+    });
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -49,11 +63,7 @@ pub fn build(b: *std.Build) void {
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = .riscv32,
-            .os_tag = .freestanding,
-            .abi = .none,
-        }),
+        .target = riscv32_target,
         .optimize = .ReleaseSmall,
         .strip = false,
     });
@@ -70,11 +80,7 @@ pub fn build(b: *std.Build) void {
     });
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = .x86,
-            .os_tag = .freestanding,
-            .abi = .none,
-        }),
+        .target = x86_target,
         .optimize = .ReleaseSmall,
         .strip = false,
     });
@@ -88,32 +94,32 @@ pub fn build(b: *std.Build) void {
 
     const osformat_doc_module = b.createModule(.{
         .root_source_file = b.path("format/osformat.zig"),
-        .target = t,
-        .optimize = .Debug,
+        .target = doc_target,
+        .optimize = .ReleaseSmall,
     });
 
     const osmemory_doc_module = b.createModule(.{
         .root_source_file = b.path("memory/memory.zig"),
-        .target = t,
-        .optimize = .Debug,
+        .target = doc_target,
+        .optimize = .ReleaseSmall,
     });
 
     const osprocess_doc_module = b.createModule(.{
         .root_source_file = b.path("process/process.zig"),
-        .target = t,
-        .optimize = .Debug,
+        .target = doc_target,
+        .optimize = .ReleaseSmall,
     });
 
     const x86_memory_doc_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
-        .target = t,
-        .optimize = .Debug,
+        .target = doc_target,
+        .optimize = .ReleaseSmall,
     });
 
     const x86_asm_doc_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
-        .target = t,
-        .optimize = .Debug,
+        .target = doc_target,
+        .optimize = .ReleaseSmall,
     });
     //**************************************************************************
     //                           Compile Step Setup                            *
