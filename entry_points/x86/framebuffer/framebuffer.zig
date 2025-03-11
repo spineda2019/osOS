@@ -165,9 +165,17 @@ pub const FrameBuffer: type = struct {
                 .DarkGray,
                 .LightBrown,
             );
+
             self.buffer[self.current_row][self.current_column] = letter;
+            if (self.isBufferFull()) {
+                // TODO: Scroll
+            }
             self.incrementCursor();
         }
+    }
+
+    inline fn isBufferFull(self: *FrameBuffer) bool {
+        return self.current_row >= 24 and self.current_column >= 79;
     }
 
     /// Delete top line in buffer and move all lines up one. Will leave bottom
