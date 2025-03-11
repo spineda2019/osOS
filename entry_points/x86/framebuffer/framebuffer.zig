@@ -101,6 +101,11 @@ pub const FrameBuffer: type = struct {
     current_row: u8,
     current_column: u8,
 
+    /// In memory buffer representation of what is on the screen. Used for
+    /// screen scrolling. Theoretically we could extract what character is in
+    /// a given cell, but this will likely be faster.
+    buffer: [25][80]u8,
+
     /// calculate the address to write in terms of an x,y coordinate.
     ///
     /// Return type is a bare u32 for sake of math, which will be converted
@@ -126,6 +131,7 @@ pub const FrameBuffer: type = struct {
         return .{
             .current_row = 0,
             .current_column = cursor_position,
+            .buffer = .{.{0} ** 80} ** 25,
         };
     }
 
