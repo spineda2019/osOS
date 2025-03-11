@@ -142,12 +142,12 @@ pub fn build(b: *std.Build) void {
     x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
 
     //* *************************** Doc Specific ***************************** *
+    // freestanding modules need a specified target and optmimzation to actually
+    // build properly. These are dummy values just for doc building purposes.
     const x86_doc_obj = b.addObject(.{
         .name = "x86_src",
         .root_module = x86_module,
     });
-    // freestanding modules need a specified target and optmimzation to actually
-    // build properly. These are dummy values just for doc building purposes.
     const x86memory_doc_obj = b.addObject(.{
         .name = "x86memory_src",
         .root_module = x86_memory_doc_module,
