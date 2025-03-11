@@ -82,6 +82,39 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
 
+    //* *************************** Doc Specific ***************************** *
+    // to properly build with an opt level and root module, we need to make
+    // dummy objects for freestanding modules.
+
+    const osformat_doc_module = b.createModule(.{
+        .root_source_file = b.path("format/osformat.zig"),
+        .target = t,
+        .optimize = .Debug,
+    });
+
+    const osmemory_doc_module = b.createModule(.{
+        .root_source_file = b.path("memory/memory.zig"),
+        .target = t,
+        .optimize = .Debug,
+    });
+
+    const osprocess_doc_module = b.createModule(.{
+        .root_source_file = b.path("process/process.zig"),
+        .target = t,
+        .optimize = .Debug,
+    });
+
+    const x86_memory_doc_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
+        .target = t,
+        .optimize = .Debug,
+    });
+
+    const x86_asm_doc_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+        .target = t,
+        .optimize = .Debug,
+    });
     //**************************************************************************
     //                           Compile Step Setup                            *
     //**************************************************************************
@@ -107,9 +140,31 @@ pub fn build(b: *std.Build) void {
         .name = "x86_src",
         .root_module = x86_module,
     });
+    // freestanding modules need a specified target and optmimzation to actually
+    // build properly. These are dummy values just for doc building purposes.
+    const x86memory_doc_obj = b.addObject(.{
+        .name = "x86memory_src",
+        .root_module = x86_memory_doc_module,
+    });
+    const x86asm_doc_obj = b.addObject(.{
+        .name = "x86asm_src",
+        .root_module = x86_asm_doc_module,
+    });
     const riscv32_doc_obj = b.addObject(.{
         .name = "riscv32_src",
         .root_module = riscv32_module,
+    });
+    const osformat_doc_obj = b.addObject(.{
+        .name = "osformat_src",
+        .root_module = osformat_doc_module,
+    });
+    const osmemory_doc_obj = b.addObject(.{
+        .name = "osmemory_src",
+        .root_module = osmemory_doc_module,
+    });
+    const osprocess_doc_obj = b.addObject(.{
+        .name = "osprocess_src",
+        .root_module = osprocess_doc_module,
     });
 
     //**************************************************************************
@@ -141,44 +196,47 @@ pub fn build(b: *std.Build) void {
     b.getInstallStep().dependOn(&x86_out.step);
 
     //* *************************** Doc Specific ***************************** *
-    const x86_doc_step = b.step("x86_docs", "Build x86 kernel package documentation");
+    const doc_page_step = b.step(
+        "doc_site",
+        "Build all docs and tie them together with the landing page",
+    );
+
     const x86_install_doc = b.addInstallDirectory(.{
         .source_dir = x86_doc_obj.getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/x86",
     });
-    x86_doc_step.dependOn(&x86_install_doc.step);
-    b.getInstallStep().dependOn(x86_doc_step);
-
-    const riscv32_doc_step = b.step(
-        "riscv32_docs",
-        "Build riscv32 kernel package documentation",
-    );
+    const x86memory_install_doc = b.addInstallDirectory(.{
+        .source_dir = x86memory_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/x86modules/x86memory",
+    });
+    const x86asm_install_doc = b.addInstallDirectory(.{
+        .source_dir = x86asm_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/x86modules/x86asm",
+    });
     const riscv32_install_doc = b.addInstallDirectory(.{
         .source_dir = riscv32_doc_obj.getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/RISC-V32",
     });
-    riscv32_doc_step.dependOn(&riscv32_install_doc.step);
-    b.getInstallStep().dependOn(riscv32_doc_step);
-    // make dummy objects for the modules, will be used for doc generation
-    const module_doc_objects: [2]ModuleDocObject = .{
-        .{
-            .name = "OSProcess",
-            .root_file = b.path("process/process.zig"),
-            .output_folder = "docs/modules/process",
-        },
-        .{
-            .name = "OSFormat",
-            .root_file = b.path("format/osformat.zig"),
-            .output_folder = "docs/modules/format",
-        },
-    };
+    const osformat_install_doc = b.addInstallDirectory(.{
+        .source_dir = osformat_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/shared_modules/osformat",
+    });
+    const osmemory_install_doc = b.addInstallDirectory(.{
+        .source_dir = osmemory_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/shared_modules/osmemory",
+    });
+    const osprocess_install_doc = b.addInstallDirectory(.{
+        .source_dir = osprocess_doc_obj.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/shared_modules/osprocess",
+    });
 
-    const doc_page_step = b.step(
-        "doc_site",
-        "Build all docs and tie them together with the landing page",
-    );
     const copy_landing_page = b.addSystemCommand(&.{
         "cp",
         "docs/index.html",
@@ -189,31 +247,22 @@ pub fn build(b: *std.Build) void {
         "docs/styles.css",
         "zig-out/docs/",
     });
-    copy_landing_page.step.dependOn(x86_doc_step);
-    copy_landing_page.step.dependOn(riscv32_doc_step);
 
-    // dump in all shared modules
-    for (module_doc_objects) |doc_object| {
-        const module_doc_object = b.addObject(.{
-            .name = doc_object.name,
-            .root_module = b.createModule(.{
-                .root_source_file = doc_object.root_file,
-                .target = t,
-                .optimize = .Debug, // just for docs, opt for fast build
-            }),
-        });
-        const install_module_doc = b.addInstallDirectory(.{
-            .source_dir = module_doc_object.getEmittedDocs(),
-            .install_dir = .prefix,
-            .install_subdir = doc_object.output_folder,
-        });
-        copy_landing_page.step.dependOn(&install_module_doc.step);
-    }
+    // build all module docs before copying index.html
+    copy_landing_page.step.dependOn(&x86_install_doc.step);
+    copy_landing_page.step.dependOn(&x86memory_install_doc.step);
+    copy_landing_page.step.dependOn(&x86asm_install_doc.step);
+    copy_landing_page.step.dependOn(&riscv32_install_doc.step);
+    copy_landing_page.step.dependOn(&osformat_install_doc.step);
+    copy_landing_page.step.dependOn(&osmemory_install_doc.step);
+    copy_landing_page.step.dependOn(&osprocess_install_doc.step);
 
+    // then copy style.css
     copy_landing_style.step.dependOn(&copy_landing_page.step);
-    doc_page_step.dependOn(&copy_landing_page.step);
+
     doc_page_step.dependOn(&copy_landing_style.step);
     b.getInstallStep().dependOn(doc_page_step);
+
     //**************************************************************************
     //                             Run Step Setup                              *
     //**************************************************************************
