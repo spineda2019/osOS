@@ -137,16 +137,21 @@ pub const FrameBuffer: type = struct {
 
     fn incrementCursor(self: *FrameBuffer) void {
         self.current_row = position_calculation: {
-            if (self.current_row >= 24 and self.current_column >= 79) {
-                // wrap around
-                self.current_column = 0;
-                break :position_calculation 0;
+            if (self.current_row >= 24) {
+                // wrap around and stay in the bottom for scrolling
+                break :position_calculation 24;
             } else if (self.current_column < 79) {
-                self.current_column += 1;
                 break :position_calculation self.current_row;
             } else {
-                self.current_column = 0;
                 break :position_calculation self.current_row + 1;
+            }
+        };
+
+        self.current_column = position_calculation: {
+            if (self.current_column >= 79) {
+                break :position_calculation 0;
+            } else {
+                break :position_calculation self.current_column + 1;
             }
         };
 
@@ -166,21 +171,56 @@ pub const FrameBuffer: type = struct {
                 .LightBrown,
             );
 
+            self.incrementCursor();
+
             self.buffer[self.current_row][self.current_column] = letter;
             if (self.isBufferFull()) {
-                // TODO: Scroll
+                self.scrollBuffer();
+                self.flushBuffer();
             }
-            self.incrementCursor();
         }
     }
 
-    inline fn isBufferFull(self: *FrameBuffer) bool {
+    fn isBufferFull(self: *FrameBuffer) bool {
         return self.current_row >= 24 and self.current_column >= 79;
     }
 
-    /// Delete top line in buffer and move all lines up one. Will leave bottom
-    /// line clear for writing.
-    pub fn scrollScreen() void {}
+    /// Iterate through all (but the last) line in the buffer in write it.
+    fn flushBuffer(self: *FrameBuffer) void {
+        // Need to leave the last line empty, .. is non-right-inclusive
+        for (0..24) |row| {
+            for (self.buffer[row], 0..) |scrolled_letter, column| {
+                writeCell(
+                    @truncate(row),
+                    @truncate(column),
+                    scrolled_letter,
+                    .DarkGray,
+                    .LightBrown,
+                );
+            }
+        }
+
+        for (0..80) |column| {
+            writeCell(
+                24,
+                @truncate(column),
+                ' ',
+                .DarkGray,
+                .LightBrown,
+            );
+        }
+    }
+
+    /// Delete first row in buffer and move all rows up one. Will leave bottom
+    /// row empty. This method will NOT be in charge of physically
+    /// moving the cursor, this only mutates our memory buffer in place.
+    pub fn scrollBuffer(self: *FrameBuffer) void {
+        for (0..self.buffer.len) |row_num| {
+            if (row_num != 0) {
+                self.buffer[row_num - 1] = self.buffer[row_num];
+            }
+        }
+    }
 
     /// Exactly like write, but adds a newline and reshows the shell prompt
     pub fn writeln() void {}

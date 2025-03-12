@@ -21,16 +21,6 @@ const as = @import("x86asm");
 const interrupts = @import("interrupts/interrupts.zig");
 const osformat = @import("osformat");
 
-fn delay() void {
-    for (0..16384) |_| {
-        for (0..32768) |_| {
-            asm volatile (
-                \\nop
-            );
-        }
-    }
-}
-
 fn panic() noreturn {
     while (true) {
         asm volatile ("");
@@ -71,6 +61,38 @@ pub fn kmain() noreturn {
 
     const writer = framebuffer.writer();
     osformat.print.kprintf(" We have printf too!", .{}, writer);
+
+    osformat.print.kprintf(" Time to test scrolling...", .{}, writer);
+    for (0..60) |_| {
+        osformat.print.kprintf(" ", .{}, writer);
+    }
+
+    for (0..12) |_| {
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        framebuffer.write("Foo " ** 20);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        framebuffer.write("Bar " ** 20);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        framebuffer.write("Baz " ** 20);
+    }
 
     // set EAX just so we know where we are in the log
     asm volatile (
