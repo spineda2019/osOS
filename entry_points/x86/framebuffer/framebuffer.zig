@@ -170,14 +170,14 @@ pub const FrameBuffer: type = struct {
                 .DarkGray,
                 .LightBrown,
             );
-
-            self.incrementCursor();
-
             self.buffer[self.current_row][self.current_column] = letter;
+
             if (self.isBufferFull()) {
                 self.scrollBuffer();
                 self.flushBuffer();
             }
+
+            self.incrementCursor();
         }
     }
 

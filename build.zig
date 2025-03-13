@@ -144,33 +144,30 @@ pub fn build(b: *std.Build) void {
     //* *************************** Doc Specific ***************************** *
     // freestanding modules need a specified target and optmimzation to actually
     // build properly. These are dummy values just for doc building purposes.
-    const x86_doc_obj = b.addObject(.{
-        .name = "x86_src",
-        .root_module = x86_module,
-    });
-    const x86memory_doc_obj = b.addObject(.{
+    const x86memory_doc_obj = b.addLibrary(.{
         .name = "x86memory_src",
         .root_module = x86_memory_doc_module,
+        .linkage = .static,
     });
-    const x86asm_doc_obj = b.addObject(.{
+    const x86asm_doc_obj = b.addLibrary(.{
         .name = "x86asm_src",
         .root_module = x86_asm_doc_module,
+        .linkage = .static,
     });
-    const riscv32_doc_obj = b.addObject(.{
-        .name = "riscv32_src",
-        .root_module = riscv32_module,
-    });
-    const osformat_doc_obj = b.addObject(.{
+    const osformat_doc_obj = b.addLibrary(.{
         .name = "osformat_src",
         .root_module = osformat_doc_module,
+        .linkage = .static,
     });
-    const osmemory_doc_obj = b.addObject(.{
+    const osmemory_doc_obj = b.addLibrary(.{
         .name = "osmemory_src",
         .root_module = osmemory_doc_module,
+        .linkage = .static,
     });
-    const osprocess_doc_obj = b.addObject(.{
+    const osprocess_doc_obj = b.addLibrary(.{
         .name = "osprocess_src",
         .root_module = osprocess_doc_module,
+        .linkage = .static,
     });
 
     //**************************************************************************
@@ -208,7 +205,7 @@ pub fn build(b: *std.Build) void {
     );
 
     const x86_install_doc = b.addInstallDirectory(.{
-        .source_dir = x86_doc_obj.getEmittedDocs(),
+        .source_dir = x86_exe.getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/x86",
     });
@@ -223,7 +220,7 @@ pub fn build(b: *std.Build) void {
         .install_subdir = "docs/x86modules/x86asm",
     });
     const riscv32_install_doc = b.addInstallDirectory(.{
-        .source_dir = riscv32_doc_obj.getEmittedDocs(),
+        .source_dir = riscv32_exe.getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/RISC-V32",
     });
