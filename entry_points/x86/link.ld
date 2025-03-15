@@ -43,7 +43,10 @@ SECTIONS {
     .bss ALIGN(0x1000) :
     {
         /* *(COMMON) */
+        __stack_start = .;
         *(.bss)
+        . += 4096;
+        __stack_end = .;
     }
 
     /DISCARD/ : {
