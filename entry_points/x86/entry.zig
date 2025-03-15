@@ -16,10 +16,6 @@
 
 const kmain = @import("kmain.zig").kmain;
 
-/// Defined in the linker script. Used to initialize Stack Pointer from memory
-/// defined in bss.
-const stack_end: [*]u8 = @extern([*]u8, .{ .name = "__stack_end" });
-
 export fn boot() align(4) linksection(".text") callconv(.naked) noreturn {
     asm volatile (
         \\.equ MAGIC_NUMBER,      0x1BADB002
@@ -29,8 +25,9 @@ export fn boot() align(4) linksection(".text") callconv(.naked) noreturn {
         \\    .long MAGIC_NUMBER
         \\    .long FLAGS
         \\    .long CHECKSUM
-        \\    movl __stack_end, %ESP  # setup stack pointer to end of kernel_stack
-        \\
+        \\    movl __stack_end, %ESP  # setup stack pointer to end of our stack
+        \\                            # __stack_end symbol defined in linker
+        \\                            # script
     );
     asm volatile (
         \\    jmp *%[kmain_address]
