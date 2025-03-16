@@ -16,6 +16,9 @@
 
 const kmain = @import("kmain.zig").kmain;
 
+/// Multiboot header to be placed at the beginning of our kernel binary. Must be
+/// marked extern to make it exportable. Will follow the C ABI of the target
+/// architecture.
 const MultiBootHeader = extern struct {
     const magic_number_value: u32 = 0x1BADB002;
     magic_number: u32,
