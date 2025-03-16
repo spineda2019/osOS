@@ -64,10 +64,10 @@ pub export fn kmain() align(4) noreturn {
 
     const writer = framebuffer.writer();
     osformat.print.kprintf(" We have printf too!", .{}, writer);
-    osformat.print.kprintf(" Time to test scrolling...", .{}, writer);
-    for (0..60) |_| {
-        osformat.print.kprintf(" ", .{}, writer);
-    }
+    osformat.print.kprintf(" Testing writeln...", .{}, writer);
+    framebuffer.writeln("Hi there from a new line!");
+    framebuffer.writeln("Hi there from a new line again!");
+    framebuffer.writeln("Time to test scrolling...");
 
     for (0..12) |_| {
         for (0..16384) |_| {
