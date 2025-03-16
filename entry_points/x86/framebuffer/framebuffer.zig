@@ -172,6 +172,21 @@ pub const FrameBuffer: type = struct {
         };
     }
 
+    fn incrementCursorRow(self: *FrameBuffer) void {
+        self.current_row = position_calculation: {
+            if (self.current_row >= 24) {
+                // wrap around and stay in the bottom for scrolling
+                break :position_calculation 24;
+            } else {
+                break :position_calculation self.current_row + 1;
+            }
+        };
+
+        self.current_column = 0;
+
+        moveCursor(self.current_row, self.current_column);
+    }
+
     fn incrementCursor(self: *FrameBuffer) void {
         self.current_row = position_calculation: {
             if (self.current_row >= 24) {
@@ -195,26 +210,39 @@ pub const FrameBuffer: type = struct {
         moveCursor(self.current_row, self.current_column);
     }
 
+    fn framebufferNewline(self: *FrameBuffer) void {
+        for (self.current_column..80) |column| {
+            self.buffer[self.current_row][column] = ' ';
+        }
+        self.incrementCursorRow();
+        if (self.isBufferFull()) {
+            self.scrollBuffer();
+            self.flushBuffer();
+        }
+    }
+
+    /// Exactly like write, but adds a newline and reshows the shell prompt.
+    pub fn writeln(self: *FrameBuffer, buffer: []const u8) void {
+        if (self.current_column != 0) {
+            self.framebufferNewline();
+        }
+
+        for ("shell> ") |letter| {
+            self.putCharacter(letter);
+        }
+        for (buffer) |letter| {
+            self.putCharacter(letter);
+        }
+
+        self.framebufferNewline();
+    }
+
     /// Based zig lets us pass a safe slice and use the
     /// len field rather than depend on the caller giving us the
     /// write thing
     pub fn write(self: *FrameBuffer, buffer: []const u8) void {
         for (buffer) |letter| {
-            writeCell(
-                self.current_row,
-                self.current_column,
-                letter,
-                .DarkGray,
-                .LightBrown,
-            );
-            self.buffer[self.current_row][self.current_column] = letter;
-
-            if (self.isBufferFull()) {
-                self.scrollBuffer();
-                self.flushBuffer();
-            }
-
-            self.incrementCursor();
+            self.putCharacter(letter);
         }
     }
 
@@ -222,7 +250,8 @@ pub const FrameBuffer: type = struct {
         return self.current_row >= 24 and self.current_column >= 79;
     }
 
-    /// Iterate through all (but the last) line in the buffer in write it.
+    /// Iterate through all (but the last) line in the buffer and write what
+    /// its contents to the frambuffer.
     fn flushBuffer(self: *FrameBuffer) void {
         // Need to leave the last line empty, .. is non-right-inclusive
         for (0..24) |row| {
@@ -252,15 +281,10 @@ pub const FrameBuffer: type = struct {
     /// row empty. This method will NOT be in charge of physically
     /// moving the cursor, this only mutates our memory buffer in place.
     pub fn scrollBuffer(self: *FrameBuffer) void {
-        for (0..self.buffer.len) |row_num| {
-            if (row_num != 0) {
-                self.buffer[row_num - 1] = self.buffer[row_num];
-            }
+        for (1..self.buffer.len) |row_num| {
+            self.buffer[row_num - 1] = self.buffer[row_num];
         }
     }
-
-    /// Exactly like write, but adds a newline and reshows the shell prompt
-    pub fn writeln() void {}
 
     /// Indirect function for use when creating the kernel Writer interface.
     /// Simply redirects to the proper framebuffer implementation
@@ -278,6 +302,25 @@ pub const FrameBuffer: type = struct {
         };
     }
 
+    /// Small wrapper API around internal writeCell. Sets terminal defaults
+    /// and does internal bookkeeping.
+    pub fn putCharacter(self: *FrameBuffer, letter: u8) void {
+        writeCell(
+            self.current_row,
+            self.current_column,
+            letter,
+            .DarkGray,
+            .LightBrown,
+        );
+        self.buffer[self.current_row][self.current_column] = letter;
+        if (self.isBufferFull()) {
+            self.scrollBuffer();
+            self.flushBuffer();
+        }
+        self.incrementCursor();
+    }
+
+    /// API to write directly to the framebuffer.
     fn writeCell(
         row: u8,
         column: u8,
