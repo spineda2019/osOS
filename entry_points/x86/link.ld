@@ -24,6 +24,7 @@ SECTIONS {
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
     .text ALIGN(0x1000) : 
     {
+        KEEP(*(.text.multiboot*))
         *(.text)           /* All text sections from all files */
     }
 
