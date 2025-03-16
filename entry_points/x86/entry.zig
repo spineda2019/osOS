@@ -16,9 +16,25 @@
 
 const kmain = @import("kmain.zig").kmain;
 
+const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
+
 /// Multiboot header to be placed at the beginning of our kernel binary. Must be
 /// marked extern to make it exportable. Will follow the C ABI of the target
 /// architecture.
+///
+/// Offset    Type    Field Name    Note
+/// 0         u32     magic         required
+/// 4         u32     flags         required
+/// 8         u32     checksum      required
+/// 12        u32     header_addr   if flags[16] is set
+/// 16        u32     load_addr     if flags[16] is set
+/// 20        u32     load_end_addr if flags[16] is set
+/// 24        u32     bss_end_addr  if flags[16] is set
+/// 28        u32     entry_addr    if flags[16] is set
+/// 32        u32     mode_type     if flags[2] is set
+/// 36        u32     width         if flags[2] is set
+/// 40        u32     height        if flags[2] is set
+/// 44        u32     depth         if flags[2] is set
 const MultiBootHeader = extern struct {
     const magic_number_value: u32 = 0x1BADB002;
     magic_number: u32,
@@ -74,31 +90,18 @@ const MultiBootHeader = extern struct {
     }
 };
 
-/// Header to mark our kernel as bootable
+/// Header to mark our kernel as bootable. Will be placed at the beginning of
+/// our kernel's binary, and will be interpretted by the bootloader as the header
+/// of bytes defining how the kernel will be booted.
 export const multiboot_header linksection(".text.multiboot") = MultiBootHeader.init();
 
-/// Offset    Type    Field Name    Note
-/// 0         u32     magic         required
-/// 4         u32     flags         required
-/// 8         u32     checksum      required
-/// 12        u32     header_addr   if flags[16] is set
-/// 16        u32     load_addr     if flags[16] is set
-/// 20        u32     load_end_addr if flags[16] is set
-/// 24        u32     bss_end_addr  if flags[16] is set
-/// 28        u32     entry_addr    if flags[16] is set
-/// 32        u32     mode_type     if flags[2] is set
-/// 36        u32     width         if flags[2] is set
-/// 40        u32     height        if flags[2] is set
-/// 44        u32     depth         if flags[2] is set
+/// Entry point of our kernel. Will only setup our stack and jump to main.
 export fn boot() align(4) linksection(".text") callconv(.naked) noreturn {
     asm volatile (
-        \\    # movl __stack_end, %ESP  # setup stack pointer to end of our stack
-        \\                            # __stack_end symbol defined in linker
-        \\                            # script
-    );
-    asm volatile (
+        \\    movl %[stack_top], %ESP
         \\    jmp *%[kmain_address]
         :
-        : [kmain_address] "r" (&kmain),
+        : [stack_top] "r" (stack_top),
+          [kmain_address] "r" (&kmain),
     );
 }
