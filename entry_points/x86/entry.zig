@@ -59,17 +59,17 @@ const MultiBootHeader = extern struct {
     pub fn init() MultiBootHeader {
         return .{
             .magic_number = MultiBootHeader.magic_number_value,
-            .flags = 0,
+            .flags = 0b0000_0000_0000_0000_0000_0000_0000_0000,
             .checksum = 0 -% MultiBootHeader.magic_number_value -% @as(u32, 0),
             .header_addr = undefined,
             .load_addr = undefined,
             .load_end_addr = undefined,
             .bss_end_addr = undefined,
             .entry_addr = undefined,
-            .mode_type = undefined,
-            .width = undefined,
-            .height = undefined,
-            .depth = undefined,
+            .mode_type = 1,
+            .width = 80,
+            .height = 25,
+            .depth = 0,
         };
     }
 };
