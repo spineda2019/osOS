@@ -106,6 +106,43 @@ pub const FrameBuffer: type = struct {
     /// a given cell, but this will likely be faster.
     buffer: [25][80]u8,
 
+    pub fn testFourCorners(self: *FrameBuffer) void {
+        moveCursor(0, 0);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+
+        moveCursor(0, 79);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        moveCursor(24, 0);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        moveCursor(24, 79);
+        for (0..16384) |_| {
+            for (0..16384) |_| {
+                asm volatile (
+                    \\nop
+                );
+            }
+        }
+        moveCursor(self.current_row, self.current_column);
+    }
+
     /// calculate the address to write in terms of an x,y coordinate.
     ///
     /// Return type is a bare u32 for sake of math, which will be converted
@@ -312,12 +349,12 @@ pub const FrameBuffer: type = struct {
 
     fn moveCursor(row: u8, column: u8) void {
         const position: u16 = (row * 80) + (column);
-        const low_byte: u8 = @truncate(position);
-        const high_byte: u8 = @truncate(position >> 8);
-        as.assembly_wrappers.x86_out(command_port_address, high_byte_command);
-        as.assembly_wrappers.x86_out(data_port_address, high_byte);
+        const low_byte: u8 = @truncate(position & 0b0000_0000_1111_1111);
+        const high_byte: u8 = @truncate((position >> 8) & 0b0000_0000_1111_1111);
         as.assembly_wrappers.x86_out(command_port_address, low_byte_command);
         as.assembly_wrappers.x86_out(data_port_address, low_byte);
+        as.assembly_wrappers.x86_out(command_port_address, high_byte_command);
+        as.assembly_wrappers.x86_out(data_port_address, high_byte);
     }
 };
 

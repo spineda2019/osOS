@@ -28,7 +28,7 @@ fn panic() noreturn {
 }
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
-pub fn kmain() noreturn {
+pub export fn kmain() align(4) noreturn {
     as.assembly_wrappers.enableSSE();
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
@@ -59,9 +59,11 @@ pub fn kmain() noreturn {
         : [idt_address] "r" (&interrupt_function_table),
     );
 
+    framebuffer.write("Testing cursor movement...");
+    framebuffer.testFourCorners();
+
     const writer = framebuffer.writer();
     osformat.print.kprintf(" We have printf too!", .{}, writer);
-
     osformat.print.kprintf(" Time to test scrolling...", .{}, writer);
     for (0..60) |_| {
         osformat.print.kprintf(" ", .{}, writer);
