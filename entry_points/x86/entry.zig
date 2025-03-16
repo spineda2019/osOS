@@ -24,13 +24,58 @@ const MultiBootHeader = extern struct {
     magic_number: u32,
     flags: u32,
     checksum: u32,
+
+    /// if flags[16] is set
+    header_addr: u32,
+
+    /// if flags[16] is set
+    load_addr: u32,
+
+    /// if flags[16] is set
+    load_end_addr: u32,
+
+    /// if flags[16] is set
+    bss_end_addr: u32,
+
+    /// if flags[16] is set
+    entry_addr: u32,
+
+    /// if flags[2] is set. 0 for linear graphics and 1 for EGA text mode.
+    mode_type: u32,
+
+    /// if flags[2] is set. Framebuffer width. Measured in pixels in graphics
+    /// mode, or characters in text mode.
+    width: u32,
+
+    /// if flags[2] is set. Framebuffer height. Measured in pixels in graphics
+    /// mode, or characters in text mode.
+    height: u32,
+
+    /// if flags[2] is set. Contains the number of bits per pixel in a graphics
+    /// mode, and zero in a text mode. The value zero indicates that the OS
+    /// image has no preference.
+    depth: u32,
+
+    pub fn init() MultiBootHeader {
+        return .{
+            .magic_number = MultiBootHeader.magic_number_value,
+            .flags = 0,
+            .checksum = 0 -% MultiBootHeader.magic_number_value -% @as(u32, 0),
+            .header_addr = undefined,
+            .load_addr = undefined,
+            .load_end_addr = undefined,
+            .bss_end_addr = undefined,
+            .entry_addr = undefined,
+            .mode_type = undefined,
+            .width = undefined,
+            .height = undefined,
+            .depth = undefined,
+        };
+    }
 };
 
-export const multiboot_header linksection(".text.multiboot") = MultiBootHeader{
-    .magic_number = MultiBootHeader.magic_number_value,
-    .flags = 0,
-    .checksum = 0 -% MultiBootHeader.magic_number_value -% @as(u32, 0),
-};
+/// Header to mark our kernel as bootable
+export const multiboot_header linksection(".text.multiboot") = MultiBootHeader.init();
 
 /// Offset    Type    Field Name    Note
 /// 0         u32     magic         required
