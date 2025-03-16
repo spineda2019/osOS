@@ -44,11 +44,12 @@ SECTIONS {
     .bss ALIGN(0x1000) :
     {
         /* *(COMMON) */
-        __stack_start = .;
         *(.bss)
-        . += 4096;
-        __stack_end = .;
     }
+
+    . = ALIGN(4);
+    . += 128 * 1024;        /* 128KB */
+    __stack_top = .;        /* Stack will be 128KB */
 
     /DISCARD/ : {
         *(.eh_frame)
