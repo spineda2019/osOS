@@ -13,6 +13,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
-//! Root module of the osOS kernel's logging API.
+//! Logging APIs for the kernel.
 
-pub const log = @import("log.zig");
+const osformat = @import("osformat");
+
+pub fn printAndLog() void {}
