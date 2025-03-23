@@ -30,6 +30,8 @@ fn panic() noreturn {
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub export fn kmain() align(4) noreturn {
     as.assembly_wrappers.enableSSE();
+    as.assembly_wrappers.disable_x86_interrupts();
+
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
 
