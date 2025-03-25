@@ -9,18 +9,18 @@ pub const HandlerType = enum {
     NoErrorCode,
 };
 
-pub const InterruptDescriptionTablePtr = packed struct {
-    size: u16,
-    offset: u32,
+/// Needs to be extern as this is not a multiple of 32 bytes. Fields also need
+/// to be aligned to 1 byte so they are properly tightly packed. This should be
+/// 100% kosher under the zig spec, but we'll see if this stands the test of
+/// time and zig volatility
+pub const InterruptDescriptionTablePtr = extern struct {
+    size: u16 align(1),
+    offset: u32 align(1),
 
     pub fn init(idt: *const InterruptDescriptionTable) InterruptDescriptionTablePtr {
-        const table_size: u16 = comptime size_calc: {
-            break :size_calc (@bitSizeOf(InterruptDescriptionTable) / 8) - 1;
-        };
-
         return .{
-            .size = table_size,
-            .offset = @intFromPtr(idt),
+            .size = (@bitSizeOf(InterruptDescriptionTable) / 8) - 1,
+            .offset = @intFromPtr(&idt.entries),
         };
     }
 };
@@ -77,7 +77,7 @@ pub const InterruptDescriptionTable = struct {
 /// D:                Size of gate, (1 = 32 bits, 0 = 16 bits).
 /// segment selector: The offset in the GDT.
 /// r:                Reserved.
-pub const InterruptDescriptor = packed struct {
+pub const InterruptDescriptor = packed struct(u64) {
     /// Overall bits [0, 15], bits [0, 15] in lower bits
     ///
     /// Lower 16 bits of the total offset of ths descriptor in the table. The

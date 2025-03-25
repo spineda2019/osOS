@@ -27,6 +27,8 @@ fn panic() noreturn {
     }
 }
 
+export var idt: interrupts.InterruptDescriptionTablePtr = undefined;
+
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub export fn kmain() align(4) noreturn {
     as.assembly_wrappers.enableSSE();
@@ -52,10 +54,18 @@ pub export fn kmain() align(4) noreturn {
     // gdt_ptr.loadGDT();
 
     const interrupt_function_table = interrupts.InterruptHandlerTable.init();
-    // const idt = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
-    // const idt_ptr = interrupts.InterruptDescriptionTablePtr.init(&idt);
+    const idt_table = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
+    asm volatile (
+        \\ nop
+        \\ nop
+        \\ nop
+    );
+    idt = interrupts.InterruptDescriptionTablePtr.init(&idt_table);
 
     asm volatile (
+        \\ nop
+        \\ nop
+        \\ nop
         \\#lidtl (%[idt_address])
         : // no outputs
         : [idt_address] "r" (&interrupt_function_table),
