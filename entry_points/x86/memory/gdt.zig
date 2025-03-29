@@ -177,43 +177,55 @@ pub const SegmentDescriptor = packed struct {
         };
     }
 
-    /// Create the descriptor for the kernel's Data Segment
-    pub fn createDefaultDataSegmentDescriptor() SegmentDescriptor {
-        return SegmentDescriptor{
-            .lower_base = 0,
-            .higher_base = 0,
-            .higher_base_final = 0,
-            .lower_limit = 0b1111_1111_1111_1111,
-            .higher_limit = 0b1111,
-            .access_byte = 0b1001_0010,
-            .flags = 0b1100,
-        };
-    }
+    pub const null_descriptor: SegmentDescriptor = .{
+        .higher_limit = 0,
+        .lower_limit = 0,
+        .lower_base = 0,
+        .higher_base = 0,
+        .higher_base_final = 0,
+        .access_byte = 0,
+        .flags = 0,
+    };
 
-    /// Create the descriptor for the kernel's Code Segment
-    pub fn createDefaultCodeSegmentDescriptor() SegmentDescriptor {
-        return SegmentDescriptor{
-            .lower_base = 0,
-            .higher_base = 0,
-            .higher_base_final = 0,
-            .lower_limit = 0b1111_1111_1111_1111,
-            .higher_limit = 0b1111,
-            .access_byte = 0b1001_1010,
-            .flags = 0b1100,
-        };
-    }
+    pub const kernel_mode_code_segment: SegmentDescriptor = .{
+        .higher_limit = 0b1111,
+        .lower_limit = 0b1111_1111_1111_1111,
+        .lower_base = 0,
+        .higher_base = 0,
+        .higher_base_final = 0,
+        .access_byte = 0b10011010,
+        .flags = 0b1100,
+    };
 
-    pub fn createNullDescriptor() SegmentDescriptor {
-        return SegmentDescriptor{
-            .higher_limit = 0,
-            .lower_limit = 0,
-            .lower_base = 0,
-            .higher_base = 0,
-            .higher_base_final = 0,
-            .access_byte = 0,
-            .flags = 0,
-        };
-    }
+    pub const kernel_mode_data_segment: SegmentDescriptor = .{
+        .higher_limit = 0b1111,
+        .lower_limit = 0b1111_1111_1111_1111,
+        .lower_base = 0,
+        .higher_base = 0,
+        .higher_base_final = 0,
+        .access_byte = 0b10010010,
+        .flags = 0b1100,
+    };
+
+    pub const user_mode_code_segment: SegmentDescriptor = .{
+        .higher_limit = 0b1111,
+        .lower_limit = 0b1111_1111_1111_1111,
+        .lower_base = 0,
+        .higher_base = 0,
+        .higher_base_final = 0,
+        .access_byte = 0b11111010,
+        .flags = 0b1100,
+    };
+
+    pub const user_mode_data_segment: SegmentDescriptor = .{
+        .higher_limit = 0b1111,
+        .lower_limit = 0b1111_1111_1111_1111,
+        .lower_base = 0,
+        .higher_base = 0,
+        .higher_base_final = 0,
+        .access_byte = 0b11110010,
+        .flags = 0b1100,
+    };
 };
 
 test "table" {}
