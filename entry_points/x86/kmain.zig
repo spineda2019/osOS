@@ -31,15 +31,15 @@ export var idt: interrupts.InterruptDescriptionTablePtr = undefined;
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub export fn kmain() align(4) noreturn {
-    as.assembly_wrappers.enableSSE();
     as.assembly_wrappers.disable_x86_interrupts();
+    as.assembly_wrappers.enableSSE();
 
     var framebuffer = framebuffer_api.FrameBuffer.init();
     var serial_port = serial.SerialPort.defaultInit();
 
-    const message = "foo && bar && baz!";
-
+    const message = "Trying to write out of COM port 1...!";
     serial_port.write(message);
+
     framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
     // only set up 3 segments for now: null descriptor and descriptor's for
