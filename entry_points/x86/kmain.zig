@@ -27,8 +27,6 @@ fn panic() noreturn {
     }
 }
 
-export var idt: interrupts.InterruptDescriptionTablePtr = undefined;
-
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub export fn kmain() align(4) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
@@ -46,14 +44,16 @@ pub export fn kmain() align(4) noreturn {
     const gdt_descriptor = memory.gdt.GDTDescriptor.init(&gdt);
     gdt_descriptor.loadGDT();
 
-    const interrupt_function_table = comptime interrupts.InterruptHandlerTable.init();
-    const idt_table = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
+    const interrupt_function_table = comptime interrupts.generateInterruptHandlers();
+    const idt = interrupts.createDefaultIDT(&interrupt_function_table);
+    const idt_descriptor = interrupts.IDTDescriptor.init(&idt);
+    idt_descriptor.loadIDT();
     asm volatile (
         \\ nop
         \\ nop
         \\ nop
     );
-    idt = interrupts.InterruptDescriptionTablePtr.init(&idt_table);
+    // idt = interrupts.InterruptDescriptionTablePtr.init(&idt_table);
 
     asm volatile (
         \\ nop
