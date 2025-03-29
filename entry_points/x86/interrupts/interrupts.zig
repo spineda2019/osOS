@@ -30,7 +30,7 @@ pub const InterruptDescriptorTable = struct {
 
     pub fn init(handler_table: *const InterruptHandlerTable) InterruptDescriptorTable {
         var entries: [256]InterruptDescriptor = undefined;
-        for (handler_table.handlers, 0..) |fn_ptr, interrupt_number| {
+        for (handler_table, 0..) |fn_ptr, interrupt_number| {
             entries[interrupt_number] = .{
                 .offset_low = @truncate(@intFromPtr(fn_ptr)),
                 .offset_high = @truncate(@intFromPtr(fn_ptr) >> 8),
@@ -147,32 +147,22 @@ const CpuState = packed struct {
     ebp: u32,
 };
 
-pub const InterruptHandlerTable = struct {
-    /// This is the array of all interrupt handlers for the OS
-    /// Some will push error codes on to the stack and others won't. All will
-    /// push their interrupt number on the stack. Specifically, the following
-    /// interrupts push their error codes on the stack:
-    ///
-    /// 8, 10, 11, 12, 13, 14, and 17
-    handlers: [256]*const fn () callconv(.naked) void,
+pub const InterruptHandlerTable = [256]*const fn () callconv(.naked) void;
 
-    /// Generate interrupt handler functions at comptime, them take and store
-    /// their addresses at runtime. This should only be called at comptime,
-    /// generating functions doesn't make sense at runtime, and should not
-    /// compile anyway.
-    pub fn init() InterruptHandlerTable {
-        var table: [256]*const fn () callconv(.naked) void = undefined;
+/// Generate interrupt handler functions at comptime, them take and store
+/// their addresses at runtime. This should only be called at comptime,
+/// generating functions doesn't make sense at runtime, and should not
+/// compile anyway.
+pub fn generateInterruptHandlers() InterruptHandlerTable {
+    var table: [256]*const fn () callconv(.naked) void = undefined;
 
-        for (0..table.len) |interrupt_number| {
-            // .. range is not inclusive on the right
-            table[interrupt_number] = generateHandler(interrupt_number);
-        }
-
-        return .{
-            .handlers = table,
-        };
+    for (0..table.len) |interrupt_number| {
+        // .. range is not inclusive on the right
+        table[interrupt_number] = generateHandler(interrupt_number);
     }
-};
+
+    return table;
+}
 
 /// General interrupt handler that pushes register state to stack and calls
 /// the internal zig interrupt handler. This function will only be called
@@ -211,7 +201,7 @@ export fn commonInteruptHandler() callconv(.naked) void {
 /// Generic function to generate an interrupt handler. This handler will push
 /// an error code to the stack. This generic pattern is ued in place of macros,
 /// which would be used if were using something like NASM for example.
-pub fn generateHandler(
+fn generateHandler(
     comptime interrupt_number: comptime_int,
 ) *const fn () callconv(.naked) void {
     const inner = struct {
