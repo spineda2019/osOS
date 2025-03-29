@@ -89,7 +89,7 @@ pub inline fn x86_lgdt(table_address: u32) void {
     asm volatile (
         \\lgdtl (%[table_address])
         :
-        : [table_address] "{eax}" (table_address),
+        : [table_address] "r" (table_address),
     );
 }
 
