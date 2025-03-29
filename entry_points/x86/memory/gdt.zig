@@ -17,6 +17,7 @@
 
 const as = @import("x86asm");
 
+/// TODO: Make init functions return an error if they fail
 const SegmentDescriptorError = error{};
 
 /// Essentially a fat pointer to our actual table structure. To properly set up
@@ -26,26 +27,40 @@ const SegmentDescriptorError = error{};
 pub const GDTDescriptor = struct {
     /// Linear address of the actual Global Descriptor Table
     address: u32,
+
     /// size of the actual table structure in bytes MINUS 1.
     size: u16,
 
     /// Given a created table structure, setup this structure type to feed to
     /// the GDTR register
-    pub fn init(table: []const SegmentDescriptor) GDTDescriptor {
-        return GDTDescriptor{
+    pub fn init(table: GlobalDescriptorTable) GDTDescriptor {
+        return .{
             .address = @as(u32, @intFromPtr(&table)),
-            .size = @truncate((@bitSizeOf(SegmentDescriptor) * table.len) - 1),
+            .size = @truncate(@sizeOf(GlobalDescriptorTable) - 1),
         };
     }
 
     pub fn loadGDT(self: *const GDTDescriptor) void {
-        as.assembly_wrappers.disable_x86_interrupts();
-        defer as.assembly_wrappers.enable_x86_interrupts();
-        // load GDT and the respective segment registers. CS and DS are already set
-        // to 0x08 and 0x10 respectively by the bootloader.
         as.assembly_wrappers.x86_lgdt(@intFromPtr(self));
     }
 };
+
+/// Create a GDT with only the null descriptor, and a data and code segment for
+/// both kernel mode and user mode.
+pub fn createDefaultGDT() [5]SegmentDescriptor {
+    return .{
+        SegmentDescriptor.null_descriptor, // offset 0x0
+        SegmentDescriptor.kernel_mode_code_segment, // offset 0x8 AKA 64 bytes
+        SegmentDescriptor.kernel_mode_data_segment, // offset 0x10 AKA 128 bytes
+        SegmentDescriptor.user_mode_code_segment, // offset 0x18 AKA 192 bytes
+        SegmentDescriptor.user_mode_data_segment, // offset 0x20 AKA 256 bytes
+    };
+}
+
+/// The GDT is essentially just an array of 64 bit values. Our default GDT
+/// will have a comptime known size, but in theory an arbitrary GDT can have
+/// any size.
+pub const GlobalDescriptorTable = []const SegmentDescriptor;
 
 /// Each entry in the GDT is 64 bytes long. All Base and Limit fields are
 /// ignored in 64 bit mode.
