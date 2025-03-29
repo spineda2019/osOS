@@ -161,24 +161,16 @@ pub const InterruptHandlerTable = struct {
     handlers: [256]*const fn () callconv(.naked) void,
 
     /// Generate interrupt handler functions at comptime, them take and store
-    /// their addresses at runtime.
+    /// their addresses at runtime. This should only be called at comptime,
+    /// generating functions doesn't make sense at runtime, and should not
+    /// compile anyway.
     pub fn init() InterruptHandlerTable {
-        const table: [256]*const fn () callconv(.naked) void = comptime calc: {
-            var inner: [256]*const fn () callconv(.naked) void = undefined;
-            for (0..inner.len) |interrupt_number| {
-                // .. range is not inclusive on the right
-                inner[interrupt_number] = switch (interrupt_number) {
-                    8, 10, 11, 12, 13, 14, 17 => makeErrorCodeInterruptHandler(
-                        interrupt_number,
-                    ),
-                    else => makeInterruptHandlerWithoutErrorCode(
-                        interrupt_number,
-                    ),
-                };
-            }
+        var table: [256]*const fn () callconv(.naked) void = undefined;
 
-            break :calc inner;
-        };
+        for (0..table.len) |interrupt_number| {
+            // .. range is not inclusive on the right
+            table[interrupt_number] = generateHandler(interrupt_number);
+        }
 
         return .{
             .handlers = table,
@@ -223,11 +215,12 @@ export fn commonInteruptHandler() callconv(.naked) void {
 /// Generic function to generate an interrupt handler. This handler will push
 /// an error code to the stack. This generic pattern is ued in place of macros,
 /// which would be used if were using something like NASM for example.
-pub fn makeErrorCodeInterruptHandler(
+pub fn generateHandler(
     comptime interrupt_number: comptime_int,
 ) *const fn () callconv(.naked) void {
-    return &struct {
-        pub fn genericErrorCodeHandler() callconv(.naked) void {
+    const inner = struct {
+        const std = @import("std");
+        pub fn withErrorCode() callconv(.naked) void {
             asm volatile (
                 \\pushl 0                    # push 0 as error code
                 \\pushl %[interrupt_number]  # push interrupt number
@@ -236,17 +229,8 @@ pub fn makeErrorCodeInterruptHandler(
                 : [interrupt_number] "i" (interrupt_number),
             );
         }
-    }.genericErrorCodeHandler;
-}
 
-/// Generic function to generate an interrupt handler. This handler will NOT
-/// push an error code to the stack. This generic pattern is ued in place of
-/// macros, which would be used if were using something like NASM for example.
-pub fn makeInterruptHandlerWithoutErrorCode(
-    comptime interrupt_number: comptime_int,
-) *const fn () callconv(.naked) void {
-    return &struct {
-        pub fn genericErrorCodeHandler() callconv(.naked) void {
+        pub fn withoutErrorCode() callconv(.naked) void {
             asm volatile (
                 \\pushl %[interrupt_number]  # push interrupt number
                 \\jmp commonInteruptHandler
@@ -254,5 +238,21 @@ pub fn makeInterruptHandlerWithoutErrorCode(
                 : [interrupt_number] "i" (interrupt_number),
             );
         }
-    }.genericErrorCodeHandler;
+    };
+
+    const fn_pointer = switch (interrupt_number) {
+        8, 10, 11, 12, 13, 14, 17 => &inner.withErrorCode,
+        else => &inner.withoutErrorCode,
+    };
+
+    @export(
+        fn_pointer,
+        .{
+            .name = "interrupt_handler_" ++ inner.std.fmt.comptimePrint("{}", .{
+                interrupt_number,
+            }),
+        },
+    );
+
+    return fn_pointer;
 }

@@ -46,7 +46,7 @@ pub export fn kmain() align(4) noreturn {
     const gdt_descriptor = memory.gdt.GDTDescriptor.init(&gdt);
     gdt_descriptor.loadGDT();
 
-    const interrupt_function_table = interrupts.InterruptHandlerTable.init();
+    const interrupt_function_table = comptime interrupts.InterruptHandlerTable.init();
     const idt_table = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
     asm volatile (
         \\ nop
