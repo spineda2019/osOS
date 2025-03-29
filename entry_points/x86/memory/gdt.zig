@@ -36,7 +36,14 @@ pub const GDTDescriptor = packed struct {
     pub fn init(table: GlobalDescriptorTable) GDTDescriptor {
         return .{
             .size = @truncate(table.len * @sizeOf(SegmentDescriptor) - 1),
-            .address = @as(u32, @intFromPtr(&table)),
+            .address = @intFromPtr(&table),
+        };
+    }
+
+    pub fn defaultInit(gdt: *const DefaultGlobalDescriptorTable) GDTDescriptor {
+        return .{
+            .size = @truncate((@bitSizeOf(DefaultGlobalDescriptorTable) / 8) - 1),
+            .address = @intFromPtr(&gdt),
         };
     }
 
@@ -62,9 +69,114 @@ pub fn createDefaultGDT() [5]SegmentDescriptor {
 /// any size.
 pub const GlobalDescriptorTable = []const SegmentDescriptor;
 
+pub const DefaultGlobalDescriptorTable = [5]SegmentDescriptor;
+
+/// Sets properties for a segment in the GDT. Has the form of:
+///
+/// Bit:     | 7 | 6 5 | 4 | 3 | 2  | 1  | 0 |
+/// Content: | P | DPL | S | E | DC | RW | A |
+pub const SegmentAccessByte = packed struct(u8) {
+    /// A: Accessed Bit. CPU sets this to 1 when the segment is accessed (unless
+    /// initialized to 1). Setting will trigger a page fault if this is in
+    /// Read-Only memory.
+    accessed_bit: u1,
+
+    /// RW: Readable/Writable bit. For code segments: Readable bit. If clear
+    /// (0), read access for this segment is not allowed. If set (1) read access
+    /// is allowed. Write access is never allowed for code segments.
+    /// For data segments: Writeable bit. If clear (0), write access for this
+    /// segment is not allowed. If set (1) write access is allowed. Read access
+    /// is always allowed for data segments.
+    rw_bit: u1,
+
+    /// DC: Direction Bit/Conforming Bit. For data selectors: Direction bit.
+    /// If clear (0) the segment grows up. If set (1) the segment grows down,
+    /// ie. the Offset has to be greater than the Limit.
+    /// For code selectors: Conforming bit.
+    /// If clear (0) code in this segment can only be executed from the ring set
+    /// in DPL. If set (1) code in this segment can be executed from an equal or
+    /// lower privilege level. For example, code in ring 3 can far-jump to
+    /// conforming code in a ring 2 segment. The DPL field represent the highest
+    /// privilege level that is allowed to execute the segment. For example,
+    /// code in ring 0 cannot far-jump to a conforming code segment where DPL is
+    /// 2, while code in ring 2 and 3 can. Note that the privilege level remains
+    /// the same, ie. a far-jump from ring 3 to a segment with a DPL of 2
+    /// remains in ring 3 after the jump.
+    dc_bit: u1,
+
+    /// E: Executable bit. If clear (0) the descriptor defines a data segment.
+    /// If set (1) it defines a code segment which can be executed from
+    executable_bit: u1,
+
+    /// S: Descriptor type bit. If clear (0) the descriptor defines a system
+    /// segment (eg. a Task State Segment). If set (1) it defines a code or data
+    /// segment.
+    descriptor_type_bit: u1,
+
+    /// DPL: Descriptor privilege Level. Descriptor privilege level field.
+    /// Contains the CPU Privilege level of the segment. 0 = highest privilege
+    /// (kernel), 3 = lowest privilege (user applications).
+    privilege_level: u2,
+
+    /// P: Present bit. Allows an entry to refer to a valid segment. Must be set
+    /// (1) for any valid segment.
+    present_bit: u1,
+
+    /// For convenient use to construct the null descriptor
+    pub const null_byte: SegmentAccessByte = .{
+        .accessed_bit = 0,
+        .rw_bit = 0,
+        .dc_bit = 0,
+        .executable_bit = 0,
+        .descriptor_type_bit = 0,
+        .privilege_level = 0,
+        .present_bit = 0,
+    };
+};
+
+/// Sets flags for how this segment encodes information. In the form of:
+///
+/// Bit:     | 3 | 2  | 1  | 0               |
+/// Content: | G | DB | L  | Reserved/Unused |
+pub const SegmentFlags = packed struct(u4) {
+    ///unused
+    _reserved: u1,
+
+    /// L: Long-mode code flag. If set (1), the descriptor defines a 64-bit code
+    /// segment. When set, DB should always be clear. For any other type of
+    /// segment (other code types or any data segment), it should be clear (0).
+    long_mode_flag: u1,
+
+    /// DB: Size flag. If clear (0), the descriptor defines a 16-bit protected
+    /// mode segment. If set (1) it defines a 32-bit protected mode segment. A
+    /// GDT can have both 16-bit and 32-bit selectors at once.
+    size_flag: u1,
+
+    /// G: Granularity flag. Indicates the size the Limit value is scaled by. If
+    /// clear (0), the Limit is in 1 Byte blocks (byte granularity). If set (1),
+    /// the Limit is in 4 KiB blocks (page granularity).
+    granularity_flag: u1,
+
+    /// Our OS segments will always be protected mode (not long mode), 32 bits,
+    /// and will have page granularity. This is defined for convenience.
+    pub const common_flag: SegmentFlags = .{
+        ._reserved = 0,
+        .long_mode_flag = 0,
+        .size_flag = 1,
+        .granularity_flag = 1,
+    };
+
+    pub const null_flag: SegmentFlags = .{
+        ._reserved = 0,
+        .long_mode_flag = 0,
+        .size_flag = 0,
+        .granularity_flag = 0,
+    };
+};
+
 /// Each entry in the GDT is 64 bytes long. All Base and Limit fields are
 /// ignored in 64 bit mode.
-pub const SegmentDescriptor = packed struct {
+pub const SegmentDescriptor = packed struct(u64) {
     /// 20 bit value (shared among this field and higher limit). Tells the
     /// maximum addressable unit either in 1 byte units or 4KiB pages.
     /// All 20 bits being set with a granularity of 4KiB will describe a segment
@@ -81,50 +193,8 @@ pub const SegmentDescriptor = packed struct {
     /// this is describing begins.
     higher_base: u8,
 
-    /// Sets properties for the segment we are describing. Has the form of:
-    ///
-    /// Bit:     | 7 | 6 5 | 4 | 3 | 2  | 1  | 0 |
-    /// Content: | P | DPL | S | E | DC | RW | A |
-    ///
-    /// A: Accessed Bit. CPU sets this to 1 when the segment is accessed (unless
-    /// initialized to 1). Setting will trigger a page fault if this is in RO
-    /// memory.
-    ///
-    /// RW: Readable/Writable bit. For code segments: Readable bit. If clear
-    /// (0), read access for this segment is not allowed. If set (1) read access
-    /// is allowed. Write access is never allowed for code segments.
-    /// For data segments: Writeable bit. If clear (0), write access for this
-    /// segment is not allowed. If set (1) write access is allowed. Read access
-    /// is always allowed for data segments.
-    ///
-    /// DC: Direction Bit/Conforming Bit. For data selectors: Direction bit.
-    /// If clear (0) the segment grows up. If set (1) the segment grows down,
-    /// ie. the Offset has to be greater than the Limit.
-    /// For code selectors: Conforming bit.
-    /// If clear (0) code in this segment can only be executed from the ring set
-    /// in DPL. If set (1) code in this segment can be executed from an equal or
-    /// lower privilege level. For example, code in ring 3 can far-jump to
-    /// conforming code in a ring 2 segment. The DPL field represent the highest
-    /// privilege level that is allowed to execute the segment. For example,
-    /// code in ring 0 cannot far-jump to a conforming code segment where DPL is
-    /// 2, while code in ring 2 and 3 can. Note that the privilege level remains
-    /// the same, ie. a far-jump from ring 3 to a segment with a DPL of 2
-    /// remains in ring 3 after the jump.
-    ///
-    /// E: Executable bit. If clear (0) the descriptor defines a data segment.
-    /// If set (1) it defines a code segment which can be executed from
-    ///
-    /// S: Descriptor type bit. If clear (0) the descriptor defines a system
-    /// segment (eg. a Task State Segment). If set (1) it defines a code or data
-    /// segment.
-    ///
-    /// DPL: Descriptor privilege Level. Descriptor privilege level field.
-    /// Contains the CPU Privilege level of the segment. 0 = highest privilege
-    /// (kernel), 3 = lowest privilege (user applications).
-    ///
-    /// P: Present bit. Allows an entry to refer to a valid segment. Must be set
-    /// (1) for any valid segment.
-    access_byte: u8,
+    /// Sets properties for the segment we are describing.
+    access_byte: SegmentAccessByte,
 
     /// 20 bit value (shared among this field and lower limit). Tells the
     /// maximum addressable unit either in 1 byte units or 4KiB pages.
@@ -132,23 +202,8 @@ pub const SegmentDescriptor = packed struct {
     /// spanning the entire 4GiB address space
     higher_limit: u4,
 
-    /// Sets flags for how this segment encodes information. In the form of:
-    ///
-    /// Bit:     | 3 | 2  | 1  | 0               |
-    /// Content: | G | DB | L  | Reserved/Unused |
-    ///
-    /// L: Long-mode code flag. If set (1), the descriptor defines a 64-bit code
-    /// segment. When set, DB should always be clear. For any other type of
-    /// segment (other code types or any data segment), it should be clear (0).
-    ///
-    /// DB: Size flag. If clear (0), the descriptor defines a 16-bit protected
-    /// mode segment. If set (1) it defines a 32-bit protected mode segment. A
-    /// GDT can have both 16-bit and 32-bit selectors at once.
-    ///
-    /// G: Granularity flag. Indicates the size the Limit value is scaled by. If
-    /// clear (0), the Limit is in 1 Byte blocks (byte granularity). If set (1),
-    /// the Limit is in 4 KiB blocks (page granularity).
-    flags: u4,
+    /// Sets flags for how this segment encodes information.
+    flags: SegmentFlags,
 
     /// 32 bit value (shared among this field, lower_base, and
     /// higher_base). Contains the linear address where the segment
@@ -170,8 +225,8 @@ pub const SegmentDescriptor = packed struct {
     pub fn create(
         limit: u20,
         base: u32,
-        access_byte: u8,
-        flags: u4,
+        access_byte: SegmentAccessByte,
+        flags: SegmentFlags,
     ) SegmentDescriptorError!SegmentDescriptor {
         return SegmentDescriptor{
             .lower_limit = @truncate(limit & 0b0000_1111_1111_1111_1111),
@@ -198,8 +253,8 @@ pub const SegmentDescriptor = packed struct {
         .lower_base = 0,
         .higher_base = 0,
         .higher_base_final = 0,
-        .access_byte = 0,
-        .flags = 0,
+        .access_byte = SegmentAccessByte.null_byte,
+        .flags = SegmentFlags.null_flag,
     };
 
     pub const kernel_mode_code_segment: SegmentDescriptor = .{
@@ -208,8 +263,16 @@ pub const SegmentDescriptor = packed struct {
         .lower_base = 0,
         .higher_base = 0,
         .higher_base_final = 0,
-        .access_byte = 0b10011010,
-        .flags = 0b1100,
+        .access_byte = .{
+            .accessed_bit = 0,
+            .rw_bit = 1,
+            .dc_bit = 0,
+            .executable_bit = 1,
+            .descriptor_type_bit = 1,
+            .privilege_level = 0,
+            .present_bit = 1,
+        },
+        .flags = SegmentFlags.common_flag,
     };
 
     pub const kernel_mode_data_segment: SegmentDescriptor = .{
@@ -218,8 +281,16 @@ pub const SegmentDescriptor = packed struct {
         .lower_base = 0,
         .higher_base = 0,
         .higher_base_final = 0,
-        .access_byte = 0b10010010,
-        .flags = 0b1100,
+        .access_byte = .{
+            .accessed_bit = 0,
+            .rw_bit = 1,
+            .dc_bit = 0,
+            .executable_bit = 0,
+            .descriptor_type_bit = 1,
+            .privilege_level = 0,
+            .present_bit = 1,
+        },
+        .flags = SegmentFlags.common_flag,
     };
 
     pub const user_mode_code_segment: SegmentDescriptor = .{
@@ -228,8 +299,16 @@ pub const SegmentDescriptor = packed struct {
         .lower_base = 0,
         .higher_base = 0,
         .higher_base_final = 0,
-        .access_byte = 0b11111010,
-        .flags = 0b1100,
+        .access_byte = .{
+            .accessed_bit = 0,
+            .rw_bit = 1,
+            .dc_bit = 0,
+            .executable_bit = 1,
+            .descriptor_type_bit = 1,
+            .privilege_level = 0b11,
+            .present_bit = 1,
+        },
+        .flags = SegmentFlags.common_flag,
     };
 
     pub const user_mode_data_segment: SegmentDescriptor = .{
@@ -238,8 +317,16 @@ pub const SegmentDescriptor = packed struct {
         .lower_base = 0,
         .higher_base = 0,
         .higher_base_final = 0,
-        .access_byte = 0b11110010,
-        .flags = 0b1100,
+        .access_byte = .{
+            .accessed_bit = 0,
+            .rw_bit = 1,
+            .dc_bit = 0,
+            .executable_bit = 0,
+            .descriptor_type_bit = 1,
+            .privilege_level = 0b11,
+            .present_bit = 1,
+        },
+        .flags = SegmentFlags.common_flag,
     };
 };
 
