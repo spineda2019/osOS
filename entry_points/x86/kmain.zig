@@ -21,12 +21,6 @@ const as = @import("x86asm");
 const interrupts = @import("interrupts/interrupts.zig");
 const osformat = @import("osformat");
 
-fn panic() noreturn {
-    while (true) {
-        asm volatile ("");
-    }
-}
-
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub export fn kmain() align(4) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
@@ -48,20 +42,12 @@ pub export fn kmain() align(4) noreturn {
     const idt = interrupts.createDefaultIDT(&interrupt_function_table);
     const idt_descriptor = interrupts.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
-    asm volatile (
-        \\ nop
-        \\ nop
-        \\ nop
-    );
-    // idt = interrupts.InterruptDescriptionTablePtr.init(&idt_table);
 
     asm volatile (
         \\ nop
         \\ nop
         \\ nop
-        \\#lidtl (%[idt_address])
-        : // no outputs
-        : [idt_address] "r" (&interrupt_function_table),
+        \\ int $0x1
     );
 
     framebuffer.write("Testing cursor movement...");
