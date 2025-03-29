@@ -1,4 +1,5 @@
 const osformat = @import("osformat");
+const as = @import("x86asm");
 
 pub const InterruptError = error{
     InvalidInterruptNumber,
@@ -16,8 +17,12 @@ pub const IDTDescriptor = packed struct {
     pub fn init(idt: *const InterruptDescriptorTable) IDTDescriptor {
         return .{
             .size = (@bitSizeOf(InterruptDescriptorTable) / 8) - 1,
-            .offset = @intFromPtr(&idt.entries),
+            .offset = @intFromPtr(&idt),
         };
+    }
+
+    pub fn loadIDT(self: *const IDTDescriptor) void {
+        as.assembly_wrappers.x86_lidt(@intFromPtr(self));
     }
 };
 
@@ -25,30 +30,70 @@ pub const IDTDescriptor = packed struct {
 /// a handler for each one. The information each handler will need will be
 /// pushed onto the stack by the CPU when triggered, so this structure need
 /// only store mappings from iterrupt numbers to handlers
-pub const InterruptDescriptorTable = struct {
-    entries: [256]InterruptDescriptor,
+pub const InterruptDescriptorTable = [256]InterruptDescriptor;
 
-    pub fn init(handler_table: *const InterruptHandlerTable) InterruptDescriptorTable {
-        var entries: [256]InterruptDescriptor = undefined;
-        for (handler_table, 0..) |fn_ptr, interrupt_number| {
-            entries[interrupt_number] = .{
-                .offset_low = @truncate(@intFromPtr(fn_ptr)),
-                .offset_high = @truncate(@intFromPtr(fn_ptr) >> 8),
-                .segment_selector = 0x8, // code segment
-                .unused = 0,
-                .gate_type = 0b1, // trap gate
-                .gate_stuffing = 0b11, // must be 0b11 for trap gate
-                .gate_size = 0b1, // 32 bit
-                .zero = 0,
-                .descriptor_privilege_level = 0, // kernel mode
-                .present_bit = 0b1,
-            };
-        }
-
-        return .{
-            .entries = entries,
+/// Given a table of the 256 interrupt function pointers needed to handle every
+/// possible interrupt, initialize the IDT.
+pub fn createDefaultIDT(
+    handler_table: *const InterruptHandlerTable,
+) InterruptDescriptorTable {
+    var entries: [256]InterruptDescriptor = undefined;
+    for (handler_table, 0..) |fn_ptr, interrupt_number| {
+        entries[interrupt_number] = .{
+            .offset_low = @truncate(@intFromPtr(fn_ptr)),
+            .offset_high = @truncate(@intFromPtr(fn_ptr) >> 16),
+            .segment_selector = SegmentSelector.kernel_mode_code_segment,
+            .unused = 0,
+            .gate_type = InterruptDescriptorGateType.ProtectedModeInterruptGate,
+            .zero = 0,
+            .descriptor_privilege_level = 0, // kernel mode
+            .present_bit = 0b1,
         };
     }
+
+    return entries;
+}
+
+const SegmentSelector = packed struct(u16) {
+    /// The requested Privilege Level of the selector, determines if the
+    /// selector is valid during permission checks and may set execution or
+    /// memory access privilege.
+    requested_privilege_level: u2,
+
+    /// Specifies which descriptor table to use. If clear (0) then the GDT is
+    /// used, if set (1) then the current LDT is used.
+    table_type: u1,
+
+    /// Bits 3-15 of the Index of the GDT or LDT entry referenced by this
+    /// selector. Since Segment Descriptors in the GDT are 8 bytes in length,
+    /// the value of Index is never unaligned and contains all zeros in the
+    /// lowest 3 bits (since the lowest possible index is 0b1000 AKA 0x8).
+    index: u13,
+
+    const kernel_mode_code_segment: SegmentSelector = .{
+        .requested_privilege_level = 0,
+        .table_type = 0,
+        .index = 0x8,
+    };
+};
+
+/// An Interrupt Descriptor has a section of 4 bits that describe the type of
+/// handler it is describing. However, there are only 5 valid gate types, so
+/// we enumerate them for clarity.
+pub const InterruptDescriptorGateType = enum(u4) {
+    TaskGate = 0b0101,
+
+    /// 16 bit interrupt gate
+    RealModeInterruptGate = 0b0110,
+
+    /// 16 bit trap gate
+    RealModeTrapGate = 0b0111,
+
+    /// 16 bit interrupt gate
+    ProtectedModeInterruptGate = 0b1110,
+
+    /// 16 bit trap gate
+    ProtectedModeTrapGate = 0b1111,
 };
 
 /// An entry in the Interrupt Description Table is represented as a 64 bit
@@ -76,41 +121,25 @@ pub const InterruptDescriptorTable = struct {
 pub const InterruptDescriptor = packed struct {
     /// Overall bits [0, 15], bits [0, 15] in lower bits
     ///
-    /// Lower 16 bits of the total offset of ths descriptor in the table. The
-    /// total offset points to the entry point of the handler
+    /// Lower 16 bits of the address of the entry point of the interrupt handler
+    /// this descriptor describes.
     offset_low: u16,
 
     /// Overall bits [16, 31], bits [16, 31] in lower bits
     ///
     /// Segment selector pointing to valid entry in our GDT
-    segment_selector: u16,
+    segment_selector: SegmentSelector,
 
     /// Overall bits [32, 39], bits [0, 7] in higher bits
     ///
     /// Unused
     unused: u8,
 
-    /// Overall bits 40th, overall 8th bit in higher bits
-    ///
-    /// Bits configuring the type of handler. Task gates are not supported
-    ///
-    /// 0b0 -> Interrupt Gate
-    /// 0b1 -> Trap Gate
-    gate_type: u1,
-
-    /// Overall bits [41, 42], bits [9, 10] in higher bits
+    /// Overall bits [40, 43], bits [8, 11] in higher bits
     ///
     /// Bits configuring the type of handler. Task gates are not supported, so
     /// this MUST be 0b11
-    ///
-    /// 0b11 -> Interrupt/Trap Gate
-    /// 0b10 -> Task Gate (Unsupported)
-    gate_stuffing: u2,
-
-    /// Overall 43rd bit, 11th bit in higher bits
-    ///
-    /// 1 inidicates a 32 bit gate, 0 indicates 16 bit.
-    gate_size: u1,
+    gate_type: InterruptDescriptorGateType,
 
     /// Unused. 44th overall bit, 12th bit in higher bits
     zero: u1,
@@ -147,23 +176,6 @@ const CpuState = packed struct {
     ebp: u32,
 };
 
-pub const InterruptHandlerTable = [256]*const fn () callconv(.naked) void;
-
-/// Generate interrupt handler functions at comptime, them take and store
-/// their addresses at runtime. This should only be called at comptime,
-/// generating functions doesn't make sense at runtime, and should not
-/// compile anyway.
-pub fn generateInterruptHandlers() InterruptHandlerTable {
-    var table: [256]*const fn () callconv(.naked) void = undefined;
-
-    for (0..table.len) |interrupt_number| {
-        // .. range is not inclusive on the right
-        table[interrupt_number] = generateHandler(interrupt_number);
-    }
-
-    return table;
-}
-
 /// General interrupt handler that pushes register state to stack and calls
 /// the internal zig interrupt handler. This function will only be called
 /// by each interrupt number's handler. That handler will have (optionally)
@@ -196,6 +208,23 @@ export fn commonInteruptHandler() callconv(.naked) void {
         \\
         \\iret
     );
+}
+
+pub const InterruptHandlerTable = [256]*const fn () callconv(.naked) void;
+
+/// Generate interrupt handler functions at comptime, them take and store
+/// their addresses at runtime. This should only be called at comptime,
+/// generating functions doesn't make sense at runtime, and should not
+/// compile anyway.
+pub fn generateInterruptHandlers() InterruptHandlerTable {
+    var table: [256]*const fn () callconv(.naked) void = undefined;
+
+    for (0..table.len) |interrupt_number| {
+        // .. range is not inclusive on the right
+        table[interrupt_number] = generateHandler(interrupt_number);
+    }
+
+    return table;
 }
 
 /// Generic function to generate an interrupt handler. This handler will push
