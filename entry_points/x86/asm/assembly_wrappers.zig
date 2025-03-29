@@ -93,6 +93,21 @@ pub inline fn x86_lgdt(table_address: u32) void {
     );
 }
 
+/// Wrapper for the x86 LIDT instruction, which is used to (L)oad the
+/// (I)nterrupt (D)escriptor (T)able. This has the following syntax:
+///
+/// lidt [REGISTER]
+///
+/// Where the REGISTER has the address of the table (the brackets in x86) will
+/// cause a lookup in RAM to this address, and feed that to the lgdt instruction
+pub inline fn x86_lidt(table_address: u32) void {
+    asm volatile (
+        \\lidtl (%[table_address])
+        :
+        : [table_address] "{eax}" (table_address),
+    );
+}
+
 pub inline fn disable_x86_interrupts() void {
     asm volatile (
         \\cli
