@@ -35,7 +35,7 @@ pub export fn kmain() align(4) noreturn {
     framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
     const gdt = memory.gdt.createDefaultGDT();
-    const gdt_descriptor = memory.gdt.GDTDescriptor.init(&gdt);
+    const gdt_descriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
     gdt_descriptor.loadGDT();
 
     const interrupt_function_table = comptime interrupts.generateInterruptHandlers();
