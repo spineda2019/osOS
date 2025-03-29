@@ -72,12 +72,13 @@ pub fn build(b: *std.Build) void {
     riscv32_module.addImport("osprocess", osprocess_module);
 
     //* *************************** x86 Specific ***************************** *
-    const x86_memory_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
-    });
     const x86_asm_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
     });
+    const x86_memory_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
+    });
+    x86_memory_module.addImport("x86asm", x86_asm_module);
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = x86_target,
