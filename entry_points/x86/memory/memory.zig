@@ -15,4 +15,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+/// Module containing logic for setting up the Global Descriptor Table. Contains
+/// logic and types for setting up Segment Descriptors, the GDT itself (just an
+/// array of Segment Descriptors), and the GDT Descriptor, what is used to load
+/// GDT.
 pub const gdt = @import("gdt.zig");
