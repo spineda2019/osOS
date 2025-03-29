@@ -42,16 +42,9 @@ pub export fn kmain() align(4) noreturn {
 
     framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
-    // only set up 3 segments for now: null descriptor and descriptor's for
-    // kernel's code and data segments
-    var gdt: [3]memory.gdt.SegmentDescriptor = undefined;
-    gdt[0] = memory.gdt.SegmentDescriptor.createNullDescriptor();
-    gdt[1] = memory.gdt.SegmentDescriptor.createDefaultCodeSegmentDescriptor();
-    gdt[2] = memory.gdt.SegmentDescriptor.createDefaultDataSegmentDescriptor();
-
-    const gdt_ptr = memory.gdt.GlobalDescriptorTablePointer.init(&gdt);
-    _ = gdt_ptr;
-    // gdt_ptr.loadGDT();
+    const gdt = memory.gdt.createDefaultGDT();
+    const gdt_descriptor = memory.gdt.GDTDescriptor.init(&gdt);
+    gdt_descriptor.loadGDT();
 
     const interrupt_function_table = interrupts.InterruptHandlerTable.init();
     const idt_table = interrupts.InterruptDescriptionTable.init(&interrupt_function_table);
