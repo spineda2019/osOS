@@ -25,18 +25,18 @@ const SegmentDescriptorError = error{};
 /// register (using the lgdt instruction). This 48 byte structure is specific
 /// to x86. x64 has a 79 bit structure
 pub const GDTDescriptor = packed struct {
-    /// Linear address of the actual Global Descriptor Table
-    address: u32,
-
     /// size of the actual table structure in bytes MINUS 1.
     size: u16,
+
+    /// Linear address of the actual Global Descriptor Table
+    address: u32,
 
     /// Given a created table structure, setup this structure type to feed to
     /// the GDTR register
     pub fn init(table: GlobalDescriptorTable) GDTDescriptor {
         return .{
+            .size = @truncate(table.len * @sizeOf(SegmentDescriptor) - 1),
             .address = @as(u32, @intFromPtr(&table)),
-            .size = @truncate(@sizeOf(GlobalDescriptorTable) - 1),
         };
     }
 
