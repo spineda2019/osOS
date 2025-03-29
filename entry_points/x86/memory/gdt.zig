@@ -24,7 +24,7 @@ const SegmentDescriptorError = error{};
 /// the GDT, a pointer poitning to this structure must be loaded into the GDTR
 /// register (using the lgdt instruction). This 48 byte structure is specific
 /// to x86. x64 has a 79 bit structure
-pub const GDTDescriptor = struct {
+pub const GDTDescriptor = packed struct {
     /// Linear address of the actual Global Descriptor Table
     address: u32,
 
