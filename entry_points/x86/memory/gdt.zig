@@ -23,7 +23,7 @@ const SegmentDescriptorError = error{};
 /// the GDT, a pointer poitning to this structure must be loaded into the GDTR
 /// register (using the lgdt instruction). This 48 byte structure is specific
 /// to x86. x64 has a 79 bit structure
-pub const GlobalDescriptorTablePointer = struct {
+pub const GDTDescriptor = struct {
     /// Linear address of the actual Global Descriptor Table
     address: u32,
     /// size of the actual table structure in bytes MINUS 1.
@@ -31,14 +31,14 @@ pub const GlobalDescriptorTablePointer = struct {
 
     /// Given a created table structure, setup this structure type to feed to
     /// the GDTR register
-    pub fn init(table: []const SegmentDescriptor) GlobalDescriptorTablePointer {
-        return GlobalDescriptorTablePointer{
+    pub fn init(table: []const SegmentDescriptor) GDTDescriptor {
+        return GDTDescriptor{
             .address = @as(u32, @intFromPtr(&table)),
             .size = @truncate((@bitSizeOf(SegmentDescriptor) * table.len) - 1),
         };
     }
 
-    pub fn loadGDT(self: *const GlobalDescriptorTablePointer) void {
+    pub fn loadGDT(self: *const GDTDescriptor) void {
         as.assembly_wrappers.disable_x86_interrupts();
         defer as.assembly_wrappers.enable_x86_interrupts();
         // load GDT and the respective segment registers. CS and DS are already set
@@ -52,6 +52,8 @@ pub const GlobalDescriptorTablePointer = struct {
 pub const SegmentDescriptor = packed struct {
     /// 20 bit value (shared among this field and higher limit). Tells the
     /// maximum addressable unit either in 1 byte units or 4KiB pages.
+    /// All 20 bits being set with a granularity of 4KiB will describe a segment
+    /// spanning the entire 4GiB address space
     lower_limit: u16,
 
     /// 32 bit value (shared among this field, higher_base, and
@@ -111,6 +113,8 @@ pub const SegmentDescriptor = packed struct {
 
     /// 20 bit value (shared among this field and lower limit). Tells the
     /// maximum addressable unit either in 1 byte units or 4KiB pages.
+    /// All 20 bits being set with a granularity of 4KiB will describe a segment
+    /// spanning the entire 4GiB address space
     higher_limit: u4,
 
     /// Sets flags for how this segment encodes information. In the form of:
