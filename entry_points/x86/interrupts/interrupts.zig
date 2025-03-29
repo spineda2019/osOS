@@ -9,17 +9,13 @@ pub const HandlerType = enum {
     NoErrorCode,
 };
 
-/// Needs to be extern as this is not a multiple of 32 bytes. Fields also need
-/// to be aligned to 1 byte so they are properly tightly packed. This should be
-/// 100% kosher under the zig spec, but we'll see if this stands the test of
-/// time and zig volatility
-pub const InterruptDescriptionTablePtr = extern struct {
-    size: u16 align(1),
-    offset: u32 align(1),
+pub const IDTDescriptor = packed struct {
+    size: u16,
+    offset: u32,
 
-    pub fn init(idt: *const InterruptDescriptionTable) InterruptDescriptionTablePtr {
+    pub fn init(idt: *const InterruptDescriptorTable) IDTDescriptor {
         return .{
-            .size = (@bitSizeOf(InterruptDescriptionTable) / 8) - 1,
+            .size = (@bitSizeOf(InterruptDescriptorTable) / 8) - 1,
             .offset = @intFromPtr(&idt.entries),
         };
     }
@@ -29,10 +25,10 @@ pub const InterruptDescriptionTablePtr = extern struct {
 /// a handler for each one. The information each handler will need will be
 /// pushed onto the stack by the CPU when triggered, so this structure need
 /// only store mappings from iterrupt numbers to handlers
-pub const InterruptDescriptionTable = struct {
+pub const InterruptDescriptorTable = struct {
     entries: [256]InterruptDescriptor,
 
-    pub fn init(handler_table: *const InterruptHandlerTable) InterruptDescriptionTable {
+    pub fn init(handler_table: *const InterruptHandlerTable) InterruptDescriptorTable {
         var entries: [256]InterruptDescriptor = undefined;
         for (handler_table.handlers, 0..) |fn_ptr, interrupt_number| {
             entries[interrupt_number] = .{
@@ -77,7 +73,7 @@ pub const InterruptDescriptionTable = struct {
 /// D:                Size of gate, (1 = 32 bits, 0 = 16 bits).
 /// segment selector: The offset in the GDT.
 /// r:                Reserved.
-pub const InterruptDescriptor = packed struct(u64) {
+pub const InterruptDescriptor = packed struct {
     /// Overall bits [0, 15], bits [0, 15] in lower bits
     ///
     /// Lower 16 bits of the total offset of ths descriptor in the table. The
