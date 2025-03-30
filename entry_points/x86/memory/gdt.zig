@@ -83,11 +83,11 @@ pub const GDTDescriptor = packed struct {
             \\movw %[gseg], %gs
             : // no output
             : [code] "i" (register_config.cs),
-              [data] "{ax}" (register_config.ds),
-              [stack] "{ax}" (register_config.ss),
-              [extra] "{ax}" (register_config.es),
-              [fseg] "{ax}" (register_config.fs),
-              [gseg] "{ax}" (register_config.gs),
+              [data] "r" (register_config.ds),
+              [stack] "r" (register_config.ss),
+              [extra] "r" (register_config.es),
+              [fseg] "r" (register_config.fs),
+              [gseg] "r" (register_config.gs),
         );
     }
 };
