@@ -34,21 +34,14 @@ pub export fn kmain() noreturn {
 
     framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
 
-    const gdt = memory.gdt.createDefaultGDT();
-    const gdt_descriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
+    const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
+    const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
     gdt_descriptor.loadGDT();
 
     const interrupt_function_table = comptime interrupts.generateInterruptHandlers();
     const idt = interrupts.createDefaultIDT(&interrupt_function_table);
     const idt_descriptor = interrupts.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
-
-    asm volatile (
-        \\ nop
-        \\ nop
-        \\ nop
-        \\ int $0x1
-    );
 
     framebuffer.write("Testing cursor movement...");
     framebuffer.testFourCorners();
