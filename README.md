@@ -4,7 +4,13 @@ Oso's Os, or BearOS
 ## Common Tools I've Used
 If an update to zig breaks (one of) the loader, the bundled llvm assembler
 may be placing symbols at wonky addresses. Use the readelf tool to ensure
-symbols are loaded where you would expect
+symbols are loaded where you would expect. Examples:
+
+* readelf -s FILE.elf
+    * views symbols in the elf file, like the ones we define in the linker
+      script and some global func symbols, like boot.
+* readelf -S FILE.elf
+    * views headers/sections of an elf file.
 
 ## Zig Version Used
 I try to use the most up to date zig version from the ziglang project's master
