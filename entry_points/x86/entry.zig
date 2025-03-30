@@ -14,7 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const kmain = @import("kmain.zig").kmain;
+const kmain: *const fn () noreturn = &@import("kmain.zig").kmain;
 
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
@@ -99,9 +99,9 @@ export const multiboot_header linksection(".text.multiboot") = MultiBootHeader.i
 export fn boot() linksection(".text") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
-        \\    jmp *%[kmain_address]
+        \\    jmpl *%[kmain_address]
         :
-        : [stack_top] "r" (stack_top),
-          [kmain_address] "r" (&kmain),
+        : [stack_top] "i" (stack_top),
+          [kmain_address] "r" (kmain),
     );
 }
