@@ -68,12 +68,16 @@ const SegmentSelector = packed struct(u16) {
     /// selector. Since Segment Descriptors in the GDT are 8 bytes in length,
     /// the value of Index is never unaligned and contains all zeros in the
     /// lowest 3 bits (since the lowest possible index is 0b1000 AKA 0x8).
+    ///
+    /// This is essentially the index into the GDT you want shifted to the
+    /// right by 3 bits (since those are guaranteed to be 0). So an index
+    /// value of 0x1 in this struct is interpretted by the CPU as 0b1000.
     index: u13,
 
     const kernel_mode_code_segment: SegmentSelector = .{
         .requested_privilege_level = 0,
         .table_type = 0,
-        .index = 0x8,
+        .index = 0x1,
     };
 };
 
