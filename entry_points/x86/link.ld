@@ -40,13 +40,13 @@ SECTIONS {
         *(.data)
     }
 
-    /* read-only data sections */
+    /* uninitialized data sections */
     .bss ALIGN(0x1000) :
     {
-        /* *(COMMON) */
         *(.bss)
     }
 
+    __stack_bottom = .;     /* Stack will be 1 MiB */
     . += 1024 * 1024;       /* 1 MiB */
     __stack_top = .;        /* Stack will be 1 MiB */
 
