@@ -22,7 +22,7 @@ const interrupts = @import("interrupts/interrupts.zig");
 const osformat = @import("osformat");
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
-pub export fn kmain() noreturn {
+pub fn kmain() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
