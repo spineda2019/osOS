@@ -20,6 +20,24 @@ const as = @import("x86asm");
 /// TODO: Make init functions return an error if they fail
 const SegmentDescriptorError = error{};
 
+pub const SegmentRegisterConfiguration = struct {
+    cs: u16,
+    ds: u16,
+    ss: u16,
+    es: u16,
+    fs: u16,
+    gs: u16,
+
+    pub const default: SegmentRegisterConfiguration = .{
+        .cs = 0x08,
+        .ds = 0x10,
+        .ss = 0x10,
+        .es = 0x10,
+        .fs = 0x10,
+        .gs = 0x10,
+    };
+};
+
 /// Essentially a fat pointer to our actual table structure. To properly set up
 /// the GDT, a pointer poitning to this structure must be loaded into the GDTR
 /// register (using the lgdt instruction). This 48 byte structure is specific
@@ -47,8 +65,30 @@ pub const GDTDescriptor = packed struct {
         };
     }
 
-    pub fn loadGDT(self: *const GDTDescriptor) void {
+    pub fn loadGDT(
+        self: *const GDTDescriptor,
+        comptime register_config: SegmentRegisterConfiguration,
+    ) void {
         as.assembly_wrappers.x86_lgdt(@intFromPtr(self));
+
+        // these values are already what I want from grub, but do this for
+        // future-proofing.
+        asm volatile (
+            \\ljmpl %[code], $.reload_cs
+            \\.reload_cs:
+            \\movw %[data], %ds
+            \\movw %[stack], %ss
+            \\movw %[extra], %es
+            \\movw %[fseg], %fs
+            \\movw %[gseg], %gs
+            : // no output
+            : [code] "i" (register_config.cs),
+              [data] "{ax}" (register_config.ds),
+              [stack] "{ax}" (register_config.ss),
+              [extra] "{ax}" (register_config.es),
+              [fseg] "{ax}" (register_config.fs),
+              [gseg] "{ax}" (register_config.gs),
+        );
     }
 };
 
