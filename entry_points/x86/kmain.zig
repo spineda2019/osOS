@@ -36,7 +36,7 @@ pub fn kmain() noreturn {
 
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
     const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
-    gdt_descriptor.loadGDT();
+    gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
     const interrupt_function_table = comptime interrupts.generateInterruptHandlers();
     const idt = interrupts.createDefaultIDT(&interrupt_function_table);
