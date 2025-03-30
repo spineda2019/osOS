@@ -47,9 +47,8 @@ SECTIONS {
         *(.bss)
     }
 
-    . = ALIGN(4);
-    . += 128 * 1024;        /* 128KB */
-    __stack_top = .;        /* Stack will be 128KB */
+    . += 1024 * 1024;       /* 1 MiB */
+    __stack_top = .;        /* Stack will be 1 MiB */
 
     /DISCARD/ : {
         *(.eh_frame)
