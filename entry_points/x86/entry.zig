@@ -96,7 +96,7 @@ const MultiBootHeader = extern struct {
 export const multiboot_header linksection(".text.multiboot") = MultiBootHeader.init();
 
 /// Entry point of our kernel. Will only setup our stack and jump to main.
-export fn boot() align(4) linksection(".text") callconv(.naked) noreturn {
+export fn boot() linksection(".text") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
         \\    jmp *%[kmain_address]
