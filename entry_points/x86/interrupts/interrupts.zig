@@ -169,7 +169,7 @@ pub const InterruptDescriptor = packed struct {
 /// Memory layout must be packed, as we will push registers on the stack from
 /// assembly, then jump to a function with the cdecl calling convention
 /// to utilize this struct as an argument
-const CpuState = packed struct {
+const CpuState = extern struct {
     eax: u32,
     ebx: u32,
     ecx: u32,
@@ -180,13 +180,69 @@ const CpuState = packed struct {
     ebp: u32,
 };
 
+const InterruptInfo = struct {
+    interrupt_number: u32,
+    error_code: ?u32,
+
+    pub fn isErrorCodeInterrupt(interrupt: u32) bool {
+        return switch (interrupt) {
+            8, 10, 11, 12, 13, 14, 17 => true,
+            else => false,
+        };
+    }
+
+    pub fn init(interrupt_number: u32, error_code: u32) InterruptInfo {
+        return .{
+            .interrupt_number = interrupt_number,
+            .error_code = switch (isErrorCodeInterrupt(interrupt_number)) {
+                true => error_code,
+                false => null,
+            },
+        };
+    }
+};
+
+export fn interruptHandlerWithoutErrorCode(
+    cpu_state: CpuState,
+    interrupt_number: u32,
+) callconv(.c) void {
+    asm volatile (
+        \\movl %[tmp], %eax
+        \\movl %[tmp_two], %eax
+        : // no outs
+        : [tmp] "r" (interrupt_number),
+          [tmp_two] "r" (&cpu_state),
+    );
+
+    //
+    // TODO: Actual handling
+}
+
+export fn interruptHandlerWithErrorCode(
+    cpu_state: CpuState,
+    interrupt_number: u32,
+    error_code: u32,
+) callconv(.c) void {
+    asm volatile (
+        \\movl %[tmp], %eax
+        \\movl %[tmp_two], %eax
+        \\movl %[tmp_three], %eax
+        : // no outs
+        : [tmp] "r" (interrupt_number),
+          [tmp_two] "r" (error_code),
+          [tmp_three] "r" (&cpu_state),
+    );
+
+    //
+    // TODO: Actual handling
+}
+
 /// General interrupt handler that pushes register state to stack and calls
 /// the internal zig interrupt handler. This function will only be called
 /// by each interrupt number's handler. That handler will have (optionally)
 /// pushed an error code on the stack, and pushed it's interrupt number on the
 /// stack (so it'll be on the top once registers are popped off).
-export fn commonInteruptHandler() callconv(.naked) void {
-    // save CPU registers
+export fn commonInteruptHandlerWithErrorCode() callconv(.naked) void {
     asm volatile (
         \\pushl %eax
         \\pushl %ebx
@@ -196,19 +252,48 @@ export fn commonInteruptHandler() callconv(.naked) void {
         \\pushl %edi
         \\pushl %esp
         \\pushl %ebp
-    );
-
-    // TODO: Actual handling
-
-    asm volatile (
-        \\popl %eax
-        \\popl %ebx
-        \\popl %ecx
-        \\popl %edx
-        \\popl %esi
-        \\popl %edi
-        \\popl %esp
+        \\
+        \\call interruptHandlerWithErrorCode
+        \\
         \\popl %ebp
+        \\popl %esp
+        \\popl %edi
+        \\popl %esi
+        \\popl %edx
+        \\popl %ecx
+        \\popl %ebx
+        \\popl %eax
+        \\
+        \\addl $0x4, %esp  // cleanup pushed interrupt number
+        \\addl $0x4, %esp  // cleanup pushed error code
+        \\
+        \\iret
+    );
+}
+
+export fn commonInteruptHandlerWithoutErrorCode() callconv(.naked) void {
+    asm volatile (
+        \\pushl %eax
+        \\pushl %ebx
+        \\pushl %ecx
+        \\pushl %edx
+        \\pushl %esi
+        \\pushl %edi
+        \\pushl %esp
+        \\pushl %ebp
+        \\
+        \\call interruptHandlerWithoutErrorCode
+        \\
+        \\popl %ebp
+        \\popl %esp
+        \\popl %edi
+        \\popl %esi
+        \\popl %edx
+        \\popl %ecx
+        \\popl %ebx
+        \\popl %eax
+        \\
+        \\addl $0x4, %esp  // cleanup pushed interrupt number
         \\
         \\iret
     );
@@ -243,7 +328,7 @@ fn generateHandler(
             asm volatile (
                 \\pushl 0                    # push 0 as error code
                 \\pushl %[interrupt_number]  # push interrupt number
-                \\jmp commonInteruptHandler
+                \\jmp commonInteruptHandlerWithErrorCode
                 : // no outputs
                 : [interrupt_number] "i" (interrupt_number),
             );
@@ -252,16 +337,16 @@ fn generateHandler(
         pub fn withoutErrorCode() callconv(.naked) void {
             asm volatile (
                 \\pushl %[interrupt_number]  # push interrupt number
-                \\jmp commonInteruptHandler
+                \\jmp commonInteruptHandlerWithoutErrorCode
                 : // no outputs
                 : [interrupt_number] "i" (interrupt_number),
             );
         }
     };
 
-    const fn_pointer = switch (interrupt_number) {
-        8, 10, 11, 12, 13, 14, 17 => &inner.withErrorCode,
-        else => &inner.withoutErrorCode,
+    const fn_pointer = switch (InterruptInfo.isErrorCodeInterrupt(interrupt_number)) {
+        true => &inner.withErrorCode,
+        false => &inner.withoutErrorCode,
     };
 
     @export(
