@@ -33,7 +33,9 @@
 /// 44        u32     depth         if flags[2] is set
 pub const MultiBootOneHeader = extern struct {
     magic_number: u32,
-    flags: u32,
+
+    flags: Flags,
+
     checksum: u32,
 
     /// if flags[16] is set
@@ -51,37 +53,70 @@ pub const MultiBootOneHeader = extern struct {
     /// if flags[16] is set
     entry_addr: u32,
 
-    /// if flags[2] is set. 0 for linear graphics and 1 for EGA text mode.
-    mode_type: u32,
-
-    /// if flags[2] is set. Framebuffer width. Measured in pixels in graphics
-    /// mode, or characters in text mode.
-    width: u32,
-
-    /// if flags[2] is set. Framebuffer height. Measured in pixels in graphics
-    /// mode, or characters in text mode.
-    height: u32,
-
-    /// if flags[2] is set. Contains the number of bits per pixel in a graphics
-    /// mode, and zero in a text mode. The value zero indicates that the OS
-    /// image has no preference.
-    depth: u32,
+    video_information: VideoInformation,
 
     pub const magic_number_value: u32 = 0x1BADB002;
-    pub fn init() MultiBootOneHeader {
+    pub fn init(flags: Flags, video_info: VideoInformation) MultiBootOneHeader {
         return .{
             .magic_number = MultiBootOneHeader.magic_number_value,
-            .flags = 0b0000_0000_0000_0000_0000_0000_0000_0000,
-            .checksum = 0 -% MultiBootOneHeader.magic_number_value -% @as(u32, 0),
+            .flags = flags,
+            .checksum = 0 -% MultiBootOneHeader.magic_number_value -% @as(
+                u32,
+                @bitCast(flags),
+            ),
             .header_addr = undefined,
             .load_addr = undefined,
             .load_end_addr = undefined,
             .bss_end_addr = undefined,
             .entry_addr = undefined,
+            .video_information = video_info,
+        };
+    }
+
+    pub fn defaultInit() MultiBootOneHeader {
+        return init(Flags.cleared, VideoInformation.default);
+    }
+
+    pub const VideoInformation = packed struct(u128) {
+        /// if flags[2] is set. 0 for linear graphics and 1 for EGA text mode.
+        mode_type: u32,
+
+        /// if flags[2] is set. Framebuffer width. Measured in pixels in graphics
+        /// mode, or characters in text mode.
+        width: u32,
+
+        /// if flags[2] is set. Framebuffer height. Measured in pixels in graphics
+        /// mode, or characters in text mode.
+        height: u32,
+
+        /// if flags[2] is set. Contains the number of bits per pixel in a graphics
+        /// mode, and zero in a text mode. The value zero indicates that the OS
+        /// image has no preference.
+        depth: u32,
+
+        pub const default: VideoInformation = .{
             .mode_type = 1,
             .width = 80,
             .height = 25,
             .depth = 0,
         };
-    }
+    };
+
+    pub const Flags = packed struct(u32) {
+        enforce_all_4kb_alignment: u1,
+        include_memory_information: u1,
+        include_video_mode_info: u1,
+        _zeros: u13,
+        activate_address_configurations: u1,
+        _more_zeroes: u15,
+
+        pub const cleared: Flags = .{
+            .enforce_all_4kb_alignment = 0,
+            .include_memory_information = 0,
+            .include_video_mode_info = 0,
+            ._zeros = 0,
+            .activate_address_configurations = 0,
+            ._more_zeroes = 0,
+        };
+    };
 };
