@@ -16,10 +16,19 @@
 
 const std = @import("std");
 
+const BootSpecification = enum {
+    MultibootOne,
+    MultibootTwo,
+    Limine,
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) void {
+    //**************************************************************************
+    //                               Option Setup                              *
+    //**************************************************************************
     const kernel_name = "osOS.elf";
     const x86_target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
@@ -36,6 +45,19 @@ pub fn build(b: *std.Build) void {
         .os_tag = .freestanding,
         .abi = .none,
     });
+
+    const boot_specification: BootSpecification = b.option(
+        BootSpecification,
+        "boot_specification",
+        "Boot specification to boot the kernel with",
+    ) orelse BootSpecification.MultibootOne;
+
+    const boot_options = b.addOptions();
+    boot_options.addOption(
+        BootSpecification,
+        "boot_specification",
+        boot_specification,
+    );
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -87,6 +109,7 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
     x86_module.addImport("x86boot", osboot_module);
+    x86_module.addOptions("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make

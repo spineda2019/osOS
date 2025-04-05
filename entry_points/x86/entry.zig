@@ -20,10 +20,16 @@ const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("x86boot");
 
+/// Defined in the build script
+const bootoptions = @import("bootoptions");
+
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
 /// of bytes defining how the kernel will be booted.
-export const multiboot_header linksection(".text.multiboot") = bootutils.headers.MultiBootOneHeader.init();
+export const multiboot_header linksection(".text.multiboot") = switch (bootoptions.boot_specification) {
+    .MultibootOne => bootutils.headers.MultiBootOneHeader.init(),
+    else => |e| @compileError("(Currently) Unsupported boot specification for x86: " ++ @tagName(e)),
+};
 
 /// Entry point of our kernel. Will only setup our stack and jump to main.
 export fn boot() linksection(".text") callconv(.naked) noreturn {
