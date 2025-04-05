@@ -31,7 +31,7 @@
 /// 36        u32     width         if flags[2] is set
 /// 40        u32     height        if flags[2] is set
 /// 44        u32     depth         if flags[2] is set
-const MultiBootOneHeader = extern struct {
+pub const MultiBootOneHeader = extern struct {
     magic_number: u32,
     flags: u32,
     checksum: u32,
