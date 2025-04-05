@@ -178,6 +178,7 @@ const CpuState = extern struct {
     edi: u32,
     esp: u32,
     ebp: u32,
+    eflags: u32,
 };
 
 const InterruptInfo = struct {
@@ -208,7 +209,7 @@ export fn interruptHandlerWithoutErrorCode(
 ) callconv(.c) void {
     asm volatile (
         \\movl %[tmp], %eax
-        \\movl %[tmp_two], %eax
+        \\movl %[tmp_two], %ebx
         : // no outs
         : [tmp] "r" (interrupt_number),
           [tmp_two] "r" (&cpu_state),
@@ -225,8 +226,8 @@ export fn interruptHandlerWithErrorCode(
 ) callconv(.c) void {
     asm volatile (
         \\movl %[tmp], %eax
-        \\movl %[tmp_two], %eax
-        \\movl %[tmp_three], %eax
+        \\movl %[tmp_two], %ebx
+        \\movl %[tmp_three], %ecx
         : // no outs
         : [tmp] "r" (interrupt_number),
           [tmp_two] "r" (error_code),
@@ -252,9 +253,11 @@ export fn commonInteruptHandlerWithErrorCode() callconv(.naked) void {
         \\pushl %edi
         \\pushl %esp
         \\pushl %ebp
+        \\pushfd
         \\
         \\call interruptHandlerWithErrorCode
         \\
+        \\popfd
         \\popl %ebp
         \\popl %esp
         \\popl %edi
@@ -281,9 +284,11 @@ export fn commonInteruptHandlerWithoutErrorCode() callconv(.naked) void {
         \\pushl %edi
         \\pushl %esp
         \\pushl %ebp
+        \\pushfd
         \\
         \\call interruptHandlerWithoutErrorCode
         \\
+        \\popfd
         \\popl %ebp
         \\popl %esp
         \\popl %edi
