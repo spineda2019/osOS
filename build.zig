@@ -16,12 +16,6 @@
 
 const std = @import("std");
 
-const ModuleDocObject = struct {
-    name: []const u8,
-    root_file: std.Build.LazyPath,
-    output_folder: []const u8,
-};
-
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
