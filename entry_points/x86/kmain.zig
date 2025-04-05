@@ -43,6 +43,11 @@ pub fn kmain() noreturn {
     const idt_descriptor = interrupts.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
 
+    asm volatile (
+        \\int $0x7
+        \\int $0x8
+    );
+
     framebuffer.write("Testing cursor movement...");
     framebuffer.testFourCorners();
 
