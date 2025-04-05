@@ -54,6 +54,10 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("process/process.zig"),
     });
 
+    const osboot_module = b.createModule(.{
+        .root_source_file = b.path("boot_utilities/bootutils.zig"),
+    });
+
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
@@ -82,6 +86,7 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("osformat", osformat_module);
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
+    x86_module.addImport("x86boot", osboot_module);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make

@@ -18,6 +18,8 @@ const kmain: *const fn () noreturn = &@import("kmain.zig").kmain;
 
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
+const bootutils = @import("x86boot");
+
 /// Multiboot header to be placed at the beginning of our kernel binary. Must be
 /// marked extern to make it exportable. Will follow the C ABI of the target
 /// architecture.
