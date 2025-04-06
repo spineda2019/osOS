@@ -1,6 +1,31 @@
 # osOS
 Oso's Os, or BearOS
 
+## The Main Goal
+osOS is mainly a passion project for fun and to learn about hardcore low-level
+development. Currently, the end goal for this project (for now, we'll see after
+1.0.0) is as such:
+
+Be able to compile (theoretically can be done on a different machine, this
+would be easier) and run a program on the OS that plays "honeyfish".
+
+"Honeyfish" is just fizzbuzz, but with the words "honey" and "fish", because
+osos (bears) obviously love those things. To accomplish this, there are a few
+things that have to be done besides bare-bones booting into the OS:
+
+* Keyboard input for pretty much anything
+* A proper shell program to utilize said keyboard input and pass command line
+  arguments to honeyfish
+* A proper filesystem so that the binary program can be stored somewhere and
+  invoked (e.g. ./path/to/honeyfish)
+* A system call interface so that the honeyfish program (and shell) can be run
+  from userland
+* Proper process management so that the kernel can load the binary properly and
+  set it up to be executed. Probably will just need to be barebones with no
+  multitasking.
+
+There may (probably will) be more, so I'll add them as they come up!
+
 ## Common Tools I've Used
 If an update to zig breaks (one of) the loader, the bundled llvm assembler
 may be placing symbols at wonky addresses. Use the readelf tool to ensure
