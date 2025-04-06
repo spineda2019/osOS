@@ -46,8 +46,13 @@ In general, (and I intend to keep this pattern the same), you can run
 zig build riscv-32
 zig build x86
 ```
-
 etc
+
+The x86 kernel has comptime options on what boot protocol to use for startup.
+Multiboot1 is used by default, but this can be changed with 
+<code> -Dboot_specification</code>. Multiboot1 is the only one that works
+currently, but I have plans to add support for Limine and Multiboot2.
+For details, search through the custome options in <code>zig build -h</code>.
 
 ## Running
 To emulate hardware running the kernel, you'll have to have either bochs or
