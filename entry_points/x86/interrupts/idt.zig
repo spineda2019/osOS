@@ -1,4 +1,4 @@
-//! interrupts.zig - structs and utils to setup interrupt handling
+//! idt.zig - structs and utils to setup interrupt handling via the IDT
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
