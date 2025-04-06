@@ -18,7 +18,7 @@ const framebuffer_api = @import("framebuffer/framebuffer.zig");
 const serial = @import("io/serial.zig");
 const memory = @import("x86memory");
 const as = @import("x86asm");
-const interrupts = @import("interrupts/idt.zig");
+const interrupts = @import("x86interrupts");
 const osformat = @import("osformat");
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
@@ -38,9 +38,9 @@ pub fn kmain() noreturn {
     const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    const interrupt_function_table = comptime interrupts.generateInterruptHandlers();
-    const idt = interrupts.createDefaultIDT(&interrupt_function_table);
-    const idt_descriptor = interrupts.IDTDescriptor.init(&idt);
+    const interrupt_function_table = comptime interrupts.idt.generateInterruptHandlers();
+    const idt = interrupts.idt.createDefaultIDT(&interrupt_function_table);
+    const idt_descriptor = interrupts.idt.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
 
     as.assembly_wrappers.enable_x86_interrupts();

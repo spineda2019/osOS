@@ -99,6 +99,11 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
     });
     x86_memory_module.addImport("x86asm", x86_asm_module);
+    const x86_interrupt_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/interrupts/interrupts.zig"),
+    });
+    x86_interrupt_module.addImport("x86asm", x86_asm_module);
+    x86_interrupt_module.addImport("osformat", osformat_module);
     const x86_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/entry.zig"),
         .target = x86_target,
@@ -109,6 +114,7 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
     x86_module.addImport("x86boot", osboot_module);
+    x86_module.addImport("x86interrupts", x86_interrupt_module);
     x86_module.addOptions("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
