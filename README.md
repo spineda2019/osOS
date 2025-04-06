@@ -22,7 +22,11 @@ faults. If you want to build this, please use the zig-master.
 
 ## Building
 The kernel currently uses the zig build system (and only the zig build system)
-for building. To build the kernel for all supported architectures
+for building. I sometimes will forget to add new options and target to this
+README. For a proper most up to date set of options, just run
+<code>zig build -h</code>
+
+To build the kernel for all supported architectures
 (x86 and RISC-V32 at the moment), run:
 
 ```
