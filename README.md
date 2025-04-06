@@ -1,6 +1,18 @@
 # osOS
 Oso's Os, or BearOS
 
+# Table of Contents
+- [Table of Contents](#table-of-contents)
+- [The Main Goal](#the-main-goal)
+- [Common Tools I've Used](#common-tools-ive-used)
+- [Zig Version Used](#zig-version-used)
+- [Building](#building)
+- [Running](#running)
+- [License](#license)
+- [License Notice](#license-notice)
+- [Architecture](#architecture)
+- [Legacy Code](#legacy-code)
+
 ## The Main Goal
 osOS is mainly a passion project for fun and to learn about hardcore low-level
 development. Currently, the end goal for this project (for now, we'll see after
