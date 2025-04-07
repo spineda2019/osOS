@@ -32,6 +32,10 @@ pub const Writer = struct {
     ///     format_string: string containing format specifiers (ex: %d) to print
     ///
     ///     args: array of values corresponding to format_string
+    ///
+    ///     Note: writer is probably best passed by value (or at least left up
+    ///     to the zig optimizer) since mking it a const ptr would introduce
+    ///     and extra level of indirection.
     pub fn kprintf(
         writer: Writer,
         comptime format_string: []const u8,
