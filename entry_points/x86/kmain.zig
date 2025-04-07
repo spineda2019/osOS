@@ -53,8 +53,8 @@ pub fn kmain() noreturn {
     framebuffer.testFourCorners();
 
     const writer = framebuffer.writer();
-    osformat.print.kprintf(" We have printf too!", .{}, writer);
-    osformat.print.kprintf(" Testing writeln...", .{}, writer);
+    writer.kprintf(" We have printf too!", .{});
+    writer.kprintf(" Testing writeln...", .{});
     framebuffer.writeln("Hi there from a new line!");
     framebuffer.writeln("Hi there from a new line again!");
     framebuffer.writeln("Time to test scrolling...");

@@ -24,67 +24,67 @@ pub const Writer = struct {
         /// Write a string
         write: *const fn (self: *anyopaque, raw_string: []const u8) void,
     };
-};
 
-/// Format print
-///
-/// Arguments:
-///
-///     format_string: string containing format specifiers (ex: %d) to print
-///
-///     args: array of values corresponding to format_string
-pub fn kprintf(
-    comptime format_string: []const u8,
-    args: anytype,
-    writer: Writer,
-) void {
-    var buffer: [32]u8 = .{0} ** 32;
-    var internal_sentinel: u8 = 0;
-    var arg_sentinel: u8 = 0;
+    /// Format print
+    ///
+    /// Arguments:
+    ///
+    ///     format_string: string containing format specifiers (ex: %d) to print
+    ///
+    ///     args: array of values corresponding to format_string
+    pub fn kprintf(
+        writer: Writer,
+        comptime format_string: []const u8,
+        args: anytype,
+    ) void {
+        var buffer: [32]u8 = .{0} ** 32;
+        var internal_sentinel: u8 = 0;
+        var arg_sentinel: u8 = 0;
 
-    defer {
-        // flush
-        writer.vtable.write(writer.instance, buffer[0..internal_sentinel]);
-    }
-
-    var flag: bool = false;
-    for (format_string) |letter| {
-        if (internal_sentinel == buffer.len) {
-            // flush and reset ptr
-            writer.vtable.write(writer.instance, &buffer);
-            internal_sentinel = 0;
+        defer {
+            // flush
+            writer.vtable.write(writer.instance, buffer[0..internal_sentinel]);
         }
 
-        switch (letter) {
-            '%' => {
-                if (flag) {
-                    // write only the single % literal for '%%'
-                    buffer[internal_sentinel] = '%';
-                    internal_sentinel += 1;
-                }
+        var flag: bool = false;
+        for (format_string) |letter| {
+            if (internal_sentinel == buffer.len) {
+                // flush and reset ptr
+                writer.vtable.write(writer.instance, &buffer);
+                internal_sentinel = 0;
+            }
 
-                flag = !flag;
-            },
-            else => {
-                if (flag) {
-                    buffer[internal_sentinel] = 'X';
-                    internal_sentinel += 1;
-
-                    // TODO: take this arg and fmt print it
-                    inline for (args, 0..) |arg, i| {
-                        if (i == arg_sentinel) {
-                            arg_sentinel += 1;
-                            break arg;
-                        }
-                        break null;
+            switch (letter) {
+                '%' => {
+                    if (flag) {
+                        // write only the single % literal for '%%'
+                        buffer[internal_sentinel] = '%';
+                        internal_sentinel += 1;
                     }
 
-                    flag = false;
-                } else {
-                    buffer[internal_sentinel] = letter;
-                    internal_sentinel += 1;
-                }
-            },
+                    flag = !flag;
+                },
+                else => {
+                    if (flag) {
+                        buffer[internal_sentinel] = 'X';
+                        internal_sentinel += 1;
+
+                        // TODO: take this arg and fmt print it
+                        inline for (args, 0..) |arg, i| {
+                            if (i == arg_sentinel) {
+                                arg_sentinel += 1;
+                                break arg;
+                            }
+                            break null;
+                        }
+
+                        flag = false;
+                    } else {
+                        buffer[internal_sentinel] = letter;
+                        internal_sentinel += 1;
+                    }
+                },
+            }
         }
     }
-}
+};
