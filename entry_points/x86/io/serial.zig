@@ -70,6 +70,13 @@ pub const SerialPort: type = struct {
         }
     }
 
+    /// Perform a very small IO wait by writing to an unused port. Port 0x80
+    /// should be fine. Linux uses 0x80 since it's only used during POST, and
+    /// the odds of me doing anything more complex than linux are low.
+    pub fn ioWait() void {
+        as.assembly_wrappers.x86_out(@as(u16, 0x80), 0);
+    }
+
     /// Check if the FIFO buffer for a serial port is free
     ///
     /// Bit 5 of the read data (using "in") will be set to 1 if the buffer is ready
