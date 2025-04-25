@@ -77,7 +77,7 @@ export fn kmain() noreturn {
         address_2,
     });
 
-    var pool: osprocess.ProcessTable = osprocess.Process.initializePool();
+    var pool: osprocess.ProcessTable = .init();
     _ = &pool;
 
     // proc_a_entry();

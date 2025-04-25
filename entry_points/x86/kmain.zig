@@ -20,6 +20,7 @@ const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
 const osformat = @import("osformat");
+const osprocess = @import("osprocess");
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
@@ -86,9 +87,16 @@ pub fn kmain() noreturn {
         framebuffer.write("Baz " ** 20);
     }
 
-    // set EAX just so we know where we are in the log
+    var process_table: osprocess.ProcessTable = .init();
+    const proc = process_table.createProcess(@intFromPtr(&osprocess.shell.shellMain)) catch
+        {
+        unreachable;
+    };
+
     asm volatile (
-        \\mov $0x4242, %eax
+        \\mov %[p], %eax
+        : // no outputs
+        : [p] "r" (&proc),
     );
 
     while (true) {
