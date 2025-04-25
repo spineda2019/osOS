@@ -13,9 +13,6 @@
 //!
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
-//!
-//! This module provides the entry point of the kernel on RISC-V 32 bit systems
-//! Specifically, this is currently designed for the QEMU "virt" machine
 
 const MAX_PROCESS_COUNT: comptime_int = 8;
 
