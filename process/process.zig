@@ -42,6 +42,8 @@ pub const Process = struct {
         };
     }
 
+    /// Calling this essentially just jumps to the entry routine address. All
+    /// we have to do then is save calle process registers.
     pub fn start() void {
         // TODO: Save callee registers
         // TODO: Jmp to entry point

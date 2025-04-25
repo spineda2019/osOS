@@ -110,6 +110,7 @@ pub fn build(b: *std.Build) void {
         .optimize = .ReleaseSmall,
         .strip = false,
     });
+    x86_module.addImport("osprocess", osprocess_module);
     x86_module.addImport("osformat", osformat_module);
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
