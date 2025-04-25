@@ -24,25 +24,29 @@ pub const Process = struct {
     };
     const KERNEL_STACK_SIZE: comptime_int = 8192;
 
-    pid: usize, // this is generic code, don't assume arch size
+    /// this is generic code, don't assume arch size
+    pid: usize,
+
     state: ProcessState,
+
+    /// this is generic code, don't assume arch size
     stack_pointer: usize,
 
     /// each process gets their own stack
     stack: [KERNEL_STACK_SIZE]u8,
 
-    pub fn initializePool() ProcessPool {
-        return ProcessPool{
+    pub fn initializePool() ProcessTable {
+        return ProcessTable{
             .pool = .{null} ** MAX_PROCESS_COUNT,
         };
     }
 };
 
 /// Representation of the kernel's pool of total available process slots
-pub const ProcessPool = struct {
+pub const ProcessTable = struct {
     pool: [MAX_PROCESS_COUNT]?Process,
 
-    pub fn createProcess(self: *ProcessPool, program_counter: usize) *Process {
+    pub fn createProcess(self: *ProcessTable, program_counter: usize) *Process {
         var slot: usize = 0;
         var end_of_process_stack: [*]usize = calc_block: {
             for (self.pool, 0..) |process, i| {
@@ -104,15 +108,22 @@ pub const ProcessPool = struct {
 /// This function saves all callee registers (including stack ptr)
 /// and loads in callers.
 ///
+/// This function is intended to be used from a process to voluntarily switch
+/// to a different context. Due to its simplicity, this may be reserved for
+/// kernel space processes. This function essentially just pushes all
+/// general purpose registers to the process's own stack, then switches the
+/// stack ptr to the new value.
+///
 /// Registers: a0 will hold calle sp to save, a1 shall hold caller sp to store
 pub inline fn switchContext(
     previous_stack_ptr: *usize,
     new_stack_ptr: *usize,
 ) void {
+    const previous_stack_address: usize = @intFromPtr(previous_stack_ptr);
+    const new_stack_address: usize = @intFromPtr(new_stack_ptr);
+
     switch (comptime @import("builtin").target.cpu.arch) {
         .riscv32 => {
-            const previous_stack_address = @intFromPtr(previous_stack_ptr);
-            const new_stack_address = @intFromPtr(new_stack_ptr);
             // Save callee-saved registers onto the current process's stack.
             // line 1: Allocate stack space for 13 4-byte registers
             // line 2: Save callee-saved registers only
@@ -157,6 +168,9 @@ pub inline fn switchContext(
                 : [previous_stack_address] "{a0}" (previous_stack_address),
                   [new_stack_address] "{a0}" (new_stack_address),
             );
+        },
+        .x86 => {
+            @compileError("TODO: x86 context switching not yet implemented");
         },
         else => |arch| {
             @compileError("Unsupported architecture detected: " ++ @tagName(arch));
