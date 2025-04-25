@@ -21,84 +21,63 @@ pub const Process = struct {
     const ProcessState = enum {
         unused,
         runnable,
+        waiting,
     };
-    const KERNEL_STACK_SIZE: comptime_int = 8192;
+
+    pub const ProcessError = error{
+        OutOfSlots,
+    };
 
     /// this is generic code, don't assume arch size
     pid: usize,
 
+    /// Self explanatory
     state: ProcessState,
 
-    /// this is generic code, don't assume arch size
-    stack_pointer: usize,
-
-    /// each process gets their own stack
-    stack: [KERNEL_STACK_SIZE]u8,
+    entry_address: usize,
 
     pub fn initializePool() ProcessTable {
         return ProcessTable{
-            .pool = .{null} ** MAX_PROCESS_COUNT,
+            .pool = .{emptyProcess} ** MAX_PROCESS_COUNT,
         };
     }
+
+    pub fn start() void {
+        // TODO: Save callee registers
+        // TODO: Jmp to entry point
+    }
+
+    /// Represents an empty process that doesn't exist. Inidicates that this
+    /// process can be used to make a real running one.
+    const emptyProcess: Process = .{
+        .pid = 0,
+        .state = .unused,
+        .entry_address = 0,
+    };
 };
 
 /// Representation of the kernel's pool of total available process slots
 pub const ProcessTable = struct {
-    pool: [MAX_PROCESS_COUNT]?Process,
+    pool: [MAX_PROCESS_COUNT]Process,
 
-    pub fn createProcess(self: *ProcessTable, program_counter: usize) *Process {
-        var slot: usize = 0;
-        var end_of_process_stack: [*]usize = calc_block: {
-            for (self.pool, 0..) |process, i| {
-                if (process == null) {
-                    self.pool[i] = Process{
-                        .pid = i + 1,
-                        .state = .runnable,
-                        .stack = undefined, // init with garbage data
-                        .stack_pointer = undefined, // will be calculated below
-                    };
-                    slot = i;
-                    // .? is now safe as we just initialized that memory
-                    const stack_len = self.pool[i].?.stack.len;
-                    break :calc_block @alignCast(@ptrCast(
-                        &(self.pool[i].?.stack[stack_len - 1]),
-                    ));
-                }
+    /// Create a process at a specific address in RAM.
+    pub fn createProcess(
+        self: *ProcessTable,
+        program_counter: usize,
+    ) Process.ProcessError!*Process {
+        for (self.pool, 0..) |process, i| {
+            if (process.state == .unused) {
+                self.pool[i] = Process{
+                    .pid = i + 1,
+                    .state = .runnable,
+                    .entry_address = program_counter,
+                };
+
+                return &self.pool[i];
             }
+        }
 
-            // TODO: Panic
-            unreachable;
-        };
-
-        // don't use a loop for the sake of self documentation
-        end_of_process_stack[0] = 0; // s11
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s10
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s9
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s8
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s7
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s6
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s5
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s4
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s3
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s2
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s1
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = 0; // s0
-        end_of_process_stack -= 1;
-        end_of_process_stack[0] = program_counter; // ra
-        end_of_process_stack -= 1;
-        self.pool[slot].?.stack_pointer = @intFromPtr(end_of_process_stack);
-        return &(self.pool[slot].?);
+        return Process.ProcessError.OutOfSlots;
     }
 };
 
