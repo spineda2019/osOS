@@ -14,6 +14,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub const shell = @import("shell.zig");
+
 const MAX_PROCESS_COUNT: comptime_int = 8;
 
 /// Universal construct representing an osOS process
@@ -36,12 +38,6 @@ pub const Process = struct {
 
     entry_address: usize,
 
-    pub fn initializePool() ProcessTable {
-        return ProcessTable{
-            .pool = .{emptyProcess} ** MAX_PROCESS_COUNT,
-        };
-    }
-
     /// Calling this essentially just jumps to the entry routine address. All
     /// we have to do then is save calle process registers.
     pub fn start() void {
@@ -51,7 +47,7 @@ pub const Process = struct {
 
     /// Represents an empty process that doesn't exist. Inidicates that this
     /// process can be used to make a real running one.
-    const emptyProcess: Process = .{
+    pub const emptyProcess: Process = .{
         .pid = 0,
         .state = .unused,
         .entry_address = 0,
@@ -62,6 +58,11 @@ pub const Process = struct {
 pub const ProcessTable = struct {
     pool: [MAX_PROCESS_COUNT]Process,
 
+    pub fn init() ProcessTable {
+        return ProcessTable{
+            .pool = .{Process.emptyProcess} ** MAX_PROCESS_COUNT,
+        };
+    }
     /// Create a process at a specific address in RAM.
     pub fn createProcess(
         self: *ProcessTable,
