@@ -14,4 +14,26 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub fn shellMain() void {}
+const ShellEvalResult = struct {};
+const Shell = struct {
+    pub fn evaluate() void {}
+};
+
+const io = @import("io");
+
+/// The main "init" process of the osOS kernel. Should be run in user space.
+/// Will be capable to run other processes (eventuallY) but will need basic
+/// IO and will use the syscall interface to do this.
+pub fn shellMain() void {
+    while (true) {
+        // io.print("oSHo> ");
+        // Read
+        // const line: []const u8 = io.readLine();
+
+        // Eval
+        // const result: ShellEvalResult = Shell.evaluate(line);
+
+        // Print
+        // io.println(result.toString());
+    }
+}

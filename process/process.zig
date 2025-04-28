@@ -14,8 +14,6 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub const shell = @import("shell.zig");
-
 const MAX_PROCESS_COUNT: comptime_int = 8;
 
 /// Universal construct representing an osOS process

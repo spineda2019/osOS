@@ -80,6 +80,10 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("boot_utilities/bootutils.zig"),
     });
 
+    // the kernel's main process
+    const osshell_module = b.createModule(.{
+        .root_source_file = b.path("userland/shell/shell.zig"),
+    });
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
@@ -116,6 +120,7 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("x86memory", x86_memory_module);
     x86_module.addImport("x86boot", osboot_module);
     x86_module.addImport("x86interrupts", x86_interrupt_module);
+    x86_module.addImport("osshell", osshell_module);
     x86_module.addOptions("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
