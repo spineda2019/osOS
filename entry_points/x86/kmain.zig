@@ -23,19 +23,6 @@ const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
 
-const cool_text =
-    \\
-    \\ ________  ________  ________  ________      
-    \\|\   __  \|\   ____\|\   __  \|\   ____\     
-    \\\ \  \|\  \ \  \___|\ \  \|\  \ \  \___|_    
-    \\ \ \  \\\  \ \_____  \ \  \\\  \ \_____  \   
-    \\  \ \  \\\  \|____|\  \ \  \\\  \|____|\  \  
-    \\   \ \_______\____\_\  \ \_______\____\_\  \ 
-    \\    \|_______|\_________\|_______|\_________\
-    \\             \|_________|        \|_________|
-    \\
-;
-
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();

@@ -357,10 +357,24 @@ pub const FrameBuffer: type = struct {
     }
 
     fn printWelcomeScreen() void {
-        const message = "Welcome to osOS!";
-        for (message, 27..) |letter, column| {
+        const message = "Welcome to...";
+        const logo =
+            \\
+            \\ ________  ________  ________  ________      
+            \\|\   __  \|\   ____\|\   __  \|\   ____\     
+            \\\ \  \|\  \ \  \___|\ \  \|\  \ \  \___|_    
+            \\ \ \  \\\  \ \_____  \ \  \\\  \ \_____  \   
+            \\  \ \  \\\  \|____|\  \ \  \\\  \|____|\  \  
+            \\   \ \_______\____\_\  \ \_______\____\_\  \ 
+            \\    \|_______|\_________\|_______|\_________\
+            \\             \|_________|        \|_________|
+            \\
+        ;
+        _ = logo;
+
+        for (message, 33..) |letter, column| {
             writeCell(
-                13,
+                13, // row
                 @intCast(column),
                 letter,
                 FrameBufferCellColor.DarkGray,
