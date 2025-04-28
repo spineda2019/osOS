@@ -358,26 +358,108 @@ pub const FrameBuffer: type = struct {
 
     fn printWelcomeScreen() void {
         const message = "Welcome to...";
-        const logo =
-            \\
+        // zig doesn't have raw string literal syntax (that I know of) so the
+        // logo will look weird in code (for now).
+        const logo = .{
             \\ ________  ________  ________  ________      
+            ,
             \\|\   __  \|\   ____\|\   __  \|\   ____\     
+            ,
             \\\ \  \|\  \ \  \___|\ \  \|\  \ \  \___|_    
+            ,
             \\ \ \  \\\  \ \_____  \ \  \\\  \ \_____  \   
+            ,
             \\  \ \  \\\  \|____|\  \ \  \\\  \|____|\  \  
+            ,
             \\   \ \_______\____\_\  \ \_______\____\_\  \ 
+            ,
             \\    \|_______|\_________\|_______|\_________\
+            ,
             \\             \|_________|        \|_________|
-            \\
-        ;
-        _ = logo;
+        };
 
         for (message, 33..) |letter, column| {
             writeCell(
-                13, // row
+                9, // row
                 @intCast(column),
                 letter,
-                FrameBufferCellColor.DarkGray,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+
+        // since we're very carefully aligning stuff manually, just manually do
+        // the prining. Rolling in a loop is not worth it if we're making it
+        // look pretty
+        for (logo[0], 20..) |letter, column| {
+            writeCell(
+                10,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[1], 20..) |letter, column| {
+            writeCell(
+                11,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[2], 20..) |letter, column| {
+            writeCell(
+                12,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[3], 20..) |letter, column| {
+            writeCell(
+                13,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[4], 20..) |letter, column| {
+            writeCell(
+                14,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[5], 20..) |letter, column| {
+            writeCell(
+                15,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[6], 20..) |letter, column| {
+            writeCell(
+                16,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
+                FrameBufferCellColor.LightBrown,
+            );
+        }
+        for (logo[7], 20..) |letter, column| {
+            writeCell(
+                17,
+                @intCast(column),
+                letter,
+                FrameBufferCellColor.LightBlue,
                 FrameBufferCellColor.LightBrown,
             );
         }
