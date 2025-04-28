@@ -21,6 +21,20 @@ const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
 const osformat = @import("osformat");
 const osprocess = @import("osprocess");
+const osshell = @import("osshell");
+
+const cool_text =
+    \\
+    \\ ________  ________  ________  ________      
+    \\|\   __  \|\   ____\|\   __  \|\   ____\     
+    \\\ \  \|\  \ \  \___|\ \  \|\  \ \  \___|_    
+    \\ \ \  \\\  \ \_____  \ \  \\\  \ \_____  \   
+    \\  \ \  \\\  \|____|\  \ \  \\\  \|____|\  \  
+    \\   \ \_______\____\_\  \ \_______\____\_\  \ 
+    \\    \|_______|\_________\|_______|\_________\
+    \\             \|_________|        \|_________|
+    \\
+;
 
 /// Actual root "main" function of the x86 kernel. Jumped to from entry point
 pub fn kmain() noreturn {
@@ -87,17 +101,10 @@ pub fn kmain() noreturn {
         framebuffer.write("Baz " ** 20);
     }
 
-    var process_table: osprocess.ProcessTable = .init();
-    const proc = process_table.createProcess(@intFromPtr(&osprocess.shell.shellMain)) catch
-        {
-        unreachable;
-    };
-
-    asm volatile (
-        \\mov %[p], %eax
-        : // no outputs
-        : [p] "r" (&proc),
-    );
+    // var process_table: osprocess.ProcessTable = .init();
+    // const proc = process_table.createProcess(
+    //    @intFromPtr(&osshell.shellMain),
+    //) catch unreachable;
 
     while (true) {
         asm volatile ("");
