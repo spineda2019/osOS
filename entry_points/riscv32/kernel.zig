@@ -26,6 +26,8 @@ const exception = @import("exception.zig");
 
 const memory = @import("memory/memory.zig");
 
+const tty = @import("tty/tty.zig");
+
 // The following pulls in symbols defined in the linker script
 
 /// BSS Start
@@ -58,11 +60,12 @@ export fn kmain() noreturn {
         : [exception_handler] "{t3}" (exception_handler_address),
     );
 
-    sbi.rawSbiPrint("Hello RISC-V32 osOS!\n");
+    var terminal = tty.Terminal.init();
+    tty.Terminal.writeRaw("Hello RISC-V32 osOS!\n");
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 
-    sbi.rawSbiPrint("Trying to allocate some memory...\n");
+    tty.Terminal.writeRaw("Trying to allocate some memory...\n");
     var page_allocater: memory.PageAllocater = memory.PageAllocater.init(
         @intFromPtr(free_ram_start),
         @intFromPtr(free_ram_end),
@@ -71,8 +74,8 @@ export fn kmain() noreturn {
     const address_1 = page_allocater.allocate(2);
     const address_2 = page_allocater.allocate(1);
 
-    sbi.rawSbiPrint("Mem allocation done!\n");
-    sbi.printf("Address 1: %d\nAddress 2: %d\n", .{
+    tty.Terminal.writeRaw("Mem allocation done!\n");
+    terminal.printf("Address 1: %d\nAddress 2: %d\n", .{
         address_1,
         address_2,
     });

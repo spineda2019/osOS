@@ -20,7 +20,7 @@
 //! consisting of simple types and comptime functions.
 
 const osformat = @import("osformat");
-const sbi = @import("format/sbi.zig");
+const tty = @import("tty/tty.zig");
 const FreeStandingSourceInfo: type = @import("std").builtin.SourceLocation;
 /// Struct representing saved state of each register. Packed to guarantee field
 /// sizes. Each register shall be 32 bits wide on risv32. Order is guaranteed
@@ -61,7 +61,7 @@ const TrapFrame: type = packed struct {
 
 export fn handleTrap(trap_frame: *const TrapFrame) void {
     _ = trap_frame;
-    sbi.rawSbiPrint("Hey! I'm in the trap handler!\n");
+    tty.Terminal.writeRaw("Hey! I'm in the trap handler!\n");
     panic(@src());
 }
 
@@ -69,15 +69,15 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// Ought to be inline, since adding stackframes to call this may not be
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
-    sbi.rawSbiPrint("Kernel Panic!\nInfo:\n");
+    tty.Terminal.writeRaw("Kernel Panic!\nInfo:\n");
 
-    sbi.rawSbiPrint("File: ");
-    sbi.rawSbiPrint(source_info.file);
-    sbi.rawSbiPrint("\n");
+    tty.Terminal.writeRaw("File: ");
+    tty.Terminal.writeRaw(source_info.file);
+    tty.Terminal.writeRaw("\n");
 
-    sbi.rawSbiPrint("Function: ");
-    sbi.rawSbiPrint(source_info.fn_name);
-    sbi.rawSbiPrint("\n");
+    tty.Terminal.writeRaw("Function: ");
+    tty.Terminal.writeRaw(source_info.fn_name);
+    tty.Terminal.writeRaw("\n");
 
     const line_num_slice: []const u8 = comptime line_calc: {
         const line_type: type = @TypeOf(source_info.line);
@@ -88,9 +88,9 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
         break :line_calc line_num.innerSlice();
     };
 
-    sbi.rawSbiPrint("Line: ");
-    sbi.rawSbiPrint(line_num_slice);
-    sbi.rawSbiPrint("\n");
+    tty.Terminal.writeRaw("Line: ");
+    tty.Terminal.writeRaw(line_num_slice);
+    tty.Terminal.writeRaw("\n");
 
     const column_num_slice: []const u8 = comptime column_calc: {
         const column_type: type = @TypeOf(source_info.column);
@@ -100,9 +100,9 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
         );
         break :column_calc column_num.innerSlice();
     };
-    sbi.rawSbiPrint("Column: ");
-    sbi.rawSbiPrint(column_num_slice);
-    sbi.rawSbiPrint("\n");
+    tty.Terminal.writeRaw("Column: ");
+    tty.Terminal.writeRaw(column_num_slice);
+    tty.Terminal.writeRaw("\n");
 
     while (true) {
         asm volatile ("");
