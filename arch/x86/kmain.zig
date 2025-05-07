@@ -23,8 +23,8 @@ const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
 
-/// Actual root "main" function of the x86 kernel. Jumped to from entry point
-pub fn kmain() noreturn {
+/// Hardware setup; jumped to from the boot routine
+pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 

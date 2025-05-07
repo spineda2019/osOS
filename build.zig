@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) BuildError!void {
 
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
+        .root_source_file = b.path("arch/riscv32/kernel.zig"),
         .target = riscv32_target,
         .optimize = .ReleaseSmall,
         .strip = false,
@@ -108,25 +108,25 @@ pub fn build(b: *std.Build) BuildError!void {
 
     //* *************************** x86 Specific ***************************** *
     const x86_framebuffer_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/framebuffer/framebuffer.zig"),
+        .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
     });
     const x86_serial_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/io/serial.zig"),
+        .root_source_file = b.path("arch/x86/io/serial.zig"),
     });
     const x86_asm_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+        .root_source_file = b.path("arch/x86/asm/asm.zig"),
     });
     const x86_memory_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
+        .root_source_file = b.path("arch/x86/memory/memory.zig"),
     });
     x86_memory_module.addImport("x86asm", x86_asm_module);
     const x86_interrupt_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/interrupts/interrupts.zig"),
+        .root_source_file = b.path("arch/x86/interrupts/interrupts.zig"),
     });
     x86_interrupt_module.addImport("x86asm", x86_asm_module);
     x86_interrupt_module.addImport("osformat", osformat_module);
     const x86_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/entry.zig"),
+        .root_source_file = b.path("arch/x86/entry.zig"),
         .target = x86_target,
         .optimize = .ReleaseSmall,
         .strip = false,
@@ -165,13 +165,13 @@ pub fn build(b: *std.Build) BuildError!void {
     });
 
     const x86_memory_doc_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/memory/memory.zig"),
+        .root_source_file = b.path("arch/x86/memory/memory.zig"),
         .target = doc_target,
         .optimize = .ReleaseSmall,
     });
 
     const x86_asm_doc_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
+        .root_source_file = b.path("arch/x86/asm/asm.zig"),
         .target = doc_target,
         .optimize = .ReleaseSmall,
     });
@@ -194,7 +194,7 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_module = riscv32_module,
     });
     riscv32_exe.entry = .disabled;
-    riscv32_exe.setLinkerScript(b.path("entry_points/riscv32/link.ld"));
+    riscv32_exe.setLinkerScript(b.path("arch/riscv32/link.ld"));
 
     //* *************************** x86 Specific ***************************** *
     const x86_exe = b.addExecutable(.{
@@ -202,7 +202,7 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_module = x86_module,
     });
     x86_exe.entry = .disabled;
-    x86_exe.setLinkerScript(b.path("entry_points/x86/link.ld"));
+    x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
 
     //* *************************** Doc Specific ***************************** *
     // freestanding modules need a specified target and optmimzation to actually
@@ -362,14 +362,14 @@ pub fn build(b: *std.Build) BuildError!void {
 
     const copy_grub_files = b.addSystemCommand(&.{
         "cp",
-        "entry_points/x86/stage2_eltorito",
+        "arch/x86/stage2_eltorito",
         "zig-out/x86/iso/boot/grub",
     });
     copy_grub_files.step.dependOn(&create_x86_iso_structure.step);
 
     const copy_grub_menu = b.addSystemCommand(&.{
         "cp",
-        "entry_points/x86/menu.lst",
+        "arch/x86/menu.lst",
         "zig-out/x86/iso/boot/grub",
     });
     copy_grub_menu.step.dependOn(&copy_grub_files.step);
@@ -423,7 +423,7 @@ pub fn build(b: *std.Build) BuildError!void {
 
     const x86_copy_bochs = b.addSystemCommand(&.{
         "cp",
-        "entry_points/x86/bochs.config",
+        "arch/x86/bochs.config",
         "zig-out/x86/",
     });
     x86_copy_bochs.step.dependOn(&create_x86_iso.step);

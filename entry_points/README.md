@@ -1,2 +1,0 @@
-# osOS Entry Points
-TODO
