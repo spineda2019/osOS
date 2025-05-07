@@ -178,7 +178,7 @@ pub fn build(b: *std.Build) BuildError!void {
 
     //* ******************************* kmain ******************************** *
     const kmain_module = b.createModule(.{
-        .root_source_file = b.path("entry_points/kmain/kmain.zig"),
+        .root_source_file = b.path("kmain/kmain.zig"),
     });
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
