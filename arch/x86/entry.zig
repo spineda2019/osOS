@@ -14,7 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const setup: *const fn () noreturn = &@import("kmain.zig").setup;
+const setup: *const fn () noreturn = &@import("setup.zig").setup;
 
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
