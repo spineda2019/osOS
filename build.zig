@@ -455,9 +455,4 @@ pub fn build(b: *std.Build) BuildError!void {
         "Boot kernel with BOCHS on x86 using the built in debugger",
     );
     x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
-
-    //**************************************************************************
-    //                                 Doc Setup                               *
-    //**************************************************************************
-
 }
