@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) BuildError!void {
 
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
-        .root_source_file = b.path("arch/riscv32/kernel.zig"),
+        .root_source_file = b.path("arch/riscv32/entry.zig"),
         .target = riscv32_target,
         .optimize = .ReleaseSmall,
         .strip = false,
