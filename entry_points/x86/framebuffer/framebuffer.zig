@@ -60,6 +60,9 @@ pub const FrameBufferCellColor: type = enum {
     }
 };
 
+/// For the sole purpose of adhering to the exernal API for kmain
+pub const Terminal = FrameBuffer;
+
 pub const FrameBuffer: type = struct {
     // memory mapped I/O for the framebuffer begins ar adress 0x000B8000
     // The framebuffer's memory is split up into 16bit chunks:

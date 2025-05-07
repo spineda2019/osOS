@@ -16,6 +16,10 @@
 
 const std = @import("std");
 
+const BuildError = error{
+    unsupported,
+};
+
 const BootSpecification = enum {
     MultibootOne,
     MultibootTwo,
@@ -25,11 +29,17 @@ const BootSpecification = enum {
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) BuildError!void {
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
     const kernel_name = "osOS.elf";
+    const target_arch: std.Target.Cpu.Arch = b.option(
+        std.Target.Cpu.Arch,
+        "target_arch",
+        "Target Architecture",
+    ) orelse .x86;
+
     const x86_target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
         .os_tag = .freestanding,
@@ -84,6 +94,7 @@ pub fn build(b: *std.Build) void {
     const osshell_module = b.createModule(.{
         .root_source_file = b.path("userland/shell/shell.zig"),
     });
+
     //* *************************** RISC Specific **************************** *
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("entry_points/riscv32/kernel.zig"),
@@ -96,6 +107,12 @@ pub fn build(b: *std.Build) void {
     riscv32_module.addImport("osprocess", osprocess_module);
 
     //* *************************** x86 Specific ***************************** *
+    const x86_framebuffer_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/framebuffer/framebuffer.zig"),
+    });
+    const x86_serial_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/x86/io/serial.zig"),
+    });
     const x86_asm_module = b.createModule(.{
         .root_source_file = b.path("entry_points/x86/asm/asm.zig"),
     });
@@ -120,6 +137,8 @@ pub fn build(b: *std.Build) void {
     x86_module.addImport("x86memory", x86_memory_module);
     x86_module.addImport("x86boot", osboot_module);
     x86_module.addImport("x86interrupts", x86_interrupt_module);
+    x86_module.addImport("x86framebuffer", x86_framebuffer_module);
+    x86_module.addImport("x86serial", x86_serial_module);
     x86_module.addImport("osshell", osshell_module);
     x86_module.addOptions("bootoptions", boot_options);
 
@@ -156,6 +175,15 @@ pub fn build(b: *std.Build) void {
         .target = doc_target,
         .optimize = .ReleaseSmall,
     });
+
+    //* ******************************* kmain ******************************** *
+    const kmain_module = b.createModule(.{
+        .root_source_file = b.path("entry_points/kmain/kmain.zig"),
+    });
+    x86_module.addImport("kmain", kmain_module);
+    riscv32_module.addImport("kmain", kmain_module);
+    std.debug.print("Main target: {s}\n", .{@tagName(target_arch)});
+
     //**************************************************************************
     //                           Compile Step Setup                            *
     //**************************************************************************

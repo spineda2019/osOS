@@ -28,14 +28,6 @@ pub fn kmain() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
-    var framebuffer = framebuffer_api.FrameBuffer.init();
-    var serial_port = serial.SerialPort.defaultInit();
-
-    const message = "Trying to write out of COM port 1...!";
-    serial_port.write(message);
-
-    framebuffer.write(" COM1 succesfully written to! Setting up GDT...");
-
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
     const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
@@ -44,14 +36,15 @@ pub fn kmain() noreturn {
     const idt = interrupts.idt.createDefaultIDT(&interrupt_function_table);
     const idt_descriptor = interrupts.idt.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
-
     as.assembly_wrappers.enable_x86_interrupts();
-    asm volatile (
-        \\int $0x7
-        \\int $0x8
-    );
 
-    framebuffer.write("Testing cursor movement...");
+    var framebuffer = framebuffer_api.FrameBuffer.init();
+    var serial_port = serial.SerialPort.defaultInit();
+
+    const message = "Trying to write out of COM port 1...!";
+    serial_port.write(message);
+
+    framebuffer.write(" COM1 succesfully written to! Testing cursor movement...");
     framebuffer.testFourCorners();
 
     const writer = framebuffer.writer();
@@ -87,11 +80,6 @@ pub fn kmain() noreturn {
         }
         framebuffer.write("Baz " ** 20);
     }
-
-    // var process_table: osprocess.ProcessTable = .init();
-    // const proc = process_table.createProcess(
-    //    @intFromPtr(&osshell.shellMain),
-    //) catch unreachable;
 
     while (true) {
         asm volatile ("");
