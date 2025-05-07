@@ -14,36 +14,21 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const terminal = @import("hal_terminal");
-const serial = @import("hal_serial");
+// const terminal = @import("hal_terminal");
+// const serial = @import("hal_serial");
 
 comptime {
-    const meta = @import("std").meta;
+    // const meta = @import("std").meta;
 
-    if (meta.hasMethod(terminal.Terminal, "init")) {
-        @compileError("TODO");
-    }
-    if (meta.hasMethod(serial.SerialPort, "defaultInit")) {
-        @compileError("TODO");
-    }
+    // if (meta.hasMethod(terminal.Terminal, "init")) {
+    // @compileError("TODO");
+    // }
+    // if (meta.hasMethod(serial.SerialPort, "defaultInit")) {
+    // @compileError("TODO");
+    // }
 }
 
 pub fn kmain() noreturn {
-    var tty = terminal.Terminal.init();
-    var serial_port = serial.SerialPort.defaultInit();
-
-    const message = "Trying to write out of COM port 1...!";
-    serial_port.write(message);
-
-    tty.write(" COM1 succesfully written to! Testing cursor movement...");
-    tty.testFourCorners();
-
-    const writer = tty.writer();
-    writer.kprintf(" We have printf too!", .{});
-    writer.kprintf(" Testing writeln...", .{});
-    tty.writeln("Hi there from a new line!");
-    tty.writeln("Hi there from a new line again!");
-    tty.writeln("Time to test scrolling...");
     while (true) {
         asm volatile ("");
     }

@@ -23,6 +23,8 @@ const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
 
+const kmain: *const fn () noreturn = &@import("kmain").kmain;
+
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
@@ -81,7 +83,11 @@ pub fn setup() noreturn {
         framebuffer.write("Baz " ** 20);
     }
 
-    while (true) {
-        asm volatile ("");
-    }
+    asm volatile (
+        \\jmpl *%[kmain_address]
+        : // no inputs
+        : [kmain_address] "r" (kmain),
+    );
+
+    unreachable;
 }
