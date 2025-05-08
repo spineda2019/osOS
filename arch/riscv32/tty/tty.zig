@@ -1,4 +1,5 @@
 const osformat = @import("osformat");
+const kmain = @import("kmain");
 
 pub const Terminal = struct {
     /// TODO: Don't hardcode this
@@ -24,6 +25,13 @@ pub const Terminal = struct {
         for (contents) |char| {
             putChar(char);
         }
+    }
+
+    pub fn writeln(contents: []const u8) void {
+        for (contents) |char| {
+            putChar(char);
+        }
+        putChar('\n');
     }
 
     pub fn printf(
@@ -108,6 +116,29 @@ pub const Terminal = struct {
     fn flush(self: *Terminal) void {
         writeRaw(self.buffer[0..self.internal_sentinel]);
         self.internal_sentinel = 0;
+    }
+
+    const interface_impls = struct {
+        fn opaquePutChar(_: *anyopaque, char: u8) void {
+            putChar(char);
+        }
+        fn opaqueWrite(_: *anyopaque, buffer: []const u8) void {
+            writeRaw(buffer);
+        }
+        fn opaqueWriteLine(_: *anyopaque, buffer: []const u8) void {
+            writeln(buffer);
+        }
+    };
+
+    pub fn kterminal(self: *Terminal) kmain.hal.terminal.KTerminal {
+        return .{
+            .this = self,
+            .vtable = &.{
+                .putChar = &interface_impls.opaquePutChar,
+                .write = &interface_impls.opaqueWrite,
+                .writeLine = &interface_impls.opaqueWriteLine,
+            },
+        };
     }
 };
 

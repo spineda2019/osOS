@@ -15,7 +15,7 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 /// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
-const kmain: *const fn () noreturn = &@import("kmain").kmain;
+const kmain = @import("kmain");
 
 fn delay() void {
     for (0..30000000) |_| {
@@ -63,11 +63,8 @@ pub fn setup() noreturn {
 
     asm volatile ("unimp");
 
-    asm volatile (
-        \\ j %[kmain_address]
-        : // no inputs
-        : [kmain_address] "i" (kmain),
-    );
-
-    unreachable;
+    const hal: kmain.hal.Hal = .{
+        .terminal = terminal.kterminal(),
+    };
+    kmain.kmain(hal);
 }

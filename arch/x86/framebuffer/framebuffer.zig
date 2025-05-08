@@ -19,6 +19,7 @@
 
 const as = @import("x86asm");
 const osformat = @import("osformat");
+const kmain = @import("kmain");
 
 pub const FrameBufferCellColor: type = enum {
     Black,
@@ -289,22 +290,6 @@ pub const FrameBuffer: type = struct {
         }
     }
 
-    /// Indirect function for use when creating the kernel Writer interface.
-    /// Simply redirects to the proper framebuffer implementation
-    fn opaqueWrite(opaque_self: *anyopaque, buffer: []const u8) void {
-        const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-        self.write(buffer);
-    }
-
-    pub fn writer(self: *FrameBuffer) osformat.print.Writer {
-        return .{
-            .instance = self,
-            .vtable = &.{
-                .write = &opaqueWrite,
-            },
-        };
-    }
-
     /// Small wrapper API around internal writeCell. Sets terminal defaults
     /// and does internal bookkeeping.
     pub fn putCharacter(self: *FrameBuffer, letter: u8) void {
@@ -497,6 +482,45 @@ pub const FrameBuffer: type = struct {
         as.assembly_wrappers.x86_out(data_port_address, low_byte);
         as.assembly_wrappers.x86_out(command_port_address, high_byte_command);
         as.assembly_wrappers.x86_out(data_port_address, high_byte);
+    }
+
+    const interface_impls = struct {
+        /// Indirect function for use when creating the kernel Writer interface.
+        /// Simply redirects to the proper framebuffer implementation
+        fn opaqueWrite(opaque_self: *anyopaque, buffer: []const u8) void {
+            const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+            self.write(buffer);
+        }
+
+        fn opaquePutChar(opaque_self: *anyopaque, char: u8) void {
+            const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+            self.putCharacter(char);
+        }
+
+        fn opaqueWriteLine(opaque_self: *anyopaque, buffer: []const u8) void {
+            const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+            self.writeln(buffer);
+        }
+    };
+
+    pub fn writer(self: *FrameBuffer) osformat.print.Writer {
+        return .{
+            .instance = self,
+            .vtable = &.{
+                .write = &interface_impls.opaqueWrite,
+            },
+        };
+    }
+
+    pub fn kterminal(self: *FrameBuffer) kmain.hal.terminal.KTerminal {
+        return .{
+            .this = self,
+            .vtable = &.{
+                .putChar = &interface_impls.opaquePutChar,
+                .write = &interface_impls.opaqueWrite,
+                .writeLine = &interface_impls.opaqueWriteLine,
+            },
+        };
     }
 };
 

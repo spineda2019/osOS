@@ -17,18 +17,11 @@
 // const terminal = @import("hal_terminal");
 // const serial = @import("hal_serial");
 
-comptime {
-    // const meta = @import("std").meta;
+pub const hal = @import("hal/hal.zig");
 
-    // if (meta.hasMethod(terminal.Terminal, "init")) {
-    // @compileError("TODO");
-    // }
-    // if (meta.hasMethod(serial.SerialPort, "defaultInit")) {
-    // @compileError("TODO");
-    // }
-}
+pub fn kmain(hal_interface: hal.Hal) noreturn {
+    hal_interface.terminal.writeLine("We have landed!");
 
-pub fn kmain() noreturn {
     while (true) {
         asm volatile ("");
     }
