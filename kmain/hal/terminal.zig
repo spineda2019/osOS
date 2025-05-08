@@ -16,4 +16,8 @@ pub const KTerminal = struct {
     pub fn writeLine(self: KTerminal, buffer: []const u8) void {
         self.vtable.writeLine(self.this, buffer);
     }
+
+    pub fn write(self: KTerminal, buffer: []const u8) void {
+        self.vtable.write(self.this, buffer);
+    }
 };
