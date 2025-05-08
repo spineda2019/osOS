@@ -45,6 +45,7 @@ pub fn setup() noreturn {
 
     const message = "Trying to write out of COM port 1...!";
     serial_port.write(message);
+    framebuffer.write(message);
 
     framebuffer.write(" COM1 succesfully written to! Testing cursor movement...");
     framebuffer.testFourCorners();
