@@ -167,11 +167,11 @@ pub const FrameBuffer: type = struct {
                 );
             }
         }
+        clear(FrameBufferCellColor.DarkGray);
 
-        const cursor_position = printRawPrompt();
         return .{
             .current_row = 0,
-            .current_column = cursor_position,
+            .current_column = 0,
             .buffer = .{.{0} ** 80} ** 25,
         };
     }
@@ -231,9 +231,6 @@ pub const FrameBuffer: type = struct {
             self.framebufferNewline();
         }
 
-        for ("shell> ") |letter| {
-            self.putCharacter(letter);
-        }
         for (buffer) |letter| {
             self.putCharacter(letter);
         }
@@ -451,27 +448,6 @@ pub const FrameBuffer: type = struct {
                 FrameBufferCellColor.LightBrown,
             );
         }
-    }
-
-    /// This doesn't display a "real" prompt, since we haven't escaped real
-    /// mode yet.
-    fn printRawPrompt() u8 {
-        clear(FrameBufferCellColor.DarkGray);
-        const message = "shell> ";
-        var cursor: u8 = 0;
-        for (message, 0..) |letter, column| {
-            writeCell(
-                0,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.DarkGray,
-                FrameBufferCellColor.LightBrown,
-            );
-            cursor += 1;
-        }
-
-        moveCursor(0, cursor);
-        return cursor;
     }
 
     fn moveCursor(row: u8, column: u8) void {
