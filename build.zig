@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 const BuildError = error{
     unsupported,
@@ -38,7 +39,7 @@ pub fn build(b: *std.Build) BuildError!void {
         std.Target.Cpu.Arch,
         "target_arch",
         "Target Architecture",
-    ) orelse .x86;
+    ) orelse builtin.cpu.arch;
 
     const x86_target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
@@ -189,7 +190,12 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
-    std.debug.print("Main target: {s}\n", .{@tagName(target_arch)});
+    std.debug.print(
+        "Selected default run target: {s}\n",
+        .{
+            @tagName(target_arch),
+        },
+    );
 
     //**************************************************************************
     //                           Compile Step Setup                            *
@@ -341,8 +347,8 @@ pub fn build(b: *std.Build) BuildError!void {
     //**************************************************************************
 
     //* *************************** RISC Specific **************************** *
-    const run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
-    const run = b.addSystemCommand(&.{
+    const riscv32_run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
+    const run_riscv32 = b.addSystemCommand(&.{
         "qemu-system-riscv32",
         "-machine",
         "virt",
@@ -354,9 +360,9 @@ pub fn build(b: *std.Build) BuildError!void {
         "--no-reboot",
         "-kernel",
     });
-    run.addArtifactArg(riscv32_exe);
-    run.step.dependOn(riscv32_step);
-    run_step.dependOn(&run.step);
+    run_riscv32.addArtifactArg(riscv32_exe);
+    run_riscv32.step.dependOn(riscv32_step);
+    riscv32_run_step.dependOn(&run_riscv32.step);
 
     //* *************************** x86 Specific ***************************** *
     // TODO: Make these copy steps system agnostic
