@@ -21,13 +21,13 @@ pub const Terminal = struct {
         uart_address.* = char;
     }
 
-    pub fn writeRaw(contents: []const u8) void {
+    pub fn write(_: Terminal, contents: []const u8) void {
         for (contents) |char| {
             putChar(char);
         }
     }
 
-    pub fn writeln(contents: []const u8) void {
+    pub fn writeLine(_: Terminal, contents: []const u8) void {
         for (contents) |char| {
             putChar(char);
         }
@@ -45,7 +45,7 @@ pub const Terminal = struct {
         for (format_string) |letter| {
             if (self.internal_sentinel == self.buffer.len) {
                 // flush and reset ptr
-                writeRaw(&self.buffer);
+                self.write(&self.buffer);
                 self.internal_sentinel = 0;
             }
 
@@ -81,7 +81,7 @@ pub const Terminal = struct {
     fn writeValue(self: *Terminal, value: anytype) void {
         self.flush();
         if (value == null) {
-            writeRaw("NULLVAL");
+            self.write("NULLVAL");
         }
 
         const nullable: bool = comptime nullable_check: {
@@ -93,10 +93,10 @@ pub const Terminal = struct {
                 switch (@typeInfo(@TypeOf(unwrapped))) {
                     .int => {
                         const converted = osformat.format.intToString(@TypeOf(unwrapped), unwrapped);
-                        writeRaw(converted.innerSlice());
+                        self.write(converted.innerSlice());
                     },
                     else => {
-                        writeRaw("UNEXPECTED " ++ @typeName(@TypeOf(unwrapped)));
+                        self.write("UNEXPECTED " ++ @typeName(@TypeOf(unwrapped)));
                     },
                 }
             }
@@ -104,41 +104,18 @@ pub const Terminal = struct {
             switch (@typeInfo(@TypeOf(value))) {
                 .int => {
                     const converted = osformat.format.intToString(@TypeOf(value), value);
-                    writeRaw(converted.innerSlice());
+                    self.write(converted.innerSlice());
                 },
                 else => {
-                    writeRaw("UNEXPECTED " ++ @typeName(@TypeOf(value)));
+                    self.write("UNEXPECTED " ++ @typeName(@TypeOf(value)));
                 },
             }
         }
     }
 
     fn flush(self: *Terminal) void {
-        writeRaw(self.buffer[0..self.internal_sentinel]);
+        self.write(self.buffer[0..self.internal_sentinel]);
         self.internal_sentinel = 0;
-    }
-
-    const interface_impls = struct {
-        fn opaquePutChar(_: *anyopaque, char: u8) void {
-            putChar(char);
-        }
-        fn opaqueWrite(_: *anyopaque, buffer: []const u8) void {
-            writeRaw(buffer);
-        }
-        fn opaqueWriteLine(_: *anyopaque, buffer: []const u8) void {
-            writeln(buffer);
-        }
-    };
-
-    pub fn kterminal(self: *Terminal) kmain.hal.terminal.KTerminal {
-        return .{
-            .this = self,
-            .vtable = &.{
-                .putChar = &interface_impls.opaquePutChar,
-                .write = &interface_impls.opaqueWrite,
-                .writeLine = &interface_impls.opaqueWriteLine,
-            },
-        };
     }
 };
 

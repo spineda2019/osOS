@@ -14,7 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const framebuffer_api = @import("framebuffer/framebuffer.zig");
+const framebuffer_api = @import("x86framebuffer");
 const serial = @import("io/serial.zig");
 const memory = @import("x86memory");
 const as = @import("x86asm");
@@ -22,6 +22,7 @@ const interrupts = @import("x86interrupts");
 const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
+const hal = @import("hal/hal.zig");
 
 const kmain = @import("kmain");
 
@@ -52,10 +53,10 @@ pub fn setup() noreturn {
 
     const writer = framebuffer.writer();
     writer.kprintf(" We have printf too!", .{});
-    writer.kprintf(" Testing writeln...", .{});
-    framebuffer.writeln("Hi there from a new line!");
-    framebuffer.writeln("Hi there from a new line again!");
-    framebuffer.writeln("Time to test scrolling...");
+    writer.kprintf(" Testing writeLine...", .{});
+    framebuffer.writeLine("Hi there from a new line!");
+    framebuffer.writeLine("Hi there from a new line again!");
+    framebuffer.writeLine("Time to test scrolling...");
 
     for (0..12) |_| {
         for (0..16384) |_| {
@@ -84,9 +85,9 @@ pub fn setup() noreturn {
         framebuffer.write("Baz " ** 20);
     }
 
-    const hal: kmain.hal.Hal = .{
-        .terminal = framebuffer.kterminal(),
+    const hal_interface: hal.Hal = .{
+        .terminal = &framebuffer,
     };
 
-    kmain.kmain(hal);
+    kmain.kmain(hal_interface);
 }

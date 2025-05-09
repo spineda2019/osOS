@@ -1,5 +1,5 @@
 const exception = @import("exception.zig");
-const tty = @import("tty/tty.zig");
+const tty = @import("riscv32tty");
 const memory = @import("memory/memory.zig");
 const osprocess = @import("osprocess");
 
@@ -16,6 +16,7 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
 const kmain = @import("kmain");
+const hal = @import("hal/hal.zig");
 
 fn delay() void {
     for (0..30000000) |_| {
@@ -37,11 +38,11 @@ pub fn setup() noreturn {
     );
 
     var terminal = tty.Terminal.init();
-    tty.Terminal.writeRaw("Hello RISC-V32 osOS!\n");
+    terminal.write("Hello RISC-V32 osOS!\n");
     // Causing a kernel pacnic will look like this: common.panic(@src());
     // register our cpuExceptionHanlder with the stvec handler
 
-    tty.Terminal.writeRaw("Trying to allocate some memory...\n");
+    terminal.write("Trying to allocate some memory...\n");
     var page_allocater: memory.PageAllocater = memory.PageAllocater.init(
         @intFromPtr(free_ram_start),
         @intFromPtr(free_ram_end),
@@ -50,7 +51,7 @@ pub fn setup() noreturn {
     const address_1 = page_allocater.allocate(2);
     const address_2 = page_allocater.allocate(1);
 
-    tty.Terminal.writeRaw("Mem allocation done!\n");
+    terminal.write("Mem allocation done!\n");
     terminal.printf("Address 1: %d\nAddress 2: %d\n", .{
         address_1,
         address_2,
@@ -63,8 +64,8 @@ pub fn setup() noreturn {
 
     asm volatile ("unimp");
 
-    const hal: kmain.hal.Hal = .{
-        .terminal = terminal.kterminal(),
+    const hal_interface: hal.Hal = .{
+        .terminal = &terminal,
     };
-    kmain.kmain(hal);
+    kmain.kmain(hal_interface);
 }

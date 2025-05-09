@@ -226,7 +226,7 @@ pub const FrameBuffer: type = struct {
     }
 
     /// Exactly like write, but adds a newline and reshows the shell prompt.
-    pub fn writeln(self: *FrameBuffer, buffer: []const u8) void {
+    pub fn writeLine(self: *FrameBuffer, buffer: []const u8) void {
         if (self.current_column != 0) {
             self.framebufferNewline();
         }
@@ -475,7 +475,7 @@ pub const FrameBuffer: type = struct {
 
         fn opaqueWriteLine(opaque_self: *anyopaque, buffer: []const u8) void {
             const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-            self.writeln(buffer);
+            self.writeLine(buffer);
         }
     };
 

@@ -20,7 +20,7 @@
 //! consisting of simple types and comptime functions.
 
 const osformat = @import("osformat");
-const tty = @import("tty/tty.zig");
+const tty = @import("riscv32tty");
 const FreeStandingSourceInfo: type = @import("std").builtin.SourceLocation;
 /// Struct representing saved state of each register. Packed to guarantee field
 /// sizes. Each register shall be 32 bits wide on risv32. Order is guaranteed
@@ -61,7 +61,8 @@ const TrapFrame: type = packed struct {
 
 export fn handleTrap(trap_frame: *const TrapFrame) void {
     _ = trap_frame;
-    tty.Terminal.writeRaw("Hey! I'm in the trap handler!\n");
+    const terminal: tty.Terminal = .init();
+    terminal.write("Hey! I'm in the trap handler!\n");
     panic(@src());
 }
 
@@ -69,15 +70,16 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// Ought to be inline, since adding stackframes to call this may not be
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
-    tty.Terminal.writeRaw("Kernel Panic!\nInfo:\n");
+    const terminal: tty.Terminal = .init();
+    terminal.write("Kernel Panic!\nInfo:\n");
 
-    tty.Terminal.writeRaw("File: ");
-    tty.Terminal.writeRaw(source_info.file);
-    tty.Terminal.writeRaw("\n");
+    terminal.write("File: ");
+    terminal.write(source_info.file);
+    terminal.write("\n");
 
-    tty.Terminal.writeRaw("Function: ");
-    tty.Terminal.writeRaw(source_info.fn_name);
-    tty.Terminal.writeRaw("\n");
+    terminal.write("Function: ");
+    terminal.write(source_info.fn_name);
+    terminal.write("\n");
 
     const line_num_slice: []const u8 = comptime line_calc: {
         const line_type: type = @TypeOf(source_info.line);
@@ -88,9 +90,9 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
         break :line_calc line_num.innerSlice();
     };
 
-    tty.Terminal.writeRaw("Line: ");
-    tty.Terminal.writeRaw(line_num_slice);
-    tty.Terminal.writeRaw("\n");
+    terminal.write("Line: ");
+    terminal.write(line_num_slice);
+    terminal.write("\n");
 
     const column_num_slice: []const u8 = comptime column_calc: {
         const column_type: type = @TypeOf(source_info.column);
@@ -100,9 +102,9 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
         );
         break :column_calc column_num.innerSlice();
     };
-    tty.Terminal.writeRaw("Column: ");
-    tty.Terminal.writeRaw(column_num_slice);
-    tty.Terminal.writeRaw("\n");
+    terminal.write("Column: ");
+    terminal.write(column_num_slice);
+    terminal.write("\n");
 
     while (true) {
         asm volatile ("");

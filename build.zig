@@ -96,26 +96,33 @@ pub fn build(b: *std.Build) BuildError!void {
     });
 
     //* *************************** RISC Specific **************************** *
+    const riscv32_tty_module = b.createModule(.{
+        .root_source_file = b.path("arch/riscv32/tty/tty.zig"),
+    });
+    riscv32_tty_module.addImport("osformat", osformat_module);
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/entry.zig"),
         .target = riscv32_target,
         .optimize = .ReleaseSmall,
         .strip = false,
     });
+    riscv32_module.addImport("riscv32tty", riscv32_tty_module);
     riscv32_module.addImport("osformat", osformat_module);
     riscv32_module.addImport("osmemory", osmemory_module);
     riscv32_module.addImport("osprocess", osprocess_module);
 
     //* *************************** x86 Specific ***************************** *
-    const x86_framebuffer_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
-    });
     const x86_serial_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/io/serial.zig"),
     });
     const x86_asm_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/asm/asm.zig"),
     });
+    const x86_framebuffer_module = b.createModule(.{
+        .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
+    });
+    x86_framebuffer_module.addImport("x86asm", x86_asm_module);
+    x86_framebuffer_module.addImport("osformat", osformat_module);
     const x86_memory_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/memory/memory.zig"),
     });
