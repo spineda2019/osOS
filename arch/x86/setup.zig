@@ -48,15 +48,8 @@ pub fn setup() noreturn {
     serial_port.write(message);
     framebuffer.write(message);
 
-    framebuffer.write(" COM1 succesfully written to! Testing cursor movement...");
-    framebuffer.testFourCorners();
-
-    const writer = framebuffer.writer();
-    writer.kprintf(" We have printf too!", .{});
-    writer.kprintf(" Testing writeLine...", .{});
-    framebuffer.writeLine("Hi there from a new line!");
-    framebuffer.writeLine("Hi there from a new line again!");
-    framebuffer.writeLine("Time to test scrolling...");
+    framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
+    framebuffer.testFourCorners(); // TODO: add to HAL
 
     for (0..12) |_| {
         for (0..16384) |_| {

@@ -22,7 +22,11 @@ pub const hal = @import("hal/hal.zig");
 pub fn kmain(hal_interface: anytype) noreturn {
     comptime hal.validateHalObject(@TypeOf(hal_interface));
 
-    hal_interface.terminal.writeLine("Hey there! We succesfully passed the HAL to kmain!");
+    hal_interface.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
+    hal_interface.terminal.write(" Testing writeLine...");
+
+    hal_interface.terminal.writeLine("Hi there from a new line!");
+    hal_interface.terminal.writeLine("Hi there from a new line again!");
 
     while (true) {
         asm volatile ("");

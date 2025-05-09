@@ -227,15 +227,19 @@ pub const FrameBuffer: type = struct {
 
     /// Exactly like write, but adds a newline and reshows the shell prompt.
     pub fn writeLine(self: *FrameBuffer, buffer: []const u8) void {
-        if (self.current_column != 0) {
-            self.framebufferNewline();
+        if (self.current_column > 0) {
+            for (self.current_column..80) |_| {
+                self.putCharacter(' ');
+            }
         }
 
         for (buffer) |letter| {
             self.putCharacter(letter);
         }
 
-        self.framebufferNewline();
+        for (self.current_column..80) |_| {
+            self.putCharacter(' ');
+        }
     }
 
     /// Based zig lets us pass a safe slice and use the
