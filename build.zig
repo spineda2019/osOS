@@ -468,4 +468,12 @@ pub fn build(b: *std.Build) BuildError!void {
         "Boot kernel with BOCHS on x86 using the built in debugger",
     );
     x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
+
+    //* ************************* Generic Run Target ************************* *
+    const generic_run_step = b.step("run", "Boot kernel for specified target (x86 by default)");
+    generic_run_step.dependOn(switch (target_arch) {
+        .x86 => x86_run_step_qemu,
+        .riscv32 => riscv32_run_step,
+        else => x86_run_step_qemu,
+    });
 }
