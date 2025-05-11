@@ -15,7 +15,7 @@ const HalFieldRole = union(enum) {
         switch (self) {
             .terminal => |term_type| {
                 validateTerminalType(term_type);
-                intermediate.terminal_type = term_type;
+                intermediate.terminal_type = *term_type;
             },
         }
     }
@@ -68,17 +68,26 @@ pub fn HAL(comptime hal_type: type) type {
 
     return struct {
         terminal: intermediate_hal.terminal(),
+
+        const This = @This();
+
+        pub fn init(handed_off_hal: hal_type) This {
+            return .{
+                .terminal = handed_off_hal.terminal,
+            };
+        }
     };
 }
 
 /// Iterates through fields in the given hal type and populates an intermediate
 /// HAL containing valid types it has found.
 fn validateHalFieldTypes(hal_type: type) IntermediateHal {
-    const StructFieldArray: type = []const std.builtin.Type.StructField;
-    const hal_fields: StructFieldArray = meta.fields(hal_type);
     var intermediate: IntermediateHal = .{
         .terminal_type = null,
     };
+
+    const StructFieldArray: type = []const std.builtin.Type.StructField;
+    const hal_fields: StructFieldArray = meta.fields(hal_type);
 
     inline for (hal_fields) |field| {
         const field_type = field.type;
@@ -86,16 +95,13 @@ fn validateHalFieldTypes(hal_type: type) IntermediateHal {
 
         switch (field_type_info) {
             .pointer => |ptr| {
-                const underlying_type = ptr.child;
-                const role: ?HalFieldRole = HalFieldRole.init(
-                    field.name,
-                    underlying_type,
-                );
-                if (role) |responsibility| {
-                    responsibility.validate(&intermediate);
+                const pointee_type = ptr.child;
+                const role: ?HalFieldRole = HalFieldRole.init(field.name, pointee_type);
+                if (role) |hal_role| {
+                    hal_role.validate(&intermediate);
                 }
             },
-            else => {
+            else => { // this might be allowed in the future, not sure yet
                 const err_msg = std.fmt.comptimePrint(
                     "{s} has an unexpected non-pointer field: {s} of type {s}",
                     .{ @typeName(hal_type), field.name, @typeName(field_type) },

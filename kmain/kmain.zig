@@ -20,9 +20,10 @@
 pub const hal = @import("hal/hal.zig");
 
 pub fn kmain(hal_interface: anytype) noreturn {
-    _ = comptime hal.HAL(@TypeOf(hal_interface));
+    const HAL = comptime hal.HAL(@TypeOf(hal_interface));
+    const arch_agnostic_hal: HAL = HAL.init(hal_interface);
 
-    hal_interface.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
+    arch_agnostic_hal.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
     hal_interface.terminal.write(" Testing writeLine...");
 
     hal_interface.terminal.writeLine("Hi there from a new line!");
