@@ -470,10 +470,23 @@ pub fn build(b: *std.Build) BuildError!void {
     x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
 
     //* ************************* Generic Run Target ************************* *
-    const generic_run_step = b.step("run", "Boot kernel for specified target (x86 by default)");
+    const generic_run_step = b.step(
+        "run",
+        "Boot kernel for specified target (x86 by default)",
+    );
     generic_run_step.dependOn(switch (target_arch) {
         .x86 => x86_run_step_qemu,
         .riscv32 => riscv32_run_step,
         else => x86_run_step_qemu,
+    });
+
+    const generic_build_step = b.step(
+        "kernel",
+        "Build the kernel for just the specified target",
+    );
+    generic_build_step.dependOn(switch (target_arch) {
+        .x86 => x86_step,
+        .riscv32 => riscv32_step,
+        else => x86_step,
     });
 }
