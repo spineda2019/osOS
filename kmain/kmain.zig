@@ -24,10 +24,10 @@ pub fn kmain(hal_interface: anytype) noreturn {
     const arch_agnostic_hal: HAL = HAL.init(hal_interface);
 
     arch_agnostic_hal.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
-    hal_interface.terminal.write(" Testing writeLine...");
+    arch_agnostic_hal.terminal.write(" Testing writeLine...");
 
-    hal_interface.terminal.writeLine("Hi there from a new line!");
-    hal_interface.terminal.writeLine("Hi there from a new line again!");
+    arch_agnostic_hal.terminal.writeLine("Hi there from a new line!");
+    arch_agnostic_hal.terminal.writeLine("Hi there from a new line again!");
 
     while (true) {
         asm volatile ("");
