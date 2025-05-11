@@ -53,7 +53,7 @@ const IntermediateHal = struct {
 /// within the hal_type passed to kmain. This will truly let kmain be isolated
 /// from hardware setup, owning only the hardware methods it needs. hal_type
 /// will then only be used to handoff information to kmain.
-pub fn validateHalObject(comptime hal_type: type) type {
+pub fn HAL(comptime hal_type: type) type {
     const hal_type_info: std.builtin.Type = @typeInfo(hal_type);
 
     if (hal_type_info != .@"struct") {
