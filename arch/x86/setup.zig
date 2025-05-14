@@ -25,7 +25,7 @@ const osshell = @import("osshell");
 const hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
 
-pub fn delay() void {
+fn delay() void {
     for (0..16384) |_| {
         for (0..16384) |_| {
             asm volatile (
