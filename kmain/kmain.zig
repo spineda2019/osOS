@@ -19,6 +19,16 @@
 
 pub const hal = @import("hal/hal.zig");
 
+fn delay() void {
+    for (0..16384) |_| {
+        for (0..16384) |_| {
+            asm volatile (
+                \\nop
+            );
+        }
+    }
+}
+
 pub fn kmain(hal_interface: anytype) noreturn {
     const HAL = comptime hal.HAL(@TypeOf(hal_interface));
     const arch_agnostic_hal: HAL = HAL.init(hal_interface);

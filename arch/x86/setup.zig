@@ -62,6 +62,10 @@ pub fn setup() noreturn {
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.testFourCorners(); // TODO: add to HAL
 
+    const hal_interface: hal.Hal = .{
+        .terminal = &framebuffer,
+    };
+
     for (0..12) |_| {
         delay();
         framebuffer.write("Foo " ** 20);
@@ -70,9 +74,6 @@ pub fn setup() noreturn {
         delay();
         framebuffer.write("Baz " ** 20);
     }
-    const hal_interface: hal.Hal = .{
-        .terminal = &framebuffer,
-    };
 
     kmain.kmain(hal_interface);
 }
