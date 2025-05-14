@@ -94,7 +94,7 @@ pub const GDTDescriptor = packed struct {
 
 /// Create a GDT with only the null descriptor, and a data and code segment for
 /// both kernel mode and user mode.
-pub fn createDefaultGDT() [5]SegmentDescriptor {
+pub inline fn createDefaultGDT() [5]SegmentDescriptor {
     return .{
         SegmentDescriptor.null_descriptor, // offset 0x0
         SegmentDescriptor.kernel_mode_code_segment, // offset 0x8 AKA 64 bytes

@@ -50,7 +50,7 @@ pub const InterruptDescriptorTable = [256]InterruptDescriptor;
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
-pub fn createDefaultIDT(
+pub inline fn createDefaultIDT(
     handler_table: *const InterruptHandlerTable,
 ) InterruptDescriptorTable {
     var entries: [256]InterruptDescriptor = undefined;
