@@ -15,7 +15,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const framebuffer_api = @import("x86framebuffer");
-const serial = @import("io/serial.zig");
+const serial = @import("x86serial");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
@@ -23,8 +23,19 @@ const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
 const hal = @import("hal/hal.zig");
-
 const kmain = @import("kmain");
+
+pub fn delay() void {
+    for (0..16384) |_| {
+        for (0..16384) |_| {
+            asm volatile (
+                \\nop
+            );
+        }
+    }
+}
+
+const interrupt_handler_table: [256]*const fn () callconv(.naked) void = interrupts.idt.generateInterruptHandlers();
 
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
@@ -35,10 +46,10 @@ pub fn setup() noreturn {
     const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    const interrupt_function_table = comptime interrupts.idt.generateInterruptHandlers();
-    const idt = interrupts.idt.createDefaultIDT(&interrupt_function_table);
+    const idt = interrupts.idt.createDefaultIDT(&interrupt_handler_table);
     const idt_descriptor = interrupts.idt.IDTDescriptor.init(&idt);
     idt_descriptor.loadIDT();
+
     as.assembly_wrappers.enable_x86_interrupts();
 
     var framebuffer = framebuffer_api.FrameBuffer.init();
@@ -52,32 +63,13 @@ pub fn setup() noreturn {
     framebuffer.testFourCorners(); // TODO: add to HAL
 
     for (0..12) |_| {
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
+        delay();
         framebuffer.write("Foo " ** 20);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
+        delay();
         framebuffer.write("Bar " ** 20);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
+        delay();
         framebuffer.write("Baz " ** 20);
     }
-
     const hal_interface: hal.Hal = .{
         .terminal = &framebuffer,
     };

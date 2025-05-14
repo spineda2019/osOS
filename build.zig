@@ -113,12 +113,13 @@ pub fn build(b: *std.Build) BuildError!void {
     riscv32_module.addImport("osprocess", osprocess_module);
 
     //* *************************** x86 Specific ***************************** *
-    const x86_serial_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/io/serial.zig"),
-    });
     const x86_asm_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/asm/asm.zig"),
     });
+    const x86_serial_module = b.createModule(.{
+        .root_source_file = b.path("arch/x86/io/serial.zig"),
+    });
+    x86_serial_module.addImport("x86asm", x86_asm_module);
     const x86_framebuffer_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
     });
