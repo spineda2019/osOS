@@ -33,6 +33,15 @@ pub fn kmain(hal_interface: anytype) noreturn {
     const HAL = comptime hal.HAL(@TypeOf(hal_interface));
     const arch_agnostic_hal: HAL = HAL.init(hal_interface);
 
+    for (0..12) |_| {
+        delay();
+        arch_agnostic_hal.terminal.write("Foo " ** 20);
+        delay();
+        arch_agnostic_hal.terminal.write("Bar " ** 20);
+        delay();
+        arch_agnostic_hal.terminal.write("Baz " ** 20);
+    }
+
     arch_agnostic_hal.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
     arch_agnostic_hal.terminal.write(" Testing writeLine...");
 

@@ -104,7 +104,7 @@ pub inline fn x86_lidt(table_address: u32) void {
     asm volatile (
         \\lidtl (%[table_address])
         :
-        : [table_address] "{eax}" (table_address),
+        : [table_address] "r" (table_address),
     );
 }
 
