@@ -16,7 +16,8 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
 const kmain = @import("kmain");
-const hal = @import("hal/hal.zig");
+const riscv32hal = @import("hal/hal.zig");
+const oshal = @import("oshal");
 
 fn delay() void {
     for (0..30000000) |_| {
@@ -64,8 +65,9 @@ pub fn setup() noreturn {
 
     asm volatile ("unimp");
 
-    const hal_interface: hal.Hal = .{
+    const arch_specific_hal: riscv32hal.Hal = .{
         .terminal = &terminal,
     };
-    kmain.kmain(hal_interface);
+    const arch_agnostic_hal = oshal.HAL(riscv32hal.Hal).init(arch_specific_hal);
+    kmain.kmain(riscv32hal.Hal, arch_agnostic_hal);
 }

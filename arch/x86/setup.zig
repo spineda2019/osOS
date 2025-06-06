@@ -22,7 +22,8 @@ const interrupts = @import("x86interrupts");
 const osformat = @import("osformat");
 const osprocess = @import("osprocess");
 const osshell = @import("osshell");
-const hal = @import("hal/hal.zig");
+const oshal = @import("oshal");
+const x86hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
 
 fn delay() void {
@@ -62,5 +63,9 @@ pub fn setup() noreturn {
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.testFourCorners(); // TODO: add to HAL
 
-    kmain.kmain(.{ .terminal = &framebuffer });
+    const arch_specific_hal = x86hal.Hal{
+        .terminal = &framebuffer,
+    };
+    const arch_agnostic_hal = oshal.HAL(x86hal.Hal).init(arch_specific_hal);
+    kmain.kmain(x86hal.Hal, arch_agnostic_hal);
 }

@@ -17,7 +17,7 @@
 // const terminal = @import("hal_terminal");
 // const serial = @import("hal_serial");
 
-pub const hal = @import("hal/hal.zig");
+pub const hal = @import("oshal");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -29,10 +29,7 @@ fn delay() void {
     }
 }
 
-pub fn kmain(hal_interface: anytype) noreturn {
-    const HAL = comptime hal.HAL(@TypeOf(hal_interface));
-    const arch_agnostic_hal: HAL = HAL.init(hal_interface);
-
+pub fn kmain(hal_type: type, arch_agnostic_hal: hal.HAL(hal_type)) noreturn {
     for (0..12) |_| {
         delay();
         arch_agnostic_hal.terminal.write("Foo " ** 20);

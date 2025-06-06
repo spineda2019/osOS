@@ -91,6 +91,10 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("boot_utilities/bootutils.zig"),
     });
 
+    const oshal_module = b.createModule(.{
+        .root_source_file = b.path("HAL/hal.zig"),
+    });
+
     // the kernel's main process
     const osshell_module = b.createModule(.{
         .root_source_file = b.path("userland/shell/shell.zig"),
@@ -111,6 +115,7 @@ pub fn build(b: *std.Build) BuildError!void {
     riscv32_module.addImport("osformat", osformat_module);
     riscv32_module.addImport("osmemory", osmemory_module);
     riscv32_module.addImport("osprocess", osprocess_module);
+    riscv32_module.addImport("oshal", oshal_module);
 
     //* *************************** x86 Specific ***************************** *
     const x86_asm_module = b.createModule(.{
@@ -150,6 +155,7 @@ pub fn build(b: *std.Build) BuildError!void {
     x86_module.addImport("x86serial", x86_serial_module);
     x86_module.addImport("osshell", osshell_module);
     x86_module.addOptions("bootoptions", boot_options);
+    x86_module.addImport("oshal", oshal_module);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make
@@ -189,6 +195,8 @@ pub fn build(b: *std.Build) BuildError!void {
     const kmain_module = b.createModule(.{
         .root_source_file = b.path("kmain/kmain.zig"),
     });
+    kmain_module.addImport("oshal", oshal_module);
+
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
     std.debug.print(
