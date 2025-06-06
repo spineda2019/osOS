@@ -18,8 +18,6 @@
 //! (on most machines)
 
 const as = @import("x86asm");
-const osformat = @import("osformat");
-const kmain = @import("kmain");
 
 pub const FrameBufferCellColor: type = enum {
     Black,
@@ -482,26 +480,6 @@ pub const FrameBuffer: type = struct {
             self.writeLine(buffer);
         }
     };
-
-    pub fn writer(self: *FrameBuffer) osformat.print.Writer {
-        return .{
-            .instance = self,
-            .vtable = &.{
-                .write = &interface_impls.opaqueWrite,
-            },
-        };
-    }
-
-    pub fn kterminal(self: *FrameBuffer) kmain.hal.terminal.KTerminal {
-        return .{
-            .this = self,
-            .vtable = &.{
-                .putChar = &interface_impls.opaquePutChar,
-                .write = &interface_impls.opaqueWrite,
-                .writeLine = &interface_impls.opaqueWriteLine,
-            },
-        };
-    }
 };
 
 test "FrameBufferAddressTranslation" {
