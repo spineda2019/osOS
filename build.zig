@@ -100,6 +100,10 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("userland/shell/shell.zig"),
     });
 
+    const osstdlib_module = b.createModule(.{
+        .root_source_file = b.path("userland/stdlib/root.zig"),
+    });
+
     //* *************************** RISC Specific **************************** *
     const riscv32_tty_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/tty/tty.zig"),
@@ -153,8 +157,8 @@ pub fn build(b: *std.Build) BuildError!void {
     x86_module.addImport("x86interrupts", x86_interrupt_module);
     x86_module.addImport("x86framebuffer", x86_framebuffer_module);
     x86_module.addImport("x86serial", x86_serial_module);
-    x86_module.addOptions("bootoptions", boot_options);
     x86_module.addImport("oshal", oshal_module);
+    x86_module.addOptions("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make
@@ -196,6 +200,7 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     kmain_module.addImport("oshal", oshal_module);
     kmain_module.addImport("osshell", osshell_module);
+    kmain_module.addImport("osstdlib", osstdlib_module);
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
