@@ -153,7 +153,6 @@ pub fn build(b: *std.Build) BuildError!void {
     x86_module.addImport("x86interrupts", x86_interrupt_module);
     x86_module.addImport("x86framebuffer", x86_framebuffer_module);
     x86_module.addImport("x86serial", x86_serial_module);
-    x86_module.addImport("osshell", osshell_module);
     x86_module.addOptions("bootoptions", boot_options);
     x86_module.addImport("oshal", oshal_module);
 
@@ -196,6 +195,7 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("kmain/kmain.zig"),
     });
     kmain_module.addImport("oshal", oshal_module);
+    kmain_module.addImport("osshell", osshell_module);
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
