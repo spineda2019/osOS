@@ -37,6 +37,13 @@ pub fn HAL(comptime hal_type: type) type {
     return struct {
         const This = @This();
 
+        // **************************** Namespaces ************************** //
+        pub const io = struct {
+            pub const terminal = struct {};
+        };
+
+        pub const serial = struct {};
+
         terminal: intermediate_hal.terminal(),
 
         pub fn init(handed_off_hal: hal_type) This {
