@@ -146,3 +146,5 @@ pub noinline fn enableSSE() void {
         \\mov %eax, %cr4  # Store back CR4
     );
 }
+
+pub inline fn illegal_instruction() void {}

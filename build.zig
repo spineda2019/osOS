@@ -105,6 +105,9 @@ pub fn build(b: *std.Build) BuildError!void {
     });
 
     //* *************************** RISC Specific **************************** *
+    const riscv32_asm_module = b.createModule(.{
+        .root_source_file = b.path("arch/riscv32/asm/root.zig"),
+    });
     const riscv32_tty_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/tty/tty.zig"),
     });
@@ -116,6 +119,7 @@ pub fn build(b: *std.Build) BuildError!void {
         .strip = false,
     });
     riscv32_module.addImport("riscv32tty", riscv32_tty_module);
+    riscv32_module.addImport("riscv32asm", riscv32_asm_module);
     riscv32_module.addImport("osformat", osformat_module);
     riscv32_module.addImport("osmemory", osmemory_module);
     riscv32_module.addImport("osprocess", osprocess_module);

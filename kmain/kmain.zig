@@ -19,6 +19,7 @@
 
 pub const hal = @import("oshal");
 const hal_validation = @import("hal_validation.zig");
+const builtin = @import("builtin");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -32,6 +33,10 @@ fn delay() void {
 
 pub fn kmain(arch_agnostic_hal: anytype) noreturn {
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
+
+    if (builtin.target.cpu.arch == .riscv32) {
+        arch_agnostic_hal.assembly_wrappers.illegal_instruction();
+    }
 
     for (0..12) |_| {
         delay();
