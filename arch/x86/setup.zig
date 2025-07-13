@@ -19,7 +19,6 @@ const serial = @import("x86serial");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
-const oshal = @import("oshal");
 const x86hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
 
@@ -60,9 +59,8 @@ pub fn setup() noreturn {
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.testFourCorners(); // TODO: add to HAL
 
-    const arch_specific_hal = x86hal.Hal{
+    const hal = x86hal.Hal{
         .terminal = &framebuffer,
     };
-    const arch_agnostic_hal = oshal.HAL(x86hal.Hal).init(arch_specific_hal);
-    kmain.kmain(x86hal.Hal, arch_agnostic_hal);
+    kmain.kmain(hal);
 }

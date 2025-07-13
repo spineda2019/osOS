@@ -18,6 +18,7 @@
 // const serial = @import("hal_serial");
 
 pub const hal = @import("oshal");
+const hal_validation = @import("hal_validation.zig");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -29,7 +30,9 @@ fn delay() void {
     }
 }
 
-pub fn kmain(hal_type: type, arch_agnostic_hal: hal.HAL(hal_type)) noreturn {
+pub fn kmain(arch_agnostic_hal: anytype) noreturn {
+    comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
+
     for (0..12) |_| {
         delay();
         arch_agnostic_hal.terminal.write("Foo " ** 20);
