@@ -27,10 +27,8 @@ pub const Terminal = struct {
         }
     }
 
-    pub fn writeLine(_: Terminal, contents: []const u8) void {
-        for (contents) |char| {
-            putChar(char);
-        }
+    pub fn writeLine(self: Terminal, contents: []const u8) void {
+        self.write(contents);
         putChar('\n');
     }
 
