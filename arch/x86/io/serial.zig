@@ -26,7 +26,7 @@ pub const SerialPort: type = struct {
 
     // Tells the serial port to expect first the highest 8 bits on the data port,
     // then the lowest 8 bits will follow
-    const serial_line_enable_dlab: u16 = 0x80;
+    const serial_line_enable_dlab: u8 = 0x80;
 
     inline fn calculateFIFOCommandPort(basePort: u16) u16 {
         return basePort + 2;
@@ -138,8 +138,14 @@ pub const SerialPort: type = struct {
     fn configureBaudRate(port: u16, divisor: u16) void {
         // specify to expect high bits then low bits (can only send 8 bits at a time)
         as.assembly_wrappers.x86_out(port + 3, serial_line_enable_dlab);
-        as.assembly_wrappers.x86_out(port, divisor >> 8); // high 8 bits
-        as.assembly_wrappers.x86_out(port, divisor & 0b0000_0000_1111_1111); // low
+        as.assembly_wrappers.x86_out(
+            port,
+            @truncate(divisor >> 8),
+        ); // high 8 bits
+        as.assembly_wrappers.x86_out(
+            port,
+            @truncate(divisor & 0b0000_0000_1111_1111),
+        ); // low
     }
 
     /// Configured with a byte:

@@ -26,32 +26,10 @@
 ///
 /// Since this is a wrapper for an inline assembly call, this should be
 /// inline
-pub inline fn x86_out(port_address: u16, data: anytype) void {
-    const instruction: *const [4]u8 = comptime bit_width_calc: {
-        const data_type: type = @TypeOf(data);
-        if (@typeInfo(data_type) != .int) {
-            const msg = "Invalid integer type: " ++ @typeName(data_type);
-            @compileError(msg);
-        }
-
-        break :bit_width_calc switch (@bitSizeOf(data_type)) {
-            // switch ranges are inclusive on both end
-            1...8 => "outb",
-            9...16 => "outw",
-            17...32 => "outl",
-            else => {
-                @compileError(
-                    "Invalid integer size: " ++ @typeName(data_type),
-                );
-            },
-        };
-    };
-
+pub inline fn x86_out(port_address: u16, data: u8) void {
     asm volatile (
-    // move the data (src) to address. Curse backwards AT&T syntax
-        instruction ++
-            \\ %[data], %[port_address]
-        :
+        \\outb %[data], %[port_address]
+        : // no outputs
         : [port_address] "{dx}" (port_address),
           [data] "{al}" (data),
         : "memory"
