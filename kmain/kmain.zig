@@ -34,10 +34,6 @@ fn delay() void {
 pub fn kmain(arch_agnostic_hal: anytype) noreturn {
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
 
-    if (builtin.target.cpu.arch == .riscv32) {
-        arch_agnostic_hal.assembly_wrappers.illegal_instruction();
-    }
-
     for (0..12) |_| {
         delay();
         arch_agnostic_hal.terminal.write("Foo " ** 20);
@@ -52,6 +48,10 @@ pub fn kmain(arch_agnostic_hal: anytype) noreturn {
 
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line!");
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line again!");
+
+    if (builtin.target.cpu.arch == .riscv32) {
+        arch_agnostic_hal.assembly_wrappers.illegal_instruction();
+    }
 
     while (true) {
         asm volatile ("");
