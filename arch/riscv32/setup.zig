@@ -18,14 +18,6 @@ pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 
-fn delay() void {
-    for (0..30000000) |_| {
-        asm volatile (
-            \\nop
-        );
-    }
-}
-
 pub fn setup() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
