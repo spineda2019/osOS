@@ -1,6 +1,5 @@
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
-const memory = @import("memory/memory.zig");
 const osprocess = @import("osprocess");
 
 /// BSS Start
@@ -22,7 +21,7 @@ pub fn setup() noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
-    const exception_handler_address: u32 = @intFromPtr(&exception.cpuExceptionHandler);
+    const exception_handler_address = &exception.cpuExceptionHandler;
 
     asm volatile ("csrw stvec, %[exception_handler]"
         :
