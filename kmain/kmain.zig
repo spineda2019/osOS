@@ -22,8 +22,8 @@ const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 
 fn delay() void {
-    for (0..16384) |_| {
-        for (0..16384) |_| {
+    for (0..8192) |_| {
+        for (0..8192) |_| {
             asm volatile (
                 \\nop
             );
