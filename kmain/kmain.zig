@@ -17,7 +17,6 @@
 // const terminal = @import("hal_terminal");
 // const serial = @import("hal_serial");
 
-pub const hal = @import("oshal");
 const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 
