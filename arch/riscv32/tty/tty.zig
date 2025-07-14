@@ -9,27 +9,42 @@ pub const Terminal = struct {
     internal_sentinel: u8,
     arg_sentinel: u8,
 
+    /// max of 79
+    current_column: u8,
+
+    const MAX_COLUMN: comptime_int = 79;
+
     pub fn init() Terminal {
         return .{
             .buffer = .{0} ** 32,
             .internal_sentinel = 0,
             .arg_sentinel = 0,
+            .current_column = 0,
         };
     }
 
-    fn putChar(char: u8) void {
+    fn putChar(self: *Terminal, char: u8) void {
         uart_address.* = char;
-    }
 
-    pub fn write(_: Terminal, contents: []const u8) void {
-        for (contents) |char| {
-            putChar(char);
+        if (char == '\n') {
+            self.current_column = 0;
+        } else if (self.current_column >= MAX_COLUMN) {
+            uart_address.* = '\n';
+            self.current_column = 0;
+        } else {
+            self.current_column += 1;
         }
     }
 
-    pub fn writeLine(self: Terminal, contents: []const u8) void {
+    pub fn write(self: *Terminal, contents: []const u8) void {
+        for (contents) |char| {
+            self.putChar(char);
+        }
+    }
+
+    pub fn writeLine(self: *Terminal, contents: []const u8) void {
         self.write(contents);
-        putChar('\n');
+        self.putChar('\n');
     }
 
     pub fn printf(

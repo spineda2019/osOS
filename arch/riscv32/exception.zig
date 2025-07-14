@@ -61,7 +61,7 @@ const TrapFrame: type = packed struct {
 
 export fn handleTrap(trap_frame: *const TrapFrame) void {
     _ = trap_frame;
-    const terminal: tty.Terminal = .init();
+    var terminal: tty.Terminal = .init();
     terminal.write("Hey! I'm in the trap handler!\n");
     panic(@src());
 }
@@ -70,7 +70,7 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// Ought to be inline, since adding stackframes to call this may not be
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
-    const terminal: tty.Terminal = .init();
+    var terminal: tty.Terminal = .init();
     terminal.write("Kernel Panic!\nInfo:\n");
 
     terminal.write("File: ");
