@@ -30,31 +30,8 @@ pub fn setup() noreturn {
     );
 
     var terminal = tty.Terminal.init();
+
     terminal.write("Hello RISC-V32 osOS!\n");
-    // Causing a kernel pacnic will look like this: common.panic(@src());
-    // register our cpuExceptionHanlder with the stvec handler
-
-    terminal.write("Trying to allocate some memory...\n");
-    var page_allocater: memory.PageAllocater = memory.PageAllocater.init(
-        @intFromPtr(free_ram_start),
-        @intFromPtr(free_ram_end),
-    );
-
-    const address_1 = page_allocater.allocate(2);
-    const address_2 = page_allocater.allocate(1);
-
-    terminal.write("Mem allocation done!\n");
-    terminal.printf("Address 1: %d\nAddress 2: %d\n", .{
-        address_1,
-        address_2,
-    });
-
-    var pool: osprocess.ProcessTable = .init();
-    _ = &pool;
-
-    // proc_a_entry();
-
-    asm volatile ("unimp");
 
     const hal: riscv32hal.Hal = .{
         .terminal = &terminal,
