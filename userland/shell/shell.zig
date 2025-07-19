@@ -14,18 +14,11 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const ShellEvalResult = struct {
-    pub fn toString(self: ShellEvalResult) []const u8 {
-        _ = self;
-    }
-};
-
 const osstdlib = @import("osstdlib");
 
-fn eval(input: []const u8) ShellEvalResult {
-    _ = input;
-    // TODO: parsing
-    return .{};
+fn eval(input: []const u8) []const u8 {
+    // TODO: actual evaluation
+    return input;
 }
 
 /// The main "init" process of the osOS kernel. Should be run in user space.
@@ -34,8 +27,8 @@ fn eval(input: []const u8) ShellEvalResult {
 pub fn shellMain() void {
     while (true) {
         osstdlib.io.console.print("osshell> ");
-        const line: []const u8 = osstdlib.io.console.readLine();
-        const result: ShellEvalResult = eval(line);
-        osstdlib.io.console.printLine(result.toString());
-    }
+        const line: []const u8 = osstdlib.io.console.readLine(); // R
+        const result: []const u8 = eval(line); // E
+        osstdlib.io.console.printLine(result); // P
+    } // L
 }
