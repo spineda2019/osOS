@@ -71,15 +71,14 @@ export fn handleTrap(trap_frame: *const TrapFrame) void {
 /// desirable. Open to alternate methods
 pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     var terminal: tty.Terminal = .init();
-    terminal.write("Kernel Panic!\nInfo:\n");
+    terminal.writeLine("Kernel Panic!");
+    terminal.writeLine("Info:");
 
     terminal.write("File: ");
-    terminal.write(source_info.file);
-    terminal.write("\n");
+    terminal.writeLine(source_info.file);
 
     terminal.write("Function: ");
-    terminal.write(source_info.fn_name);
-    terminal.write("\n");
+    terminal.writeLine(source_info.fn_name);
 
     const line_num_slice: []const u8 = comptime line_calc: {
         const line_type: type = @TypeOf(source_info.line);
@@ -91,8 +90,7 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     };
 
     terminal.write("Line: ");
-    terminal.write(line_num_slice);
-    terminal.write("\n");
+    terminal.writeLine(line_num_slice);
 
     const column_num_slice: []const u8 = comptime column_calc: {
         const column_type: type = @TypeOf(source_info.column);
@@ -103,8 +101,7 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
         break :column_calc column_num.innerSlice();
     };
     terminal.write("Column: ");
-    terminal.write(column_num_slice);
-    terminal.write("\n");
+    terminal.writeLine(column_num_slice);
 
     while (true) {
         asm volatile ("");

@@ -31,6 +31,11 @@ const BootSpecification = enum {
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) BuildError!void {
+    const zigver = builtin.zig_version;
+    std.debug.print(
+        "building with zig version: {}.{}.{}\n",
+        .{ zigver.major, zigver.minor, zigver.patch },
+    );
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
