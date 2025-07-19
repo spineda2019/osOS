@@ -14,8 +14,6 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const MAX_PROCESS_COUNT: comptime_int = 8;
-
 /// Universal construct representing an osOS process
 pub const Process = struct {
     const ProcessState = enum {
@@ -54,6 +52,8 @@ pub const Process = struct {
 
 /// Representation of the kernel's pool of total available process slots
 pub const ProcessTable = struct {
+    const MAX_PROCESS_COUNT: comptime_int = 8;
+
     pool: [MAX_PROCESS_COUNT]Process,
 
     pub fn init() ProcessTable {
@@ -61,20 +61,17 @@ pub const ProcessTable = struct {
             .pool = .{Process.emptyProcess} ** MAX_PROCESS_COUNT,
         };
     }
-    /// Create a process at a specific address in RAM.
+    /// Create a process at a specific address in RAM. Creates the process entry
+    /// in the table and returns the address to the process entry.
     pub fn createProcess(
         self: *ProcessTable,
-        program_counter: usize,
+        process_start_address: usize,
     ) Process.ProcessError!*Process {
-        for (self.pool, 0..) |process, i| {
-            if (process.state == .unused) {
-                self.pool[i] = Process{
-                    .pid = i + 1,
-                    .state = .runnable,
-                    .entry_address = program_counter,
-                };
-
-                return &self.pool[i];
+        for (self.pool) |*process| {
+            if (process.*.state == .unused) {
+                process.*.state = .runnable;
+                process.*.entry_address = process_start_address;
+                return process;
             }
         }
 

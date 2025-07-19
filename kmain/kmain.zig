@@ -19,6 +19,7 @@
 
 const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
+const process = @import("osprocess");
 
 fn delay() void {
     for (0..8192) |_| {
@@ -51,6 +52,9 @@ pub fn kmain(arch_agnostic_hal: anytype) noreturn {
     if (builtin.target.cpu.arch == .riscv32) {
         arch_agnostic_hal.assembly_wrappers.illegal_instruction();
     }
+
+    const process_pool: process.ProcessTable = .init();
+    _ = process_pool;
 
     while (true) {
         asm volatile ("");

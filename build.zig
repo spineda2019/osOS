@@ -210,6 +210,7 @@ pub fn build(b: *std.Build) BuildError!void {
     kmain_module.addImport("oshal", oshal_module);
     kmain_module.addImport("osshell", osshell_module);
     kmain_module.addImport("osstdlib", osstdlib_module);
+    kmain_module.addImport("osprocess", osprocess_module);
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
