@@ -1,6 +1,5 @@
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
-const osprocess = @import("osprocess");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
