@@ -51,7 +51,7 @@ const interrupt_handler_table: [256]*const fn () callconv(.naked) void = generat
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
-pub inline fn createDefaultIDT() InterruptDescriptorTable {
+pub fn createDefaultIDT() InterruptDescriptorTable {
     var entries: [256]InterruptDescriptor = undefined;
     for (interrupt_handler_table, 0..) |fn_ptr, interrupt_number| {
         entries[interrupt_number] = .{
