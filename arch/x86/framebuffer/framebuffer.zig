@@ -347,7 +347,7 @@ pub const FrameBuffer: type = struct {
         const message = comptime "Welcome to...";
         // zig doesn't have raw string literal syntax (that I know of) so the
         // logo will look weird in code.
-        const logo: []const []const u8 = comptime .{
+        const logo: []const []const u8 = comptime &.{
             \\ ________  ________  ________  ________      
             ,
             \\|\   __  \|\   ____\|\   __  \|\   ____\     
