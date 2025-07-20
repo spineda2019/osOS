@@ -30,6 +30,7 @@ pub fn setup() noreturn {
     var terminal = tty.Terminal.init();
 
     terminal.writeLine("Hello RISC-V32 osOS!");
+    terminal.writeSplashLogo();
 
     const hal: riscv32hal.Hal = .{
         .terminal = &terminal,

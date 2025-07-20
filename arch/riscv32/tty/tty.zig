@@ -47,6 +47,35 @@ pub const Terminal = struct {
         self.putChar('\n');
     }
 
+    pub fn writeSplashLogo(self: *Terminal) void {
+
+        // logo will look weird in code.
+        const logo: []const []const u8 = comptime &.{
+            \\ ________  ________  ________  ________      
+            ,
+            \\|\   __  \|\   ____\|\   __  \|\   ____\     
+            ,
+            \\\ \  \|\  \ \  \___|\ \  \|\  \ \  \___|_    
+            ,
+            \\ \ \  \\\  \ \_____  \ \  \\\  \ \_____  \   
+            ,
+            \\  \ \  \\\  \|____|\  \ \  \\\  \|____|\  \  
+            ,
+            \\   \ \_______\____\_\  \ \_______\____\_\  \ 
+            ,
+            \\    \|_______|\_________\|_______|\_________\
+            ,
+            \\             \|_________|        \|_________|
+        };
+        const whitespace: []const u8 = comptime "                    ";
+
+        for (logo) |line| {
+            self.write(whitespace);
+            self.writeLine(line);
+        }
+        self.writeLine("");
+    }
+
     pub fn printf(
         self: *Terminal,
         comptime format_string: []const u8,
