@@ -108,42 +108,8 @@ pub const FrameBuffer: type = struct {
     /// a given cell, but this will likely be faster.
     buffer: [25][80]u8,
 
-    pub fn testFourCorners(self: *FrameBuffer) void {
-        moveCursor(0, 0);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
-
-        moveCursor(0, 79);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
-        moveCursor(24, 0);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
-        moveCursor(24, 79);
-        for (0..16384) |_| {
-            for (0..16384) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
-        moveCursor(self.current_row, self.current_column);
-    }
+    comptime letter_color: FrameBufferCellColor = .LightBrown,
+    comptime background_color: FrameBufferCellColor = .DarkGray,
 
     /// calculate the address to write in terms of an x,y coordinate.
     ///
@@ -155,27 +121,21 @@ pub const FrameBuffer: type = struct {
         return frame_buffer_start + (row_offset * 160) + (column_offset * 2);
     }
 
-    pub fn init() FrameBuffer {
-        clear(FrameBufferCellColor.LightBlue);
-        printWelcomeScreen();
-        for (0..16384) |_| {
-            for (0..32768) |_| {
-                asm volatile (
-                    \\nop
-                );
-            }
-        }
-        clear(FrameBufferCellColor.DarkGray);
-
+    pub fn init(
+        comptime letter_color: FrameBufferCellColor,
+        comptime background_color: FrameBufferCellColor,
+    ) FrameBuffer {
         return .{
             .current_row = 0,
             .current_column = 0,
             .buffer = .{.{0} ** 80} ** 25,
+            .letter_color = letter_color,
+            .background_color = background_color,
         };
     }
 
     fn incrementCursorRow(self: *FrameBuffer) void {
-        self.current_row = position_calculation: {
+        const next_row = position_calculation: {
             if (self.current_row >= 24) {
                 // wrap around and stay in the bottom for scrolling
                 break :position_calculation 24;
@@ -184,13 +144,11 @@ pub const FrameBuffer: type = struct {
             }
         };
 
-        self.current_column = 0;
-
-        moveCursor(self.current_row, self.current_column);
+        self.moveCursor(next_row, 0);
     }
 
     fn incrementCursor(self: *FrameBuffer) void {
-        self.current_row = position_calculation: {
+        const next_row = position_calculation: {
             if (self.current_row >= 24) {
                 // wrap around and stay in the bottom for scrolling
                 break :position_calculation 24;
@@ -201,7 +159,7 @@ pub const FrameBuffer: type = struct {
             }
         };
 
-        self.current_column = position_calculation: {
+        const next_column = position_calculation: {
             if (self.current_column >= 79) {
                 break :position_calculation 0;
             } else {
@@ -209,7 +167,7 @@ pub const FrameBuffer: type = struct {
             }
         };
 
-        moveCursor(self.current_row, self.current_column);
+        self.moveCursor(next_row, next_column);
     }
 
     fn framebufferNewline(self: *FrameBuffer) void {
@@ -225,16 +183,7 @@ pub const FrameBuffer: type = struct {
 
     /// Exactly like write, but adds a newline and reshows the shell prompt.
     pub fn writeLine(self: *FrameBuffer, buffer: []const u8) void {
-        if (self.current_column > 0) {
-            for (self.current_column..80) |_| {
-                self.putCharacter(' ');
-            }
-        }
-
-        for (buffer) |letter| {
-            self.putCharacter(letter);
-        }
-
+        self.write(buffer);
         for (self.current_column..80) |_| {
             self.putCharacter(' ');
         }
@@ -263,8 +212,8 @@ pub const FrameBuffer: type = struct {
                     @truncate(row),
                     @truncate(column),
                     scrolled_letter,
-                    .DarkGray,
-                    .LightBrown,
+                    self.background_color,
+                    self.letter_color,
                 );
             }
         }
@@ -274,8 +223,8 @@ pub const FrameBuffer: type = struct {
                 24,
                 @truncate(column),
                 ' ',
-                .DarkGray,
-                .LightBrown,
+                self.background_color,
+                self.letter_color,
             );
         }
     }
@@ -296,8 +245,8 @@ pub const FrameBuffer: type = struct {
             self.current_row,
             self.current_column,
             letter,
-            .DarkGray,
-            .LightBrown,
+            self.background_color,
+            self.letter_color,
         );
         self.buffer[self.current_row][self.current_column] = letter;
         if (self.isBufferFull()) {
@@ -329,21 +278,25 @@ pub const FrameBuffer: type = struct {
         ascii_address.* = character;
     }
 
-    pub fn clear(comptime background_color: FrameBufferCellColor) void {
+    pub fn clear(self: *FrameBuffer) void {
+        self.moveCursor(0, 0);
+
         for (0..80) |column| {
             for (0..25) |row| {
                 writeCell(
                     @intCast(row),
                     @intCast(column),
                     ' ',
-                    background_color,
-                    FrameBufferCellColor.LightGray,
+                    self.background_color,
+                    self.letter_color,
                 );
             }
         }
     }
 
-    fn printWelcomeScreen() void {
+    pub fn printWelcomeScreen(self: *FrameBuffer) void {
+        self.clear();
+
         const message = comptime "Welcome to...";
         // zig doesn't have raw string literal syntax (that I know of) so the
         // logo will look weird in code.
@@ -365,31 +318,23 @@ pub const FrameBuffer: type = struct {
             \\             \|_________|        \|_________|
         };
 
-        for (message, 33..) |letter, column| {
-            writeCell(
-                9, // row
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
+        for (0..9) |_| {
+            self.writeLine("");
         }
+        self.write(" " ** 32);
+        self.writeLine(message);
 
         // needs to be inline since logo is comptime
-        inline for (0..8) |logoChunk| {
-            for (logo[logoChunk], 20..) |letter, column| {
-                writeCell(
-                    @intCast(logoChunk + 10),
-                    @intCast(column),
-                    letter,
-                    FrameBufferCellColor.LightBlue,
-                    FrameBufferCellColor.LightBrown,
-                );
-            }
+        for (logo) |line| {
+            self.write(" " ** 20);
+            self.writeLine(line);
         }
     }
 
-    fn moveCursor(row: u8, column: u8) void {
+    fn moveCursor(self: *FrameBuffer, row: u8, column: u8) void {
+        self.current_row = row;
+        self.current_column = column;
+
         const position: u16 = (row * 80) + (column);
         const low_byte: u8 = @truncate(position & 0b0000_0000_1111_1111);
         const high_byte: u8 = @truncate((position >> 8) & 0b0000_0000_1111_1111);

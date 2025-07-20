@@ -40,16 +40,26 @@ pub fn setup() noreturn {
     as.assembly_wrappers.enableSSE();
 
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
-    const gdt_descriptor: memory.gdt.GDTDescriptor = memory.gdt.GDTDescriptor.defaultInit(&gdt);
+    const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
     const idt = interrupts.idt.createDefaultIDT(&interrupt_handler_table);
-    const idt_descriptor = interrupts.idt.IDTDescriptor.init(&idt);
+    const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
     as.assembly_wrappers.enable_x86_interrupts();
 
-    var framebuffer = framebuffer_api.FrameBuffer.init();
+    var framebuffer: framebuffer_api.FrameBuffer = .init(.LightBrown, .DarkGray);
+    framebuffer.printWelcomeScreen();
+    for (0..16384) |_| {
+        for (0..32768) |_| {
+            asm volatile (
+                \\nop
+            );
+        }
+    }
+    framebuffer.clear();
+
     var serial_port = serial.SerialPort.defaultInit();
 
     const message = "Trying to write out of COM port 1...!";
@@ -57,7 +67,6 @@ pub fn setup() noreturn {
     framebuffer.write(message);
 
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
-    framebuffer.testFourCorners(); // TODO: add to HAL
 
     const hal = x86hal.Hal{
         .terminal = &framebuffer,
