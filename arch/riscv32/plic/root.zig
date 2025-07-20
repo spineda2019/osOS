@@ -15,4 +15,6 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /// TODO: do not hardcode; get from parsing DTB
-const plic_address: *volatile u8 = 0xc000000;
+const plic_base_address: *volatile u8 = 0xc000000;
+
+pub fn initializePLIC() void {}
