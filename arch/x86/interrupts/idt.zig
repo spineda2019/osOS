@@ -330,7 +330,7 @@ pub fn generateInterruptHandlers() InterruptHandlerTable {
 
     for (0..table.len) |interrupt_number| {
         // .. range is not inclusive on the right
-        table[interrupt_number] = generateHandler(interrupt_number);
+        table[interrupt_number] = comptime generateHandler(interrupt_number);
     }
 
     return table;
@@ -372,9 +372,10 @@ fn generateHandler(
     @export(
         fn_pointer,
         .{
-            .name = "interrupt_handler_" ++ inner.std.fmt.comptimePrint("{}", .{
-                interrupt_number,
-            }),
+            .name = inner.std.fmt.comptimePrint(
+                "interrupt_handler_{}",
+                .{interrupt_number},
+            ),
         },
     );
 
