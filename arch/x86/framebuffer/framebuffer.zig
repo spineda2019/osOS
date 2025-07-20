@@ -344,10 +344,10 @@ pub const FrameBuffer: type = struct {
     }
 
     fn printWelcomeScreen() void {
-        const message = "Welcome to...";
+        const message = comptime "Welcome to...";
         // zig doesn't have raw string literal syntax (that I know of) so the
-        // logo will look weird in code (for now).
-        const logo = comptime .{
+        // logo will look weird in code.
+        const logo: []const []const u8 = comptime .{
             \\ ________  ________  ________  ________      
             ,
             \\|\   __  \|\   ____\|\   __  \|\   ____\     
@@ -375,80 +375,17 @@ pub const FrameBuffer: type = struct {
             );
         }
 
-        // since we're very carefully aligning stuff manually, just manually do
-        // the prining. Rolling in a loop is not worth it if we're making it
-        // look pretty
-        for (logo[0], 20..) |letter, column| {
-            writeCell(
-                10,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[1], 20..) |letter, column| {
-            writeCell(
-                11,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[2], 20..) |letter, column| {
-            writeCell(
-                12,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[3], 20..) |letter, column| {
-            writeCell(
-                13,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[4], 20..) |letter, column| {
-            writeCell(
-                14,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[5], 20..) |letter, column| {
-            writeCell(
-                15,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[6], 20..) |letter, column| {
-            writeCell(
-                16,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
-        }
-        for (logo[7], 20..) |letter, column| {
-            writeCell(
-                17,
-                @intCast(column),
-                letter,
-                FrameBufferCellColor.LightBlue,
-                FrameBufferCellColor.LightBrown,
-            );
+        // needs to be inline since logo is comptime
+        inline for (0..8) |logoChunk| {
+            for (logo[logoChunk], 20..) |letter, column| {
+                writeCell(
+                    @intCast(logoChunk + 10),
+                    @intCast(column),
+                    letter,
+                    FrameBufferCellColor.LightBlue,
+                    FrameBufferCellColor.LightBrown,
+                );
+            }
         }
     }
 
