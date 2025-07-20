@@ -32,8 +32,6 @@ fn delay() void {
     }
 }
 
-const interrupt_handler_table: [256]*const fn () callconv(.naked) void = interrupts.idt.generateInterruptHandlers();
-
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
@@ -43,7 +41,7 @@ pub fn setup() noreturn {
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    const idt = interrupts.idt.createDefaultIDT(&interrupt_handler_table);
+    const idt = interrupts.idt.createDefaultIDT();
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
 

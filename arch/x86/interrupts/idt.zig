@@ -47,13 +47,13 @@ pub const IDTDescriptor = packed struct {
 /// only store mappings from iterrupt numbers to handlers
 pub const InterruptDescriptorTable = [256]InterruptDescriptor;
 
+const interrupt_handler_table: [256]*const fn () callconv(.naked) void = generateInterruptHandlers();
+
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
-pub inline fn createDefaultIDT(
-    handler_table: *const InterruptHandlerTable,
-) InterruptDescriptorTable {
+pub inline fn createDefaultIDT() InterruptDescriptorTable {
     var entries: [256]InterruptDescriptor = undefined;
-    for (handler_table, 0..) |fn_ptr, interrupt_number| {
+    for (interrupt_handler_table, 0..) |fn_ptr, interrupt_number| {
         entries[interrupt_number] = .{
             .offset_low = @truncate(@intFromPtr(fn_ptr)),
             .offset_high = @truncate(@intFromPtr(fn_ptr) >> 16),
