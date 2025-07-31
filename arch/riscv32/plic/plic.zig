@@ -1,4 +1,4 @@
-//! root file for the plic driver module
+//! structure representing the plic and associated functions
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -14,4 +14,20 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub const Plic = @import("plic.zig");
+const Self = @This();
+
+/// TODO: do not hardcode; get from parsing DTB
+const plic_base_address: *volatile u32 = 0xc000000;
+
+const uart_0_interrupt_request: comptime_int = 10;
+const virt_io_0_interrupt_request: comptime_int = 1;
+
+pub fn init() Self {
+    const uart_int_address: *volatile u32 = comptime plic_base_address + (uart_0_interrupt_request * 4);
+    uart_int_address.* = 1;
+
+    const virt_int_address: *volatile u32 = comptime plic_base_address + (virt_io_0_interrupt_request * 4);
+    virt_int_address.* = 1;
+
+    return .{};
+}
