@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub const SpinLock = @import("SpinLock.zig");
+
 pub fn runtimeMemset(ptr: [*]u8, value: u8, length: usize) void {
     var bytes_left: usize = length;
     var mutable_ptr: [*]u8 = ptr;
