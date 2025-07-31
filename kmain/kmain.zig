@@ -44,13 +44,15 @@ pub fn kmain(arch_agnostic_hal: anytype) noreturn {
     }
 
     arch_agnostic_hal.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
-
     arch_agnostic_hal.terminal.writeLine("");
     arch_agnostic_hal.terminal.writeLine("Testing writeLine...");
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line!");
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line again!");
 
     if (builtin.target.cpu.arch == .riscv32) {
+        arch_agnostic_hal.terminal.writeLine(
+            "Purposefully performing an illegal instruction...",
+        );
         arch_agnostic_hal.assembly_wrappers.illegal_instruction();
     }
 
