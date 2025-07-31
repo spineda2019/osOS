@@ -80,28 +80,18 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     terminal.write("Function: ");
     terminal.writeLine(source_info.fn_name);
 
-    const line_num_slice: []const u8 = comptime line_calc: {
-        const line_type: type = @TypeOf(source_info.line);
-        const line_num = osformat.format.intToString(
-            line_type,
-            source_info.line,
-        );
-        break :line_calc line_num.innerSlice();
-    };
+    const line_num_slice = comptime osformat.format.intToString(
+        source_info.line,
+    );
 
     terminal.write("Line: ");
-    terminal.writeLine(line_num_slice);
+    terminal.writeLine(&line_num_slice);
 
-    const column_num_slice: []const u8 = comptime column_calc: {
-        const column_type: type = @TypeOf(source_info.column);
-        const column_num = osformat.format.intToString(
-            column_type,
-            source_info.column,
-        );
-        break :column_calc column_num.innerSlice();
-    };
+    const column_num_slice = comptime osformat.format.intToString(
+        source_info.column,
+    );
     terminal.write("Column: ");
-    terminal.writeLine(column_num_slice);
+    terminal.writeLine(&column_num_slice);
 
     while (true) {
         asm volatile ("");
