@@ -378,7 +378,7 @@ pub fn build(b: *std.Build) BuildError!void {
         "virt",
         "-bios",
         "default",
-        // "-nographic",
+        "-nographic",
         "-serial",
         "mon:stdio",
         "--no-reboot",
