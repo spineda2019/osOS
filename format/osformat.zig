@@ -17,6 +17,3 @@
 
 /// The import containing code for formatting, such as converting ints to strs
 pub const format = @import("format.zig");
-
-/// module for printing and the interfaces needed to do so
-pub const print = @import("print.zig");
