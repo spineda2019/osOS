@@ -28,6 +28,11 @@ pub const SerialPort: type = struct {
     // then the lowest 8 bits will follow
     const serial_line_enable_dlab: u8 = 0x80;
 
+    /// Linux uses 0x80 since it's only used during POST, and
+    /// the odds of me doing anything more complex than linux are low. Thus this
+    /// unused port number will be good to use for I/O delays
+    const unused_serial_port: u16 = 0x80;
+
     inline fn calculateFIFOCommandPort(basePort: u16) u16 {
         return basePort + 2;
     }
@@ -70,11 +75,9 @@ pub const SerialPort: type = struct {
         }
     }
 
-    /// Perform a very small IO wait by writing to an unused port. Port 0x80
-    /// should be fine. Linux uses 0x80 since it's only used during POST, and
-    /// the odds of me doing anything more complex than linux are low.
+    /// Perform a very small IO wait by writing to an unused port.
     pub fn ioWait() void {
-        as.assembly_wrappers.x86_out(@as(u16, 0x80), 0);
+        as.assembly_wrappers.x86_out(unused_serial_port, 0);
     }
 
     /// Check if the FIFO buffer for a serial port is free
