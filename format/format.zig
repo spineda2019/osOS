@@ -32,7 +32,7 @@ pub fn intToString(
         }
     }
 
-    const digit_count = comptime calculateStringWidth(int_type);
+    const digit_count: comptime_int = comptime calculateStringWidth(int_type);
     var buffer: [digit_count]u8 = .{0} ** digit_count;
     var ptr: usize = digit_count - 1;
 

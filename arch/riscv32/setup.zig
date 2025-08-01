@@ -1,5 +1,6 @@
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
+const osformat = @import("osformat");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -17,6 +18,10 @@ const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 
 pub fn setup() noreturn {
+    const hart_id: u32 = asm volatile (
+        \\mv %[ret], a0
+        : [ret] "=r" (-> u32),
+    );
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
@@ -24,13 +29,25 @@ pub fn setup() noreturn {
 
     asm volatile ("csrw stvec, %[exception_handler]"
         :
-        : [exception_handler] "{t3}" (exception_handler_address),
+        : [exception_handler] "r" (exception_handler_address),
     );
 
     var terminal = tty.Terminal.init();
 
     terminal.writeLine("Hello RISC-V32 osOS!");
     terminal.writeSplashLogo();
+    terminal.write("Hart ID: ");
+    const hart_id_string = osformat.format.intToString(hart_id);
+    const sentinel: usize = blk: {
+        for (hart_id_string, 0..) |letter, i| {
+            if (letter != 0) {
+                break :blk i;
+            }
+        }
+
+        break :blk hart_id_string.len - 1;
+    };
+    terminal.writeLine(hart_id_string[sentinel..]);
 
     const hal: riscv32hal.Hal = .{
         .terminal = &terminal,
