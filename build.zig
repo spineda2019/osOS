@@ -151,6 +151,7 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("arch/x86/interrupts/interrupts.zig"),
     });
     x86_interrupt_module.addImport("x86asm", x86_asm_module);
+    x86_interrupt_module.addImport("x86serial", x86_serial_module);
     x86_interrupt_module.addImport("osformat", osformat_module);
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),

@@ -17,6 +17,8 @@
 const as = @import("x86asm");
 const serial = @import("x86serial");
 
+/// The pic was classicly an external chip to the CPU, but in modern systems is
+/// pn board the chip (if I underatand correctly)
 pub const PIC = struct {
     const master_command_port: u16 = 0x0020;
     const master_data_port: u16 = 0x0021;
@@ -33,7 +35,71 @@ pub const PIC = struct {
         const initialize_8086_mode: u8 = 0x01;
 
         const unmask: u8 = 0;
+
+        /// informs the PIC (both the master and slave) which IRQ in the master
+        /// will be used to cascade IRQs from the slave from. This wires the
+        /// slave to the master via IRQ 2 (the 2nd 0-based bit is set).
+        const pic_cascade_mask: u8 = 0b0000_0100;
     };
+
+    /// Initialize the PIC master and slave with a predefined offset into the
+    /// IDT (or else the default IRQ nums will be 0-7 which conflict wity x86
+    /// CPU exceptions)
+    pub fn init(master_offset: u8, slave_offset: u8) void {
+        // sending the initialization byte to a PIC makes it prepare for 3 more
+        // (I)nitialization (C)ommand (W)ords (ICW).
+
+        // ************************** ICW 1: Init *************************** //
+        as.assembly_wrappers.x86_out(
+            master_command_port,
+            common_messages.pic_initialize,
+        );
+        serial.SerialPort.ioWait();
+
+        as.assembly_wrappers.x86_out(
+            slave_command_port,
+            common_messages.pic_initialize,
+        );
+        serial.SerialPort.ioWait();
+
+        // ************************* ICW 2: Offset ************************** //
+        as.assembly_wrappers.x86_out(master_data_port, master_offset);
+        serial.SerialPort.ioWait();
+
+        as.assembly_wrappers.x86_out(slave_data_port, slave_offset);
+        serial.SerialPort.ioWait();
+
+        // ************** ICW 3: Cascade (Master<-Slave) Setup ************** //
+        as.assembly_wrappers.x86_out(
+            master_data_port,
+            common_messages.pic_cascade_mask,
+        );
+        serial.SerialPort.ioWait();
+
+        as.assembly_wrappers.x86_out(
+            slave_data_port,
+            common_messages.pic_cascade_mask, // tell slave its cascade identity
+        );
+        serial.SerialPort.ioWait();
+
+        // ************************ ICW 4: 8086 mode ************************ //
+        as.assembly_wrappers.x86_out(
+            master_data_port,
+            common_messages.initialize_8086_mode,
+        );
+        serial.SerialPort.ioWait();
+
+        as.assembly_wrappers.x86_out(
+            slave_data_port,
+            common_messages.initialize_8086_mode,
+        );
+        serial.SerialPort.ioWait();
+
+        as.assembly_wrappers.x86_out(master_data_port, common_messages.unmask);
+        serial.SerialPort.ioWait();
+        as.assembly_wrappers.x86_out(slave_data_port, common_messages.unmask);
+        serial.SerialPort.ioWait();
+    }
 
     /// Send acknowledgement to the PIC chip that sent an interrupt request. If
     /// The slave sends a request, both the slave and master need to be
@@ -51,52 +117,5 @@ pub const PIC = struct {
             master_command_port,
             common_messages.pic_acknowledge,
         );
-    }
-
-    pub fn remap(master_offset: u8, slave_offset: u8) void {
-        // sending the initialization byte to a PIC makes it prepare for 3 more
-        // (I)nitialization (C)ommand (W)ords (ICW).
-        as.assembly_wrappers.x86_out(
-            master_command_port,
-            common_messages.pic_initialize,
-        );
-        serial.SerialPort.ioWait();
-        as.assembly_wrappers.x86_out(
-            slave_command_port,
-            common_messages.pic_initialize,
-        );
-        serial.SerialPort.ioWait();
-        // ICW 2: Offset
-        as.assembly_wrappers.x86_out(master_data_port, master_offset);
-        serial.SerialPort.ioWait();
-        as.assembly_wrappers.x86_out(slave_data_port, slave_offset);
-        serial.SerialPort.ioWait();
-        // ICW 3: Cascade setup
-        as.assembly_wrappers.x86_out(
-            master_data_port,
-            0b0000_0100, // slave at IRQ 2
-        );
-        serial.SerialPort.ioWait();
-        as.assembly_wrappers.x86_out(
-            slave_data_port,
-            0b0000_0010, // tell slave its cascade identity
-        );
-        serial.SerialPort.ioWait();
-        // ICW 4: 8086 mode
-        as.assembly_wrappers.x86_out(
-            master_data_port,
-            common_messages.initialize_8086_mode,
-        );
-        serial.SerialPort.ioWait();
-        as.assembly_wrappers.x86_out(
-            slave_data_port,
-            common_messages.initialize_8086_mode,
-        );
-        serial.SerialPort.ioWait();
-
-        as.assembly_wrappers.x86_out(master_data_port, common_messages.unmask);
-        serial.SerialPort.ioWait();
-        as.assembly_wrappers.x86_out(slave_data_port, common_messages.unmask);
-        serial.SerialPort.ioWait();
     }
 };

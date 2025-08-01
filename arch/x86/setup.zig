@@ -65,6 +65,8 @@ pub fn setup() noreturn {
     framebuffer.write(message);
 
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
+    framebuffer.writeLine("x86: Activating PIC...");
+    interrupts.pic.PIC.init(0x20, 0x20);
 
     const hal = x86hal.Hal{
         .terminal = &framebuffer,
