@@ -36,8 +36,6 @@ pub fn setup() noreturn {
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
-    as.assembly_wrappers.enable_x86_interrupts();
-
     var framebuffer: framebuffer_api.FrameBuffer = .init(.LightBrown, .DarkGray);
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
@@ -58,6 +56,8 @@ pub fn setup() noreturn {
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.writeLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
+
+    as.assembly_wrappers.enable_x86_interrupts();
 
     const hal = x86hal.Hal{
         .terminal = &framebuffer,

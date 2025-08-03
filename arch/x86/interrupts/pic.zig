@@ -24,6 +24,7 @@ const Self: type = @This();
 
 var framebuffer_handle: *framebuffer.FrameBuffer = undefined;
 var irq_offset: u8 = 0x20;
+var clock_tics: usize = 0;
 
 const master_command_port: u16 = 0x0020;
 const master_data_port: u16 = 0x0021;
@@ -50,6 +51,7 @@ const common_messages = struct {
         const keyboard: u8 = 0b0000_0010;
         const timer: u8 = 0b0000_0001;
         const unmask_all: u8 = 0;
+        const mask_all: u8 = 0b1111_1111;
 
         /// informs the master PIC which IRQ
         /// will be used to cascade IRQs from the slave. This wires the
@@ -120,11 +122,11 @@ pub fn init(fb_handle: *framebuffer.FrameBuffer) void {
 
     as.assembly_wrappers.x86_out(
         master_data_port,
-        comptime common_messages.masks.keyboard | common_messages.masks.timer,
+        comptime ~(common_messages.masks.keyboard | common_messages.masks.timer),
     );
     serial.SerialPort.ioWait();
     // as.assembly_wrappers.x86_out(slave_data_port, common_messages.unmask);
-    as.assembly_wrappers.x86_out(slave_data_port, 0b1111_1111);
+    as.assembly_wrappers.x86_out(slave_data_port, common_messages.masks.mask_all);
     serial.SerialPort.ioWait();
 
     framebuffer_handle = fb_handle;
@@ -148,19 +150,19 @@ fn sendAcknowledgement(interrupt_request: u8) void {
     );
 }
 
-fn handleKeyboardIRQ() void {}
+fn handleKeyboardIRQ() void {
+    framebuffer_handle.write("Keyboard input detected");
+}
 
 fn handleTimerIRQ() void {
-    framebuffer_handle.write(".");
+    clock_tics += 1;
 }
 
 pub export fn handleGenericPicIrq(irq_with_offset: u8) callconv(.c) void {
-    as.assembly_wrappers.disable_x86_interrupts();
     const target: irq_number = @enumFromInt(irq_with_offset);
     switch (target) {
         .keyboard => handleKeyboardIRQ(),
         .timer => handleTimerIRQ(),
     }
     sendAcknowledgement(irq_with_offset - irq_offset);
-    as.assembly_wrappers.enable_x86_interrupts();
 }
