@@ -23,16 +23,6 @@ const x86hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
 
-fn delay() void {
-    for (0..16384) |_| {
-        for (0..16384) |_| {
-            asm volatile (
-                \\nop
-            );
-        }
-    }
-}
-
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
