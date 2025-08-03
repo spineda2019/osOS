@@ -19,9 +19,6 @@
 
 const as = @import("x86asm");
 
-/// For the sole purpose of adhering to the exernal API for kmain
-pub const Terminal = FrameBuffer;
-
 pub const FrameBuffer: type = struct {
     pub const FrameBufferCellColor: type = enum(u8) {
         Black = 0,
