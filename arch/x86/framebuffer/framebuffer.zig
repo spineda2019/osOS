@@ -19,50 +19,29 @@
 
 const as = @import("x86asm");
 
-pub const FrameBufferCellColor: type = enum {
-    Black,
-    Blue,
-    Green,
-    Cyan,
-    Red,
-    Magenta,
-    Brown,
-    LightGray,
-    DarkGray,
-    LightBlue,
-    LightGreen,
-    LightCyan,
-    LightRed,
-    LightMagenta,
-    LightBrown,
-    White,
-
-    pub fn byteValue(self: FrameBufferCellColor) u8 {
-        return switch (self) {
-            FrameBufferCellColor.Black => 0,
-            FrameBufferCellColor.Blue => 1,
-            FrameBufferCellColor.Green => 2,
-            FrameBufferCellColor.Cyan => 3,
-            FrameBufferCellColor.Red => 4,
-            FrameBufferCellColor.Magenta => 5,
-            FrameBufferCellColor.Brown => 6,
-            FrameBufferCellColor.LightGray => 7,
-            FrameBufferCellColor.DarkGray => 8,
-            FrameBufferCellColor.LightBlue => 9,
-            FrameBufferCellColor.LightGreen => 10,
-            FrameBufferCellColor.LightCyan => 11,
-            FrameBufferCellColor.LightRed => 12,
-            FrameBufferCellColor.LightMagenta => 13,
-            FrameBufferCellColor.LightBrown => 14,
-            FrameBufferCellColor.White => 15,
-        };
-    }
-};
-
 /// For the sole purpose of adhering to the exernal API for kmain
 pub const Terminal = FrameBuffer;
 
 pub const FrameBuffer: type = struct {
+    pub const FrameBufferCellColor: type = enum(u8) {
+        Black = 0,
+        Blue = 1,
+        Green = 2,
+        Cyan = 3,
+        Red = 4,
+        Magenta = 5,
+        Brown = 6,
+        LightGray = 7,
+        DarkGray = 8,
+        LightBlue = 9,
+        LightGreen = 10,
+        LightCyan = 11,
+        LightRed = 12,
+        LightMagenta = 13,
+        LightBrown = 14,
+        White = 15,
+    };
+
     // memory mapped I/O for the framebuffer begins ar adress 0x000B8000
     // The framebuffer's memory is split up into 16bit chunks:
     // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4    | 3 2 1 0         |
@@ -274,7 +253,7 @@ pub const FrameBuffer: type = struct {
         const address_int: u32 = calculatedAddress(row, column);
         const ascii_address: *volatile u8 = @ptrFromInt(address_int);
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
-        metadata_address.* = comptime (cell_color.byteValue() << 4) | letter_color.byteValue();
+        metadata_address.* = comptime (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
         ascii_address.* = character;
     }
 
