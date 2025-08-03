@@ -17,6 +17,11 @@
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 
+const handleGenericPicIrq = @extern(
+    *const fn (u8) callconv(.c) void,
+    .{ .name = "handleGenericPicIrq" },
+);
+
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
 /// pushed onto the stack by the CPU when triggered, so this structure need
@@ -27,8 +32,6 @@ pub const InterruptDescriptorTable = [256]InterruptDescriptor;
 pub const InterruptHandlerFnPtr = *const fn () callconv(.naked) void;
 
 pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
-
-pub var last_interrupt_number: u32 = 0;
 
 /// Descriptor for the IDT (which is itself another descriptor)
 pub const IDTDescriptor = packed struct {
@@ -210,8 +213,6 @@ export fn interruptHandlerWithoutErrorCode(
           [tmp_two] "r" (&cpu_state),
     );
 
-    last_interrupt_number = interrupt_number;
-
     //
     // TODO: Actual handling
 }
@@ -230,7 +231,6 @@ export fn interruptHandlerWithErrorCode(
           [tmp_two] "r" (error_code),
           [tmp_three] "r" (&cpu_state),
     );
-    last_interrupt_number = interrupt_number;
 
     //
     // TODO: Actual handling
@@ -305,18 +305,22 @@ export fn commonInteruptHandlerWithoutErrorCode() callconv(.naked) void {
 const InterruptNumber = union(enum) {
     withErrorCode: u32,
     withoutErrorCode: u32,
+    picInterrupt: pic.irq_number,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
             8, 10, 11, 12, 13, 14, 17 => .{ .withErrorCode = number },
+            @intFromEnum(pic.irq_number.keyboard), @intFromEnum(pic.irq_number.timer) => .{
+                .picInterrupt = @enumFromInt(number),
+            },
             else => .{ .withoutErrorCode = number },
         };
     }
 
     pub fn get(this: InterruptNumber) u32 {
         return switch (this) {
-            .withErrorCode => |num| num,
-            .withoutErrorCode => |num| num,
+            .picInterrupt => |enumerator| @intFromEnum(enumerator),
+            inline else => |num| num,
         };
     }
 };
@@ -365,6 +369,18 @@ fn generateHandler(
                     \\jmp commonInteruptHandlerWithoutErrorCode
                     : // no outputs
                     : [interrupt_number] "i" (num),
+                );
+            }
+        }.handler,
+        .picInterrupt => |irq| &struct {
+            fn handler() callconv(.naked) void {
+                asm volatile (
+                    \\pushl %[interrupt_number]  # push interrupt number
+                    \\call handleGenericPicIrq
+                    \\addl $0x4, %esp  // cleanup pushed interrupt number
+                    \\iret
+                    : // no outputs
+                    : [interrupt_number] "i" (@intFromEnum(irq)),
                 );
             }
         }.handler,

@@ -57,15 +57,7 @@ pub fn setup() noreturn {
 
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.writeLine("x86: Activating PIC...");
-    interrupts.pic.init(0x20, 0x20);
-
-    var last_unique_int: u32 = 0;
-    for (0..100) |_| {
-        last_unique_int = interrupts.idt.last_interrupt_number;
-        framebuffer.write("Int happened: ");
-        const string: osformat.format.StringFromInt(u32) = .init(last_unique_int);
-        framebuffer.writeLine(string.getStr());
-    }
+    interrupts.pic.init(&framebuffer);
 
     const hal = x86hal.Hal{
         .terminal = &framebuffer,
