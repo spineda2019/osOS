@@ -21,6 +21,7 @@ const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
 const x86hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
+const osformat = @import("osformat");
 
 fn delay() void {
     for (0..16384) |_| {
@@ -66,7 +67,15 @@ pub fn setup() noreturn {
 
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.writeLine("x86: Activating PIC...");
-    interrupts.pic.PIC.init(0x20, 0x20);
+    interrupts.pic.init(0x20, 0x20);
+
+    var last_unique_int: u32 = 0;
+    for (0..100) |_| {
+        last_unique_int = interrupts.idt.last_interrupt_number;
+        framebuffer.write("Int happened: ");
+        const string: osformat.format.StringFromInt(u32) = .init(last_unique_int);
+        framebuffer.writeLine(string.getStr());
+    }
 
     const hal = x86hal.Hal{
         .terminal = &framebuffer,

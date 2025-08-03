@@ -37,17 +37,8 @@ pub fn setup() noreturn {
     terminal.writeLine("Hello RISC-V32 osOS!");
     terminal.writeSplashLogo();
     terminal.write("Hart ID: ");
-    const hart_id_string = osformat.format.intToString(hart_id);
-    const sentinel: usize = blk: {
-        for (hart_id_string, 0..) |letter, i| {
-            if (letter != 0) {
-                break :blk i;
-            }
-        }
-
-        break :blk hart_id_string.len - 1;
-    };
-    terminal.writeLine(hart_id_string[sentinel..]);
+    const hart_id_string: osformat.format.StringFromInt(@TypeOf(hart_id)) = .init(hart_id);
+    terminal.writeLine(hart_id_string.getStr());
 
     const hal: riscv32hal.Hal = .{
         .terminal = &terminal,

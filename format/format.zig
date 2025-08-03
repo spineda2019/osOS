@@ -14,39 +14,52 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! format.zig - Architecture agnostic API for numeric formatting
 
-/// calculate (at comptime) buffer size needed to convert a number to a string
-fn calculateStringWidth(comptime numeric_type: type) comptime_int {
-    return @floor(@bitSizeOf(numeric_type) * 0.30103) + 1;
-}
-
-/// Convert an arbitrary width integer to a string
-pub fn intToString(
-    number: anytype,
-) [calculateStringWidth(@TypeOf(number))]u8 {
-    const int_type: type = comptime @TypeOf(number);
+/// Special type describing a string specifically serialized from an integer of
+/// an arbitrary size.
+pub fn StringFromInt(comptime T: type) type {
     comptime {
-        if (@typeInfo(int_type) != .int and int_type != comptime_int) {
-            @compileError(
-                "Error: expected an integer type, found: " ++ @typeName(int_type),
-            );
+        if (@typeInfo(T) != .int and type != comptime_int) {
+            const err = "Expected an integer type, found: " ++ @typeName(T);
+            @compileError(err);
         }
     }
 
-    const digit_count: comptime_int = comptime calculateStringWidth(int_type);
-    var buffer: [digit_count]u8 = .{0} ** digit_count;
-    var ptr: usize = digit_count - 1;
+    const array_size: comptime_int = comptime blk: {
+        const bit_width: comptime_int = switch (T) {
+            comptime_int => 64, // TODO: allow bigger comptime nums
+            else => @bitSizeOf(T),
+        };
+        break :blk @floor(bit_width * 0.30103) + 1;
+    };
 
-    var remainder: int_type = number;
-    while (remainder > 0) : ({
-        if (ptr > 0) {
-            ptr -= 1;
+    return struct {
+        array: [array_size]u8,
+        sentinel: usize,
+
+        const Self: type = @This();
+
+        pub fn init(number: T) Self {
+            var buffer: [array_size]u8 = .{0} ** array_size;
+            var ptr: usize = array_size - 1;
+
+            var remainder: T = number;
+            while (remainder > 0) {
+                // int cast to u8 should be safe. Modulo will be 9 max.
+                const digit: u8 = @intCast(remainder % 10);
+                buffer[ptr] = digit + 48;
+
+                ptr = switch (ptr) {
+                    0 => 0,
+                    else => |num| num - 1,
+                };
+                remainder /= 10;
+            }
+
+            return .{ .array = buffer, .sentinel = ptr };
         }
-        remainder /= 10;
-    }) {
-        // int cast to u8 should be safe. Modulo will be 9 max.
-        const digit: u8 = @intCast(remainder % 10);
-        buffer[ptr] = digit + 48;
-    }
 
-    return buffer;
+        pub fn getStr(self: *const Self) []const u8 {
+            return self.array[self.sentinel + 1 ..];
+        }
+    };
 }

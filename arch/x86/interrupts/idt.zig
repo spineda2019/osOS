@@ -15,18 +15,26 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const as = @import("x86asm");
+const pic = @import("pic.zig");
 
-pub const InterruptError = error{
-    InvalidInterruptNumber,
-};
+/// Interrupts are numbered 0 through 255 inclusive. This table will describe
+/// a handler for each one. The information each handler will need will be
+/// pushed onto the stack by the CPU when triggered, so this structure need
+/// only store mappings from iterrupt numbers to handlers
+pub const InterruptDescriptorTable = [256]InterruptDescriptor;
 
-pub const HandlerType = enum {
-    WithErrorCode,
-    NoErrorCode,
-};
+/// Alias for the correct type of fn ptr to be registered within the IDT
+pub const InterruptHandlerFnPtr = *const fn () callconv(.naked) void;
 
+pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
+
+pub var last_interrupt_number: u32 = 0;
+
+/// Descriptor for the IDT (which is itself another descriptor)
 pub const IDTDescriptor = packed struct {
     size: u16,
+
+    /// Linear address of the IDT
     offset: u32,
 
     pub fn init(idt: *const InterruptDescriptorTable) IDTDescriptor {
@@ -41,13 +49,7 @@ pub const IDTDescriptor = packed struct {
     }
 };
 
-/// Interrupts are numbered 0 through 255 inclusive. This table will describe
-/// a handler for each one. The information each handler will need will be
-/// pushed onto the stack by the CPU when triggered, so this structure need
-/// only store mappings from iterrupt numbers to handlers
-pub const InterruptDescriptorTable = [256]InterruptDescriptor;
-
-const interrupt_handler_table: [256]*const fn () callconv(.naked) void = generateInterruptHandlers();
+const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
@@ -196,28 +198,6 @@ const CpuState = extern struct {
     eflags: u32,
 };
 
-const InterruptInfo = struct {
-    interrupt_number: u32,
-    error_code: ?u32,
-
-    pub fn isErrorCodeInterrupt(interrupt: u32) bool {
-        return switch (interrupt) {
-            8, 10, 11, 12, 13, 14, 17 => true,
-            else => false,
-        };
-    }
-
-    pub fn init(interrupt_number: u32, error_code: u32) InterruptInfo {
-        return .{
-            .interrupt_number = interrupt_number,
-            .error_code = switch (isErrorCodeInterrupt(interrupt_number)) {
-                true => error_code,
-                false => null,
-            },
-        };
-    }
-};
-
 export fn interruptHandlerWithoutErrorCode(
     cpu_state: CpuState,
     interrupt_number: u32,
@@ -229,6 +209,8 @@ export fn interruptHandlerWithoutErrorCode(
         : [tmp] "r" (interrupt_number),
           [tmp_two] "r" (&cpu_state),
     );
+
+    last_interrupt_number = interrupt_number;
 
     //
     // TODO: Actual handling
@@ -248,6 +230,7 @@ export fn interruptHandlerWithErrorCode(
           [tmp_two] "r" (error_code),
           [tmp_three] "r" (&cpu_state),
     );
+    last_interrupt_number = interrupt_number;
 
     //
     // TODO: Actual handling
@@ -319,18 +302,37 @@ export fn commonInteruptHandlerWithoutErrorCode() callconv(.naked) void {
     );
 }
 
-pub const InterruptHandlerTable = [256]*const fn () callconv(.naked) void;
+const InterruptNumber = union(enum) {
+    withErrorCode: u32,
+    withoutErrorCode: u32,
+
+    pub fn init(number: u32) InterruptNumber {
+        return switch (number) {
+            8, 10, 11, 12, 13, 14, 17 => .{ .withErrorCode = number },
+            else => .{ .withoutErrorCode = number },
+        };
+    }
+
+    pub fn get(this: InterruptNumber) u32 {
+        return switch (this) {
+            .withErrorCode => |num| num,
+            .withoutErrorCode => |num| num,
+        };
+    }
+};
 
 /// Generate interrupt handler functions at comptime, them take and store
 /// their addresses at runtime. This should only be called at comptime,
 /// generating functions doesn't make sense at runtime, and should not
 /// compile anyway.
 pub fn generateInterruptHandlers() InterruptHandlerTable {
-    var table: [256]*const fn () callconv(.naked) void = undefined;
+    var table: [256]InterruptHandlerFnPtr = undefined;
 
     for (0..table.len) |interrupt_number| {
         // .. range is not inclusive on the right
-        table[interrupt_number] = comptime generateHandler(interrupt_number);
+        table[interrupt_number] = comptime generateHandler(
+            InterruptNumber.init(interrupt_number),
+        );
     }
 
     return table;
@@ -340,44 +342,39 @@ pub fn generateInterruptHandlers() InterruptHandlerTable {
 /// an error code to the stack. This generic pattern is ued in place of macros,
 /// which would be used if were using something like NASM for example.
 fn generateHandler(
-    comptime interrupt_number: comptime_int,
-) *const fn () callconv(.naked) void {
-    const inner = struct {
-        const std = @import("std");
-        pub fn withErrorCode() callconv(.naked) void {
-            asm volatile (
-                \\pushl 0                    # push 0 as error code
-                \\pushl %[interrupt_number]  # push interrupt number
-                \\jmp commonInteruptHandlerWithErrorCode
-                : // no outputs
-                : [interrupt_number] "i" (interrupt_number),
-            );
-        }
+    comptime interrupt_number: InterruptNumber,
+) InterruptHandlerFnPtr {
+    const std = @import("std");
 
-        pub fn withoutErrorCode() callconv(.naked) void {
-            asm volatile (
-                \\pushl %[interrupt_number]  # push interrupt number
-                \\jmp commonInteruptHandlerWithoutErrorCode
-                : // no outputs
-                : [interrupt_number] "i" (interrupt_number),
-            );
-        }
+    const fn_pointer: InterruptHandlerFnPtr = switch (interrupt_number) {
+        .withErrorCode => |num| &struct {
+            fn handler() callconv(.naked) void {
+                asm volatile (
+                    \\pushl 0                    # push 0 as error code
+                    \\pushl %[interrupt_number]  # push interrupt number
+                    \\jmp commonInteruptHandlerWithErrorCode
+                    : // no outputs
+                    : [interrupt_number] "i" (num),
+                );
+            }
+        }.handler,
+        .withoutErrorCode => |num| &struct {
+            fn handler() callconv(.naked) void {
+                asm volatile (
+                    \\pushl %[interrupt_number]  # push interrupt number
+                    \\jmp commonInteruptHandlerWithoutErrorCode
+                    : // no outputs
+                    : [interrupt_number] "i" (num),
+                );
+            }
+        }.handler,
     };
 
-    const fn_pointer = switch (InterruptInfo.isErrorCodeInterrupt(interrupt_number)) {
-        true => &inner.withErrorCode,
-        false => &inner.withoutErrorCode,
-    };
-
-    @export(
-        fn_pointer,
-        .{
-            .name = inner.std.fmt.comptimePrint(
-                "interrupt_handler_{}",
-                .{interrupt_number},
-            ),
-        },
+    const exported_name: []const u8 = comptime std.fmt.comptimePrint(
+        "interrupt_handler_{}",
+        .{interrupt_number.get()},
     );
+    @export(fn_pointer, .{ .name = exported_name });
 
     return fn_pointer;
 }
