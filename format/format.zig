@@ -59,6 +59,7 @@ pub fn StringFromInt(comptime T: type) type {
         }
 
         pub fn getStr(self: *const Self) []const u8 {
+            // TODO: detect a full buffer
             return self.array[self.sentinel + 1 ..];
         }
     };
