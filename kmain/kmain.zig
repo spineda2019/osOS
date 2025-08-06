@@ -20,6 +20,7 @@
 const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 const process = @import("osprocess");
+const osformat = @import("osformat");
 
 fn delay() void {
     for (0..8192) |_| {
@@ -55,6 +56,11 @@ pub fn kmain(arch_agnostic_hal: anytype) noreturn {
         );
         arch_agnostic_hal.assembly_wrappers.illegal_instruction();
     }
+
+    const col_width: u32 = 80;
+    const col_width_str: osformat.format.StringFromInt(u32) = .init(col_width);
+    arch_agnostic_hal.terminal.write("Terminal Column Width: ");
+    arch_agnostic_hal.terminal.writeLine(col_width_str.getStr());
 
     const process_pool: process.ProcessTable = .init();
     _ = process_pool;

@@ -212,6 +212,7 @@ pub fn build(b: *std.Build) BuildError!void {
     kmain_module.addImport("osshell", osshell_module);
     kmain_module.addImport("osstdlib", osstdlib_module);
     kmain_module.addImport("osprocess", osprocess_module);
+    kmain_module.addImport("osformat", osformat_module);
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
@@ -513,5 +514,64 @@ pub fn build(b: *std.Build) BuildError!void {
         .x86 => x86_step,
         .riscv32 => riscv32_step,
         else => x86_step,
+    });
+
+    //* ***************************** Unit Tests ***************************** *
+
+    const arch_agnostic_test_step = b.step(
+        "test",
+        "Run arch-agnostic unit tests (Runnable from any host)",
+    );
+
+    const osformat_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osformat_module),
+    });
+    const osmemory_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osmemory_module),
+    });
+    const osprocess_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osprocess_module),
+    });
+    const osboot_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osboot_module),
+    });
+    const oshal_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, oshal_module),
+    });
+    const osshell_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osshell_module),
+    });
+    const osstdlib_test = b.addTest(.{
+        .root_module = copyToNativeModule(b, osstdlib_module),
+    });
+
+    const run_osformat_test = b.addRunArtifact(osformat_test);
+    const run_osmemory_test = b.addRunArtifact(osmemory_test);
+    const run_osprocess_test = b.addRunArtifact(osprocess_test);
+    const run_osboot_test = b.addRunArtifact(osboot_test);
+    const run_oshal_test = b.addRunArtifact(oshal_test);
+    const run_osshell_test = b.addRunArtifact(osshell_test);
+    const run_osstdlib_test = b.addRunArtifact(osstdlib_test);
+
+    arch_agnostic_test_step.dependOn(&run_osformat_test.step);
+    arch_agnostic_test_step.dependOn(&run_osmemory_test.step);
+    arch_agnostic_test_step.dependOn(&run_osprocess_test.step);
+    arch_agnostic_test_step.dependOn(&run_osboot_test.step);
+    arch_agnostic_test_step.dependOn(&run_oshal_test.step);
+    arch_agnostic_test_step.dependOn(&run_osshell_test.step);
+    arch_agnostic_test_step.dependOn(&run_osstdlib_test.step);
+}
+
+fn copyToNativeModule(
+    b: *std.Build,
+    from: *std.Build.Module,
+) *std.Build.Module {
+    return b.createModule(.{
+        .root_source_file = from.root_source_file,
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = builtin.target.cpu.arch,
+            .os_tag = builtin.target.os.tag,
+            .abi = builtin.target.abi,
+        }),
     });
 }
