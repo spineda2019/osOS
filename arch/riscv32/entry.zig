@@ -25,7 +25,7 @@ const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
 /// The entry point of our kernel. This is defined as the entry point of the
 /// executable in the linker script. It's only job is to set up the stack
 /// and jump to setup, which will do hardware initialization.
-export fn boot() linksection(".text.boot") callconv(.Naked) noreturn {
+export fn boot() linksection(".text.boot") callconv(.naked) noreturn {
     asm volatile (
         \\mv sp, %[stack_top]
         \\j %[setup_address]
