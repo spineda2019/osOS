@@ -1,11 +1,11 @@
 const osformat = @import("osformat");
 
-pub const SbiRet = extern struct {
+const SbiRet = extern struct {
     err: SbiErrorCode,
     value: u32,
 };
 
-pub const SbiErrorCode = enum(i32) {
+const SbiErrorCode = enum(i32) {
     sbi_success = 0,
     sbi_err_failed = -1,
     sbi_err_not_supported = -2,
@@ -18,12 +18,12 @@ pub const SbiErrorCode = enum(i32) {
 };
 
 /// SBI Extension ID
-pub const EID = enum(u32) {
+const EID = enum(u32) {
     base = 0x10,
 };
 
 /// SBI Function ID
-pub const FID = enum(u32) {
+const FID = enum(u32) {
     sbi_get_spec_version = 0,
     sbi_get_impl_id = 1,
     sbi_get_impl_version = 2,
@@ -31,7 +31,7 @@ pub const FID = enum(u32) {
     sbi_get_mvendorid = 4,
 };
 
-pub const ImplementationID = enum(u32) {
+const ImplementationID = enum(u32) {
     berkeley_boot_loader = 0,
     opensbi = 1,
     xvisor = 2,
