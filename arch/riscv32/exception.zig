@@ -96,7 +96,7 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
 
 /// Save register state and call trap handler. Aligned to 4 bytes for SBI to
 /// set proper bits in expected memory locations
-pub fn cpuExceptionHandler() align(4) callconv(.Naked) void {
+pub fn cpuExceptionHandler() align(4) callconv(.naked) void {
     // Important notes:
     //     csrw is a priviledged instruction.
     //     Writes StackPointer to sscratch, a temporary register
