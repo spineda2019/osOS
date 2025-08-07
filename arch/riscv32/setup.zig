@@ -1,6 +1,7 @@
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
 const osformat = @import("osformat");
+const sbi = @import("sbi/root.zig");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -39,6 +40,15 @@ pub fn setup() noreturn {
     terminal.write("Hart ID: ");
     const hart_id_string: osformat.format.StringFromInt(@TypeOf(hart_id)) = .init(hart_id);
     terminal.writeLine(hart_id_string.getStr());
+
+    const sbi_spec_version = sbi.getSpecVersion();
+    terminal.write("SBI Specification version: ");
+    terminal.write(sbi_spec_version.major.getStr());
+    terminal.write(".");
+    terminal.writeLine(sbi_spec_version.minor.getStr());
+    const sbi_impl: []const u8 = sbi.getImplId();
+    terminal.write("SBI Implementation: ");
+    terminal.writeLine(sbi_impl);
 
     const hal: riscv32hal.Hal = .{
         .terminal = &terminal,
