@@ -21,6 +21,11 @@ const BuildError = error{
     unsupported,
 };
 
+const SupportedTarget = enum {
+    x86,
+    riscv32,
+};
+
 const BootSpecification = enum {
     MultibootOne,
     MultibootTwo,
@@ -40,11 +45,11 @@ pub fn build(b: *std.Build) BuildError!void {
     //                               Option Setup                              *
     //**************************************************************************
     const kernel_name = "osOS.elf";
-    const target_arch: std.Target.Cpu.Arch = b.option(
-        std.Target.Cpu.Arch,
+    const target_arch: SupportedTarget = b.option(
+        SupportedTarget,
         "target_arch",
         "Target Architecture",
-    ) orelse builtin.cpu.arch;
+    ) orelse .x86;
 
     const x86_target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
@@ -53,11 +58,6 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     const riscv32_target = b.resolveTargetQuery(.{
         .cpu_arch = .riscv32,
-        .os_tag = .freestanding,
-        .abi = .none,
-    });
-    const doc_target = b.resolveTargetQuery(.{
-        .cpu_arch = null, // native
         .os_tag = .freestanding,
         .abi = .none,
     });
@@ -174,36 +174,6 @@ pub fn build(b: *std.Build) BuildError!void {
     // to properly build with an opt level and root module, we need to make
     // dummy objects for freestanding modules.
 
-    const osformat_doc_module = b.createModule(.{
-        .root_source_file = b.path("format/osformat.zig"),
-        .target = doc_target,
-        .optimize = .ReleaseSmall,
-    });
-
-    const osmemory_doc_module = b.createModule(.{
-        .root_source_file = b.path("memory/memory.zig"),
-        .target = doc_target,
-        .optimize = .ReleaseSmall,
-    });
-
-    const osprocess_doc_module = b.createModule(.{
-        .root_source_file = b.path("process/process.zig"),
-        .target = doc_target,
-        .optimize = .ReleaseSmall,
-    });
-
-    const x86_memory_doc_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/memory/memory.zig"),
-        .target = doc_target,
-        .optimize = .ReleaseSmall,
-    });
-
-    const x86_asm_doc_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/asm/asm.zig"),
-        .target = doc_target,
-        .optimize = .ReleaseSmall,
-    });
-
     //* ******************************* kmain ******************************** *
     const kmain_module = b.createModule(.{
         .root_source_file = b.path("kmain/kmain.zig"),
@@ -242,35 +212,6 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
-
-    //* *************************** Doc Specific ***************************** *
-    // freestanding modules need a specified target and optmimzation to actually
-    // build properly. These are dummy values just for doc building purposes.
-    const x86memory_doc_obj = b.addLibrary(.{
-        .name = "x86memory_src",
-        .root_module = x86_memory_doc_module,
-        .linkage = .static,
-    });
-    const x86asm_doc_obj = b.addLibrary(.{
-        .name = "x86asm_src",
-        .root_module = x86_asm_doc_module,
-        .linkage = .static,
-    });
-    const osformat_doc_obj = b.addLibrary(.{
-        .name = "osformat_src",
-        .root_module = osformat_doc_module,
-        .linkage = .static,
-    });
-    const osmemory_doc_obj = b.addLibrary(.{
-        .name = "osmemory_src",
-        .root_module = osmemory_doc_module,
-        .linkage = .static,
-    });
-    const osprocess_doc_obj = b.addLibrary(.{
-        .name = "osprocess_src",
-        .root_module = osprocess_doc_module,
-        .linkage = .static,
-    });
 
     //**************************************************************************
     //                          Install Artifact Setup                         *
@@ -312,12 +253,20 @@ pub fn build(b: *std.Build) BuildError!void {
         .install_subdir = "docs/x86",
     });
     const x86memory_install_doc = b.addInstallDirectory(.{
-        .source_dir = x86memory_doc_obj.getEmittedDocs(),
+        .source_dir = createDocumentationObject(
+            b,
+            x86_memory_module,
+            "x86memory_src",
+        ).getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/x86modules/x86memory",
     });
     const x86asm_install_doc = b.addInstallDirectory(.{
-        .source_dir = x86asm_doc_obj.getEmittedDocs(),
+        .source_dir = createDocumentationObject(
+            b,
+            x86_asm_module,
+            "x86asm_src",
+        ).getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/x86modules/x86asm",
     });
@@ -327,17 +276,29 @@ pub fn build(b: *std.Build) BuildError!void {
         .install_subdir = "docs/RISC-V32",
     });
     const osformat_install_doc = b.addInstallDirectory(.{
-        .source_dir = osformat_doc_obj.getEmittedDocs(),
+        .source_dir = createDocumentationObject(
+            b,
+            osformat_module,
+            "osformat_src",
+        ).getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osformat",
     });
     const osmemory_install_doc = b.addInstallDirectory(.{
-        .source_dir = osmemory_doc_obj.getEmittedDocs(),
+        .source_dir = createDocumentationObject(
+            b,
+            osmemory_module,
+            "osmemory_src",
+        ).getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osmemory",
     });
     const osprocess_install_doc = b.addInstallDirectory(.{
-        .source_dir = osprocess_doc_obj.getEmittedDocs(),
+        .source_dir = createDocumentationObject(
+            b,
+            osprocess_module,
+            "osprocess_src",
+        ).getEmittedDocs(),
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osprocess",
     });
@@ -503,7 +464,6 @@ pub fn build(b: *std.Build) BuildError!void {
     generic_run_step.dependOn(switch (target_arch) {
         .x86 => x86_run_step_qemu,
         .riscv32 => riscv32_run_step,
-        else => x86_run_step_qemu,
     });
 
     const generic_build_step = b.step(
@@ -513,7 +473,6 @@ pub fn build(b: *std.Build) BuildError!void {
     generic_build_step.dependOn(switch (target_arch) {
         .x86 => x86_step,
         .riscv32 => riscv32_step,
-        else => x86_step,
     });
 
     //* ***************************** Unit Tests ***************************** *
@@ -568,10 +527,18 @@ fn copyToNativeModule(
 ) *std.Build.Module {
     return b.createModule(.{
         .root_source_file = from.root_source_file,
-        .target = b.resolveTargetQuery(.{
-            .cpu_arch = builtin.target.cpu.arch,
-            .os_tag = builtin.target.os.tag,
-            .abi = builtin.target.abi,
-        }),
+        .target = b.resolveTargetQuery(.{}),
+    });
+}
+
+fn createDocumentationObject(
+    b: *std.Build,
+    from: *std.Build.Module,
+    comptime name: []const u8,
+) *std.Build.Step.Compile {
+    return b.addLibrary(.{
+        .name = name,
+        .root_module = copyToNativeModule(b, from),
+        .linkage = .static,
     });
 }
