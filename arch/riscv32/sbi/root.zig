@@ -54,12 +54,12 @@ const ImplementationID = enum(u32) {
 };
 
 fn sbi(
-    arg0: usize,
-    arg1: usize,
-    arg2: usize,
-    arg3: usize,
-    arg4: usize,
-    arg5: usize,
+    arg0: u32,
+    arg1: u32,
+    arg2: u32,
+    arg3: u32,
+    arg4: u32,
+    arg5: u32,
     fid: FID,
     eid: EID,
 ) SbiRet {
