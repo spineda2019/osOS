@@ -158,6 +158,7 @@ fn handleTimerIRQ() void {
     clock_tics += 1;
 }
 
+/// Jumped to from a handler stub generated in idt.zig
 pub export fn handleGenericPicIrq(irq_with_offset: u8) callconv(.c) void {
     const target: irq_number = @enumFromInt(irq_with_offset);
     switch (target) {

@@ -188,9 +188,7 @@ pub fn build(b: *std.Build) BuildError!void {
     riscv32_module.addImport("kmain", kmain_module);
     std.debug.print(
         "Selected default run target: {s}\n",
-        .{
-            @tagName(target_arch),
-        },
+        .{@tagName(target_arch)},
     );
 
     //**************************************************************************

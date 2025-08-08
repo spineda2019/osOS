@@ -17,11 +17,6 @@
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 
-const handleGenericPicIrq = @extern(
-    *const fn (u8) callconv(.c) void,
-    .{ .name = "handleGenericPicIrq" },
-);
-
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
 /// pushed onto the stack by the CPU when triggered, so this structure need
@@ -373,11 +368,12 @@ fn generateHandler(
             }
         }.handler,
         .picInterrupt => |irq| &struct {
+            extern fn handleGenericPicIrq(irq_with_offset: u8) callconv(.c) void;
             fn handler() callconv(.naked) void {
                 asm volatile (
-                    \\pushl %[interrupt_number]  # push interrupt number
+                    \\pushl %[interrupt_number]
                     \\call handleGenericPicIrq
-                    \\addl $0x4, %esp  // cleanup pushed interrupt number
+                    \\addl $0x4, %esp            # cleanup pushed interrupt
                     \\iret
                     : // no outputs
                     : [interrupt_number] "i" (@intFromEnum(irq)),
