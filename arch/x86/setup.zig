@@ -19,9 +19,9 @@ const serial = @import("x86serial");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
-const x86hal = @import("hal/hal.zig");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
+const oshal = @import("oshal");
 
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
@@ -59,8 +59,12 @@ pub fn setup() noreturn {
 
     as.assembly_wrappers.enable_x86_interrupts();
 
-    const hal = x86hal.Hal{
-        .terminal = &framebuffer,
+    const hal_layout: oshal.HalLayout = comptime .{
+        .assembly_wrappers = as,
+        .Terminal = framebuffer_api.FrameBuffer,
     };
-    kmain.kmain(hal);
+    kmain.kmain(
+        hal_layout,
+        oshal.HAL(hal_layout){ .terminal = &framebuffer },
+    );
 }

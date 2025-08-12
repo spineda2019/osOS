@@ -20,6 +20,8 @@
 const as = @import("x86asm");
 const serial = @import("x86serial");
 const framebuffer = @import("x86framebuffer");
+const osformat = @import("osformat");
+
 const Self: type = @This();
 
 var framebuffer_handle: *framebuffer.FrameBuffer = undefined;
@@ -151,7 +153,10 @@ fn sendAcknowledgement(interrupt_request: u8) void {
 }
 
 fn handleKeyboardIRQ() void {
-    framebuffer_handle.write("Keyboard input detected");
+    const scan_code: u8 = as.assembly_wrappers.x86_inb(0x60);
+    const scan_code_str: osformat.format.StringFromInt(u8) = .init(scan_code);
+    framebuffer_handle.write("Keyboard input detected. Scancode: ");
+    framebuffer_handle.writeLine(scan_code_str.getStr());
 }
 
 fn handleTimerIRQ() void {
