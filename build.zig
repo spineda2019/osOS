@@ -97,7 +97,7 @@ pub fn build(b: *std.Build) BuildError!void {
     });
 
     const oshal_module = b.createModule(.{
-        .root_source_file = b.path("HAL/hal.zig"),
+        .root_source_file = b.path("HAL/root.zig"),
     });
 
     // the kernel's main process
@@ -134,25 +134,31 @@ pub fn build(b: *std.Build) BuildError!void {
     const x86_asm_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/asm/asm.zig"),
     });
+
     const x86_serial_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/io/serial.zig"),
     });
     x86_serial_module.addImport("x86asm", x86_asm_module);
+
     const x86_framebuffer_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
     });
     x86_framebuffer_module.addImport("x86asm", x86_asm_module);
     x86_framebuffer_module.addImport("osformat", osformat_module);
+
     const x86_memory_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/memory/memory.zig"),
     });
     x86_memory_module.addImport("x86asm", x86_asm_module);
+
     const x86_interrupt_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/interrupts/interrupts.zig"),
     });
+    x86_interrupt_module.addImport("osformat", osformat_module);
     x86_interrupt_module.addImport("x86asm", x86_asm_module);
     x86_interrupt_module.addImport("x86serial", x86_serial_module);
     x86_interrupt_module.addImport("x86framebuffer", x86_framebuffer_module);
+
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),
         .target = x86_target,

@@ -1,7 +1,9 @@
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
-const osformat = @import("osformat");
+const riscv32asm = @import("riscv32asm");
 const sbi = @import("sbi/root.zig");
+const osformat = @import("osformat");
+const oshal = @import("oshal");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -18,11 +20,7 @@ pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 
-pub fn setup() noreturn {
-    const hart_id: u32 = asm volatile (
-        \\mv %[ret], a0
-        : [ret] "=r" (-> u32),
-    );
+pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
@@ -37,9 +35,14 @@ pub fn setup() noreturn {
 
     terminal.writeLine("Hello RISC-V32 osOS!");
     terminal.writeSplashLogo();
+
     terminal.write("Hart ID: ");
-    const hart_id_string: osformat.format.StringFromInt(@TypeOf(hart_id)) = .init(hart_id);
+    const hart_id_string: osformat.format.StringFromInt(u32) = .init(hart_id);
     terminal.writeLine(hart_id_string.getStr());
+
+    terminal.write("DTB Address: ");
+    const dtb_address_string: osformat.format.StringFromInt(u32) = .init(dtb_address);
+    terminal.writeLine(dtb_address_string.getStr());
 
     const sbi_spec_version = sbi.getSpecVersion();
     terminal.write("SBI Specification version: ");
@@ -50,9 +53,10 @@ pub fn setup() noreturn {
     terminal.write("SBI Implementation: ");
     terminal.writeLine(sbi_impl);
 
-    const hal: riscv32hal.Hal = .{
-        .terminal = &terminal,
+    const hal_layout: oshal.HalLayout = comptime .{
+        .assembly_wrappers = riscv32asm.assembly_wrappers,
+        .Terminal = tty.Terminal,
     };
 
-    kmain.kmain(hal);
+    kmain.kmain(hal_layout, oshal.HAL(hal_layout){ .terminal = &terminal });
 }

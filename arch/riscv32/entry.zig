@@ -17,7 +17,7 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
-const setup: *const fn () noreturn = &@import("setup.zig").setup;
+const setup: *const fn (u32, u32) callconv(.c) noreturn = &@import("setup.zig").setup;
 
 /// Address to the top of the kernel stack
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });

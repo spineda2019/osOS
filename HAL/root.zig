@@ -13,3 +13,18 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub const HalLayout = struct {
+    /// namespace where architecture specific (duh?) functions are defined.
+    assembly_wrappers: type,
+    Terminal: type,
+};
+
+pub fn HAL(comptime layout: HalLayout) type {
+    return struct {
+        comptime assembly_wrappers: type = layout.assembly_wrappers,
+
+        /// Must be implemented. Pointer to an architecture's implemetation
+        /// of a terminal for reading and writing
+        terminal: *layout.Terminal,
+    };
+}

@@ -21,6 +21,7 @@ const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 const process = @import("osprocess");
 const osformat = @import("osformat");
+const oshal = @import("oshal");
 
 fn delay() void {
     for (0..8192) |_| {
@@ -32,7 +33,10 @@ fn delay() void {
     }
 }
 
-pub fn kmain(arch_agnostic_hal: anytype) noreturn {
+pub fn kmain(
+    comptime layout: oshal.HalLayout,
+    arch_agnostic_hal: oshal.HAL(layout),
+) noreturn {
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
 
     for (0..12) |_| {
