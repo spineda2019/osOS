@@ -16,6 +16,7 @@
 
 const as = @import("x86asm");
 const pic = @import("pic.zig");
+const osformat = @import("osformat");
 
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
@@ -315,7 +316,8 @@ const InterruptNumber = union(enum) {
     pub fn get(this: InterruptNumber) u32 {
         return switch (this) {
             .picInterrupt => |enumerator| @intFromEnum(enumerator),
-            inline else => |num| num,
+            .withErrorCode => |with| with,
+            .withoutErrorCode => |without| without,
         };
     }
 };
@@ -327,11 +329,13 @@ const InterruptNumber = union(enum) {
 pub fn generateInterruptHandlers() InterruptHandlerTable {
     var table: [256]InterruptHandlerFnPtr = undefined;
 
-    for (0..table.len) |interrupt_number| {
-        // .. range is not inclusive on the right
-        table[interrupt_number] = comptime generateHandler(
-            InterruptNumber.init(interrupt_number),
-        );
+    comptime {
+        @setEvalBranchQuota(4096);
+        for (0..table.len) |interrupt_number| {
+            // .. range is not inclusive on the right
+            const i: InterruptNumber = .init(interrupt_number);
+            table[interrupt_number] = generateHandler(i);
+        }
     }
 
     return table;
@@ -343,8 +347,6 @@ pub fn generateInterruptHandlers() InterruptHandlerTable {
 fn generateHandler(
     comptime interrupt_number: InterruptNumber,
 ) InterruptHandlerFnPtr {
-    const std = @import("std");
-
     const fn_pointer: InterruptHandlerFnPtr = switch (interrupt_number) {
         .withErrorCode => |num| &struct {
             fn handler() callconv(.naked) void {
@@ -382,11 +384,12 @@ fn generateHandler(
         }.handler,
     };
 
-    const exported_name: []const u8 = comptime std.fmt.comptimePrint(
-        "interrupt_handler_{}",
-        .{interrupt_number.get()},
-    );
-    @export(fn_pointer, .{ .name = exported_name });
+    comptime {
+        const handler_number: u32 = interrupt_number.get();
+        const handler_number_as_string: osformat.format.StringFromInt(u32) = .init(handler_number);
+        const exported_name: []const u8 = "interrupt_handler_" ++ handler_number_as_string.getStr();
+        @export(fn_pointer, .{ .name = exported_name });
+    }
 
     return fn_pointer;
 }
