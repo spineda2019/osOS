@@ -77,7 +77,7 @@ fn sbi(
           [arg5] "{a5}" (arg5),
           [arg6] "{a6}" (@intFromEnum(fid)),
           [arg7] "{a7}" (@intFromEnum(eid)),
-        : "memory"
+        : .{ .memory = true }
     );
 
     return .{ .err = err, .value = value };
