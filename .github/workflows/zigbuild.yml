@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: mlugg/setup-zig@v2
       with:
-        version: 0.14.1
+        version: master
     - name: Build Kernel
       run: zig build --summary all
     - name: Upload Built Docs
