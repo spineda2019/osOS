@@ -16,6 +16,9 @@
 pub const HalLayout = struct {
     /// namespace where architecture specific (duh?) functions are defined.
     assembly_wrappers: type,
+
+    /// Provides low level services such as putting characters on the screen
+    /// and scrolling
     Terminal: type,
 };
 
