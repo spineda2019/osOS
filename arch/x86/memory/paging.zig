@@ -51,14 +51,35 @@ pub const Page align(4096) = packed struct(u4096) {
             /// a single page _table_.
             pub const Entry = packed struct(u32) {
                 pub const Flags = packed struct(u12) {
-                    present: u1,
-                    read_write: u1,
-                    user_supervisor: u1,
-                    write_through: u1,
-                    cache_disable: u1,
-                    accessed: u1,
+                    /// A page fault will occur if this is false and the entry
+                    /// is used.
+                    in_physical_memory: bool,
+
+                    /// Setting to false will set the entry to read-only.
+                    writable: bool,
+
+                    /// When set, all page tables in referenced in this page
+                    /// directory entry can be accessed by all. If false, only
+                    /// the kernel can access pages referenced in this entry.
+                    user_accesible: bool,
+
+                    enable_writethrough_caching: bool,
+
+                    /// If set, page tables referenced by this Directory entry
+                    /// will not be cached.
+                    disable_caching: bool,
+
+                    /// Indicates if this directory entry was accessed during
+                    /// virtual address translation.
+                    accessed: bool,
+
                     _reserved: u1 = 0,
-                    page_size: u1,
+
+                    /// When enabled, this entry actually points to a 4MB page
+                    /// instead of a 4K page _table_. For now, no part of this
+                    /// kernel will use this, so just set it to 0 by default.
+                    use_4mb_page: bool = false,
+
                     __reserved: u4 = 0,
                 };
 
