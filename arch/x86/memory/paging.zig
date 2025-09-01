@@ -21,7 +21,20 @@ pub const Page align(4096) = packed struct(u4096) {
         /// A Table entry specifies the configuration and address for
         /// a single page _frame_.
         pub const Entry = packed struct(u32) {
-            access_rights: u12,
+            pub const Flags = packed struct(u12) {
+                present: u1,
+                read_write: u1,
+                user_superuser: u1,
+                write_through: u1,
+                cache_disable: u1,
+                accessed: u1,
+                dirty: u1,
+                pat: u1,
+                global: u1,
+                _unused: u3 = 0,
+            };
+
+            access_rights: Table.Entry.Flags,
 
             page_address: u20,
         };
