@@ -15,9 +15,11 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const PAGE_SIZE: comptime_int = 4096;
+
 /// Represents a single Page Frame
-pub const Page align(4096) = packed struct(u4096) {
-    pub const Table align(4096) = packed struct(u4096) {
+pub const Page align(PAGE_SIZE) = struct {
+    pub const Table = struct {
         /// A Table entry specifies the configuration and address for
         /// a single page _frame_.
         pub const Entry = packed struct(u32) {
@@ -39,14 +41,15 @@ pub const Page align(4096) = packed struct(u4096) {
             page_address: u20,
         };
 
-        entries: [1024]Table.Entry,
+        /// The real Page Table.
+        entries: [1024]Table.Entry align(PAGE_SIZE),
 
         /// A directory encapsulates everything the system knows about paging
         /// at a given moment. When paging is enabled, the register _cr3_ should
         /// hold the address of a valid Directory (which internally has
         /// knowledge of each table, which itself has knowledge of each mapped
         /// frame).
-        pub const Directory align(4096) = packed struct(u4096) {
+        pub const Directory = struct {
             /// A Directory entry specifies the configuration and address for
             /// a single page _table_.
             pub const Entry = packed struct(u32) {
@@ -88,7 +91,9 @@ pub const Page align(4096) = packed struct(u4096) {
                 table_address: u20,
             };
 
-            entries: [1024]Directory.Entry,
+            /// The real Page Directory, the table of Page Tables represented
+            /// as an array of a special type: the Page Directory Entry.
+            entries: [1024]Directory.Entry align(PAGE_SIZE),
 
             /// Enables paging using this instance of a Page Directory.
             pub fn enablePaging(self: *Directory) void {
