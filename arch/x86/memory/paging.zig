@@ -18,7 +18,7 @@
 const PAGE_SIZE: comptime_int = 4096;
 
 /// Represents a single Page Frame
-pub const Page align(PAGE_SIZE) = struct {
+pub const Page = struct {
     pub const Table = struct {
         /// A Table entry specifies the configuration and address for
         /// a single page _frame_.
@@ -64,7 +64,7 @@ pub const Page align(PAGE_SIZE) = struct {
                     /// When set, all page tables in referenced in this page
                     /// directory entry can be accessed by all. If false, only
                     /// the kernel can access pages referenced in this entry.
-                    user_accesible: bool,
+                    user_accessible: bool,
 
                     enable_writethrough_caching: bool,
 
@@ -98,6 +98,31 @@ pub const Page align(PAGE_SIZE) = struct {
             /// Enables paging using this instance of a Page Directory.
             pub fn enablePaging(self: *Directory) void {
                 _ = self;
+            }
+
+            /// Initialize a completely empty Page Directory with all entries
+            /// being marked as unused
+            pub fn init() Directory {
+                return .{
+                    .entries = setup: {
+                        var entries: [1024]Directory.Entry align(PAGE_SIZE) = undefined;
+                        for (&entries) |*entry| {
+                            entry.* = .{
+                                .access_rights = .{
+                                    .in_physical_memory = false,
+                                    .writable = true,
+                                    .user_accessible = false,
+                                    .enable_writethrough_caching = false,
+                                    .disable_caching = false,
+                                    .accessed = false,
+                                },
+                                .table_address = 0,
+                            };
+                        }
+
+                        break :setup entries;
+                    },
+                };
             }
         };
     };
