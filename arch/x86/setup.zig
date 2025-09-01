@@ -57,6 +57,9 @@ pub fn setup() noreturn {
     framebuffer.writeLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
+    var page_table_directory: memory.paging.Page.Table.Directory = .init();
+    _ = &page_table_directory;
+
     as.assembly_wrappers.enable_x86_interrupts();
 
     const hal_layout: oshal.HalLayout = comptime .{
