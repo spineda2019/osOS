@@ -20,3 +20,5 @@
 /// array of Segment Descriptors), and the GDT Descriptor, what is used to load
 /// GDT.
 pub const gdt = @import("gdt.zig");
+
+pub const paging = @import("paging.zig");
