@@ -37,7 +37,19 @@ pub const Page align(4096) = packed struct(u4096) {
             /// A Directory entry specifies the configuration and address for
             /// a single page _table_.
             pub const Entry = packed struct(u32) {
-                access_rights: u12,
+                pub const Flags = packed struct(u12) {
+                    present: u1,
+                    read_write: u1,
+                    user_supervisor: u1,
+                    write_through: u1,
+                    cache_disable: u1,
+                    accessed: u1,
+                    _reserved: u1 = 0,
+                    page_size: u1,
+                    __reserved: u4 = 0,
+                };
+
+                access_rights: Directory.Entry.Flags,
 
                 table_address: u20,
             };
