@@ -41,8 +41,44 @@ pub const Page = struct {
             page_address: u20,
         };
 
-        /// The real Page Table.
+        /// The real Page Table. A single entry is 4 bytes, and a single page
+        /// table has 1024 entries, thus making each table (the owning type that
+        /// has _entries_ as a member) 4096 bytes, explaining its required
+        /// alignment.
         entries: [1024]Table.Entry align(PAGE_SIZE),
+
+        /// Maps an entire 4K into memory. See _entries_ for details.
+        pub fn init() Table {
+            return .{
+                .entries = setup: {
+                    var entries: [1024]Table.Entry align(PAGE_SIZE) = undefined;
+
+                    // Fill each index in the table with an address to which
+                    // the MMU will map that page. Index 0 holds the address
+                    // from where the first page will be mapped. index 1 holds
+                    // the address for the second page, and so on.
+
+                    for (&entries, 0..) |*entry, index| {
+                        entry.* = .{
+                            .access_rights = .{
+                                .present = 1,
+                                .read_write = 1,
+                                .user_superuser = 1,
+                                .write_through = 0,
+                                .cache_disable = 0,
+                                .accessed = 0,
+                                .dirty = 0,
+                                .pat = 0,
+                                .global = 0,
+                            },
+                            .page_address = @intCast(index * 0x00_10_00),
+                        };
+                    }
+
+                    break :setup entries;
+                },
+            };
+        }
 
         /// A directory encapsulates everything the system knows about paging
         /// at a given moment. When paging is enabled, the register _cr3_ should
@@ -91,8 +127,13 @@ pub const Page = struct {
                 table_address: u20,
             };
 
-            /// The real Page Directory, the table of Page Tables represented
-            /// as an array of a special type: the Page Directory Entry.
+            /// The real Page Directory, the table of Page Tables (yes, a table
+            /// of tables) represented as an array of a special type: the Page
+            /// Directory Entry. A single entry is 32 bytes, and a single page
+            /// directory (the owning type that has _entries_ as a member) has
+            /// 1024 entries, thus making each directory (again, the owning type
+            /// that has _entries_ as a member) 4096 bytes, explaining its
+            /// required alignment.
             entries: [1024]Directory.Entry align(PAGE_SIZE),
 
             /// Enables paging using this instance of a Page Directory.
@@ -123,6 +164,19 @@ pub const Page = struct {
                         break :setup entries;
                     },
                 };
+            }
+
+            pub fn insertTable(self: *Directory, table: *Table) void {
+                for (&self.entries) |*directory_entry| {
+                    if (!directory_entry.*.access_rights.in_physical_memory) {
+                        directory_entry.*.access_rights.in_physical_memory = true;
+                        directory_entry.*.table_address = @intCast(@intFromPtr(table));
+                        return;
+                    }
+                }
+
+                // TODO: need to return an optional or error type
+                unreachable;
             }
         };
     };
