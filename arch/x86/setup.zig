@@ -57,8 +57,10 @@ pub fn setup() noreturn {
     framebuffer.writeLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
-    var page_table_directory: memory.paging.Page.Table.Directory = .init();
-    _ = &page_table_directory;
+    // framebuffer.writeLine("x86: Setting up paging...");
+    // var first_page_table: memory.paging.Page.Table = .init();
+    // var page_table_directory: memory.paging.Page.Table.Directory = .init();
+    // page_table_directory.insertTable(&first_page_table);
 
     as.assembly_wrappers.enable_x86_interrupts();
 
