@@ -1,0 +1,21 @@
+.{
+    .name = .osOS,
+
+    .version = "0.0.1",
+
+    .fingerprint = 0x9135bdc404f10cb6, // Changing this has security and trust implications.
+
+    .minimum_zig_version = "0.15.1",
+
+    .dependencies = .{
+        .bochs_zig = .{
+            .url = "git+https://github.com/spineda2019/bochs-zig#main",
+            .hash = "bochs-2.7.0-WqPDh4lMLwG5wiprlqC2U31F30CK9W4uyvlBXmw8l__H",
+        },
+    },
+
+    .paths = .{
+        // TODO: stabalize this and include files
+        "buld.zig",
+    },
+}
