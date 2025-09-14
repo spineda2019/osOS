@@ -75,6 +75,11 @@ pub fn build(b: *std.Build) BuildError!void {
         boot_specification,
     );
 
+    const depbochs = b.dependency(
+        "bochs_zig",
+        .{ .@"with-x11" = true, .@"with-sdl" = true },
+    );
+
     //**************************************************************************
     //                               Module Setup                              *
     //**************************************************************************
@@ -108,6 +113,8 @@ pub fn build(b: *std.Build) BuildError!void {
     const osstdlib_module = b.createModule(.{
         .root_source_file = b.path("userland/stdlib/root.zig"),
     });
+
+    const modbochs = depbochs.module("bochs");
 
     //* *************************** RISC Specific **************************** *
     const riscv32_asm_module = b.createModule(.{
@@ -216,6 +223,12 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
+
+    //* ******************************* Bochs ******************************** *
+    const exebochs = b.addExecutable(.{
+        .name = "bochs",
+        .root_module = modbochs,
+    });
 
     //**************************************************************************
     //                          Install Artifact Setup                         *
@@ -332,6 +345,10 @@ pub fn build(b: *std.Build) BuildError!void {
 
     doc_page_step.dependOn(&copy_landing_style.step);
     b.getInstallStep().dependOn(doc_page_step);
+
+    //* ******************************* Bochs ******************************** *
+    const installbochs = b.addInstallArtifact(exebochs, .{});
+    b.getInstallStep().dependOn(&installbochs.step);
 
     //**************************************************************************
     //                             Run Step Setup                              *
