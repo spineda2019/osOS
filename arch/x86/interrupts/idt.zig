@@ -29,6 +29,28 @@ pub const InterruptHandlerFnPtr = *const fn () callconv(.naked) void;
 
 pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
 
+const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
+
+/// Given a table of the 256 interrupt function pointers needed to handle every
+/// possible interrupt, initialize the IDT.
+pub fn createDefaultIDT() InterruptDescriptorTable {
+    var entries: [256]InterruptDescriptor = undefined;
+    for (interrupt_handler_table, 0..) |fn_ptr, interrupt_number| {
+        entries[interrupt_number] = .{
+            .offset_low = @truncate(@intFromPtr(fn_ptr)),
+            .offset_high = @truncate(@intFromPtr(fn_ptr) >> 16),
+            .segment_selector = .kernel_mode_code_segment,
+            .unused = 0,
+            .gate_type = .ProtectedModeInterruptGate,
+            .zero = 0,
+            .descriptor_privilege_level = 0, // kernel mode
+            .present_bit = 0b1,
+        };
+    }
+
+    return entries;
+}
+
 /// Descriptor for the IDT (which is itself another descriptor)
 pub const IDTDescriptor = packed struct(u48) {
     size: u16,
@@ -46,74 +68,6 @@ pub const IDTDescriptor = packed struct(u48) {
     pub fn loadIDT(self: *const IDTDescriptor) void {
         as.assembly_wrappers.x86_lidt(@intFromPtr(self));
     }
-};
-
-const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
-
-/// Given a table of the 256 interrupt function pointers needed to handle every
-/// possible interrupt, initialize the IDT.
-pub fn createDefaultIDT() InterruptDescriptorTable {
-    var entries: [256]InterruptDescriptor = undefined;
-    for (interrupt_handler_table, 0..) |fn_ptr, interrupt_number| {
-        entries[interrupt_number] = .{
-            .offset_low = @truncate(@intFromPtr(fn_ptr)),
-            .offset_high = @truncate(@intFromPtr(fn_ptr) >> 16),
-            .segment_selector = SegmentSelector.kernel_mode_code_segment,
-            .unused = 0,
-            .gate_type = InterruptDescriptorGateType.ProtectedModeInterruptGate,
-            .zero = 0,
-            .descriptor_privilege_level = 0, // kernel mode
-            .present_bit = 0b1,
-        };
-    }
-
-    return entries;
-}
-
-const SegmentSelector = packed struct(u16) {
-    /// The requested Privilege Level of the selector, determines if the
-    /// selector is valid during permission checks and may set execution or
-    /// memory access privilege.
-    requested_privilege_level: u2,
-
-    /// Specifies which descriptor table to use. If clear (0) then the GDT is
-    /// used, if set (1) then the current LDT is used.
-    table_type: u1,
-
-    /// Bits 3-15 of the Index of the GDT or LDT entry referenced by this
-    /// selector. Since Segment Descriptors in the GDT are 8 bytes in length,
-    /// the value of Index is never unaligned and contains all zeros in the
-    /// lowest 3 bits (since the lowest possible index is 0b1000 AKA 0x8).
-    ///
-    /// This is essentially the index into the GDT you want shifted to the
-    /// right by 3 bits (since those are guaranteed to be 0). So an index
-    /// value of 0x1 in this struct is interpretted by the CPU as 0b1000.
-    index: u13,
-
-    const kernel_mode_code_segment: SegmentSelector = .{
-        .requested_privilege_level = 0,
-        .table_type = 0,
-        .index = 0x1,
-    };
-};
-
-/// An Interrupt Descriptor has a section of 4 bits that describe the type of
-/// handler it is describing. However, there are only 5 valid gate types, so
-/// we enumerate them for clarity.
-pub const InterruptDescriptorGateType = enum(u4) {
-    TaskGate = 0b0101,
-
-    /// 16 bit interrupt gate
-    RealModeInterruptGate = 0b0110,
-
-    /// 16 bit trap gate
-    RealModeTrapGate = 0b0111,
-
-    /// 16 bit interrupt gate
-    ProtectedModeInterruptGate = 0b1110,
-
-    /// 16 bit trap gate
-    ProtectedModeTrapGate = 0b1111,
 };
 
 /// An entry in the Interrupt Description Table is represented as a 64 bit
@@ -159,7 +113,7 @@ pub const InterruptDescriptor = packed struct(u64) {
     ///
     /// Bits configuring the type of handler. Task gates are not supported, so
     /// this MUST be 0b11
-    gate_type: InterruptDescriptorGateType,
+    gate_type: GateType,
 
     /// Unused. 44th overall bit, 12th bit in higher bits
     zero: u1,
@@ -180,6 +134,52 @@ pub const InterruptDescriptor = packed struct(u64) {
     /// Higher 16 bits of the total offset of ths descriptor in the table. The
     /// total offset points to the entry point of the handler
     offset_high: u16,
+
+    const SegmentSelector = packed struct(u16) {
+        /// The requested Privilege Level of the selector, determines if the
+        /// selector is valid during permission checks and may set execution or
+        /// memory access privilege.
+        requested_privilege_level: u2,
+
+        /// Specifies which descriptor table to use. If clear (0) then the GDT is
+        /// used, if set (1) then the current LDT is used.
+        table_type: u1,
+
+        /// Bits 3-15 of the Index of the GDT or LDT entry referenced by this
+        /// selector. Since Segment Descriptors in the GDT are 8 bytes in length,
+        /// the value of Index is never unaligned and contains all zeros in the
+        /// lowest 3 bits (since the lowest possible index is 0b1000 AKA 0x8).
+        ///
+        /// This is essentially the index into the GDT you want shifted to the
+        /// right by 3 bits (since those are guaranteed to be 0). So an index
+        /// value of 0x1 in this struct is interpretted by the CPU as 0b1000.
+        index: u13,
+
+        const kernel_mode_code_segment: SegmentSelector = .{
+            .requested_privilege_level = 0,
+            .table_type = 0,
+            .index = 0x1,
+        };
+    };
+
+    /// An Interrupt Descriptor has a section of 4 bits that describe the type of
+    /// handler it is describing. However, there are only 5 valid gate types, so
+    /// we enumerate them for clarity.
+    pub const GateType = enum(u4) {
+        TaskGate = 0b0101,
+
+        /// 16 bit interrupt gate
+        RealModeInterruptGate = 0b0110,
+
+        /// 16 bit trap gate
+        RealModeTrapGate = 0b0111,
+
+        /// 16 bit interrupt gate
+        ProtectedModeInterruptGate = 0b1110,
+
+        /// 16 bit trap gate
+        ProtectedModeTrapGate = 0b1111,
+    };
 };
 
 /// Memory layout must be packed, as we will push registers on the stack from
