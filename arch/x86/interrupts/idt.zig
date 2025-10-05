@@ -30,7 +30,7 @@ pub const InterruptHandlerFnPtr = *const fn () callconv(.naked) void;
 pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
 
 /// Descriptor for the IDT (which is itself another descriptor)
-pub const IDTDescriptor = packed struct {
+pub const IDTDescriptor = packed struct(u48) {
     size: u16,
 
     /// Linear address of the IDT
@@ -138,7 +138,7 @@ pub const InterruptDescriptorGateType = enum(u4) {
 /// D:                Size of gate, (1 = 32 bits, 0 = 16 bits).
 /// segment selector: The offset in the GDT.
 /// r:                Reserved.
-pub const InterruptDescriptor = packed struct {
+pub const InterruptDescriptor = packed struct(u64) {
     /// Overall bits [0, 15], bits [0, 15] in lower bits
     ///
     /// Lower 16 bits of the address of the entry point of the interrupt handler
