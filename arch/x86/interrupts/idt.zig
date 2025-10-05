@@ -301,12 +301,12 @@ export fn commonInteruptHandlerWithoutErrorCode() callconv(.naked) void {
 const InterruptNumber = union(enum) {
     withErrorCode: u32,
     withoutErrorCode: u32,
-    picInterrupt: pic.irq_number,
+    picInterrupt: pic.irq,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
             8, 10, 11, 12, 13, 14, 17 => .{ .withErrorCode = number },
-            @intFromEnum(pic.irq_number.keyboard), @intFromEnum(pic.irq_number.timer) => .{
+            @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
                 .picInterrupt = @enumFromInt(number),
             },
             else => .{ .withoutErrorCode = number },

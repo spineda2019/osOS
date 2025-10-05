@@ -25,7 +25,7 @@ const osformat = @import("osformat");
 const Self: type = @This();
 
 var framebuffer_handle: *framebuffer.FrameBuffer = undefined;
-var irq_offset: u8 = 0x20;
+const irq_offset: u8 = 0x20;
 var clock_tics: usize = 0;
 
 const master_command_port: u16 = 0x0020;
@@ -33,7 +33,7 @@ const master_data_port: u16 = 0x0021;
 const slave_command_port: u16 = 0x00A0;
 const slave_data_port: u16 = 0x00A1;
 
-pub const irq_number = enum(u8) {
+pub const irq = enum(u8) {
     timer = 0x20,
     keyboard = 0x21,
 };
@@ -163,12 +163,31 @@ fn handleTimerIRQ() void {
     clock_tics += 1;
 }
 
-/// Jumped to from a handler stub generated in idt.zig
-pub export fn handleGenericPicIrq(irq_with_offset: u8) callconv(.c) void {
-    const target: irq_number = @enumFromInt(irq_with_offset);
-    switch (target) {
+/// Jumped to from a handler stub
+export fn handleGenericPicIrq(irq_with_offset: irq) callconv(.c) void {
+    switch (irq_with_offset) {
         .keyboard => handleKeyboardIRQ(),
         .timer => handleTimerIRQ(),
     }
-    sendAcknowledgement(irq_with_offset - irq_offset);
+    sendAcknowledgement(@intFromEnum(irq_with_offset) - irq_offset);
+}
+
+pub fn keyboardISR() callconv(.naked) void {
+    asm volatile (
+        \\push %[keyboard_irq]
+        \\call handleGenericPicIrq
+        \\iret
+        : // no outputs
+        : [keyboard_irq] "i" (irq.keyboard),
+    );
+}
+
+pub fn timerISR() callconv(.naked) void {
+    asm volatile (
+        \\push %[timer_irq]
+        \\call handleGenericPicIrq
+        \\iret
+        : // no outputs
+        : [timer_irq] "i" (irq.timer),
+    );
 }
