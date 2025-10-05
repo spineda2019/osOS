@@ -17,3 +17,38 @@
 pub const idt = @import("idt.zig");
 
 pub const pic = @import("pic.zig");
+
+pub const ReservedIntelException = enum(u32) {
+    divide_error = 0,
+    debug = 1,
+    nmi_interrupt = 2,
+    breakpoint = 3,
+    overflow = 4,
+    bound_range_exceeded = 5,
+    invalid_opcode = 6,
+    device_not_available = 7,
+    double_fault = 8,
+    coprocessor_segment_overrun = 9,
+    invalid_tss = 10,
+    segment_not_present = 11,
+    stack_segment_fault = 12,
+    general_protection = 13,
+    page_fault = 14,
+    _reserved_15 = 15,
+    floating_point_error = 16,
+    alignment_check = 17,
+    machine_check = 18,
+    simd_fp_exception = 19,
+    virtualization_exception = 20,
+    control_protection_exception = 21,
+    _reserved_22 = 22,
+    _reserved_23 = 23,
+    _reserved_24 = 24,
+    _reserved_25 = 25,
+    _reserved_26 = 26,
+    _reserved_27 = 27,
+    _reserved_28 = 28,
+    _reserved_29 = 29,
+    _reserved_30 = 30,
+    _reserved_31 = 31,
+};
