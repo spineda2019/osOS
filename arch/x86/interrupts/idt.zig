@@ -331,10 +331,10 @@ pub fn generateInterruptHandlers() InterruptHandlerTable {
 
     comptime {
         @setEvalBranchQuota(4096);
-        for (0..table.len) |interrupt_number| {
+        for (&table, 0..) |*entry, interrupt_number| {
             // .. range is not inclusive on the right
             const i: InterruptNumber = .init(interrupt_number);
-            table[interrupt_number] = generateHandler(i);
+            entry.* = generateHandler(i);
         }
     }
 
