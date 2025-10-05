@@ -174,10 +174,10 @@ pub const InterruptDescriptor = packed struct(u64) {
         /// 16 bit trap gate
         RealModeTrapGate = 0b0111,
 
-        /// 16 bit interrupt gate
+        /// 32 bit interrupt gate
         ProtectedModeInterruptGate = 0b1110,
 
-        /// 16 bit trap gate
+        /// 32 bit trap gate
         ProtectedModeTrapGate = 0b1111,
     };
 };
