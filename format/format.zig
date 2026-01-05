@@ -105,6 +105,11 @@ test StringFromInt {
                     .base = 10,
                     .expected_string = "255",
                 },
+                // .{
+                // .number = 15,
+                // .base = 16,
+                // .expected_string = "f",
+                // },
             },
         },
         // >= u16
@@ -163,11 +168,22 @@ test StringFromInt {
                     .number = test_instance.number, // type upcast occurs
                     .base = test_instance.base,
                 });
-                try std.testing.expect(std.mem.eql(
+                std.testing.expect(std.mem.eql(
                     u8,
                     test_instance.expected_string,
                     toTest.getStr(),
-                ));
+                )) catch |err| {
+                    std.debug.print(
+                        "Number {} of type {s} in base {} did not match expected string {s}\n",
+                        .{
+                            test_instance.number,
+                            @typeName(T),
+                            test_instance.base,
+                            test_instance.expected_string,
+                        },
+                    );
+                    return err;
+                };
             }
         }
     }
