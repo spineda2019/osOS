@@ -75,47 +75,112 @@ pub fn StringFromInt(comptime T: type) type {
 test StringFromInt {
     const std = @import("std");
 
-    // all
-    const zero_str = "0";
-    const one_str = "1";
-    const full_u8_str = "255";
-    // >= u16
-    const four_digit_str = "1234";
-    const five_digit_str = "12345";
-    // >= u32
-    const six_digit_str = "123456";
-    const seven_digit_str = "1234567";
-    const eight_digit_str = "12345678";
-    const nine_digit_str = "123456789";
-    const ten_digit_str = "1234567890";
+    const Test = struct {
+        pub fn Config(comptime T: type) type {
+            return struct {
+                number: T,
+                base: usize,
+                expected_string: []const u8,
+            };
+        }
+    };
+
+    const fit_in_u8: []const Test.Config(u8) = &.{
+        .{
+            .number = 0,
+            .base = 10,
+            .expected_string = "0",
+        },
+        .{
+            .number = 1,
+            .base = 10,
+            .expected_string = "1",
+        },
+        .{
+            .number = 255,
+            .base = 10,
+            .expected_string = "255",
+        },
+    };
 
     inline for ([4]type{ u8, u16, u32, usize }) |ty| {
-        const zero: StringFromInt(ty) = .init(.{ .number = 0, .base = 10 });
-        const one: StringFromInt(ty) = .init(.{ .number = 1, .base = 10 });
-        const full_u8: StringFromInt(ty) = .init(.{ .number = 255, .base = 10 });
-
-        try std.testing.expect(std.mem.eql(u8, zero_str, zero.getStr()));
-        try std.testing.expect(std.mem.eql(u8, one_str, one.getStr()));
-        try std.testing.expect(std.mem.eql(u8, full_u8_str, full_u8.getStr()));
+        for (fit_in_u8) |test_instance| {
+            const toTest: StringFromInt(ty) = .init(.{
+                .number = test_instance.number, // type upcast occurs
+                .base = test_instance.base,
+            });
+            try std.testing.expect(std.mem.eql(
+                u8,
+                test_instance.expected_string,
+                toTest.getStr(),
+            ));
+        }
     }
+
+    const fit_in_u16: []const Test.Config(u16) = &.{
+        .{
+            .number = 1234,
+            .base = 10,
+            .expected_string = "1234",
+        },
+        .{
+            .number = 12345,
+            .base = 10,
+            .expected_string = "12345",
+        },
+    };
     inline for ([3]type{ u16, u32, usize }) |ty| {
-        const four_digit: StringFromInt(ty) = .init(.{ .number = 1234, .base = 10 });
-        const five_digit: StringFromInt(ty) = .init(.{ .number = 12345, .base = 10 });
-
-        try std.testing.expect(std.mem.eql(u8, four_digit_str, four_digit.getStr()));
-        try std.testing.expect(std.mem.eql(u8, five_digit_str, five_digit.getStr()));
+        for (fit_in_u16) |test_instance| {
+            const toTest: StringFromInt(ty) = .init(.{
+                .number = test_instance.number,
+                .base = test_instance.base,
+            });
+            try std.testing.expect(std.mem.eql(
+                u8,
+                test_instance.expected_string,
+                toTest.getStr(),
+            ));
+        }
     }
-    inline for ([2]type{ u32, usize }) |ty| {
-        const six_digit: StringFromInt(ty) = .init(.{ .number = 123456, .base = 10 });
-        const seven_digit: StringFromInt(ty) = .init(.{ .number = 1234567, .base = 10 });
-        const eight_digit: StringFromInt(ty) = .init(.{ .number = 12345678, .base = 10 });
-        const nine_digit: StringFromInt(ty) = .init(.{ .number = 123456789, .base = 10 });
-        const ten_digit: StringFromInt(ty) = .init(.{ .number = 1234567890, .base = 10 });
 
-        try std.testing.expect(std.mem.eql(u8, six_digit_str, six_digit.getStr()));
-        try std.testing.expect(std.mem.eql(u8, seven_digit_str, seven_digit.getStr()));
-        try std.testing.expect(std.mem.eql(u8, eight_digit_str, eight_digit.getStr()));
-        try std.testing.expect(std.mem.eql(u8, nine_digit_str, nine_digit.getStr()));
-        try std.testing.expect(std.mem.eql(u8, ten_digit_str, ten_digit.getStr()));
+    const fit_in_u32: []const Test.Config(u32) = &.{
+        .{
+            .number = 123456,
+            .base = 10,
+            .expected_string = "123456",
+        },
+        .{
+            .number = 1234567,
+            .base = 10,
+            .expected_string = "1234567",
+        },
+        .{
+            .number = 12345678,
+            .base = 10,
+            .expected_string = "12345678",
+        },
+        .{
+            .number = 123456789,
+            .base = 10,
+            .expected_string = "123456789",
+        },
+        .{
+            .number = 1234567890,
+            .base = 10,
+            .expected_string = "1234567890",
+        },
+    };
+    inline for ([2]type{ u32, usize }) |ty| {
+        for (fit_in_u32) |test_instance| {
+            const toTest: StringFromInt(ty) = .init(.{
+                .number = test_instance.number,
+                .base = test_instance.base,
+            });
+            try std.testing.expect(std.mem.eql(
+                u8,
+                test_instance.expected_string,
+                toTest.getStr(),
+            ));
+        }
     }
 }
