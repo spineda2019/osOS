@@ -80,6 +80,12 @@ pub fn build(b: *std.Build) BuildError!void {
         .{ .@"with-x11" = true, .@"with-sdl" = true },
     );
 
+    const build_bochs: bool = b.option(
+        bool,
+        "build_bochs",
+        "Build bochs from source",
+    ) orelse false;
+
     //**************************************************************************
     //                               Module Setup                              *
     //**************************************************************************
@@ -348,7 +354,9 @@ pub fn build(b: *std.Build) BuildError!void {
 
     //* ******************************* Bochs ******************************** *
     const installbochs = b.addInstallArtifact(exebochs, .{});
-    b.getInstallStep().dependOn(&installbochs.step);
+    if (build_bochs) {
+        b.getInstallStep().dependOn(&installbochs.step);
+    }
 
     //**************************************************************************
     //                             Run Step Setup                              *
