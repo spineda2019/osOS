@@ -31,6 +31,9 @@ export const multiboot_header linksection(".text.multiboot") = switch (bootoptio
     else => |e| @compileError("(Currently) Unsupported boot specification for x86: " ++ @tagName(e)),
 };
 
+const PanicNamespace = @import("std").debug.FullPanic;
+pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
+
 /// Entry point of our kernel. Will only setup our stack and jump to setup.
 export fn boot() linksection(".text") callconv(.naked) noreturn {
     asm volatile (

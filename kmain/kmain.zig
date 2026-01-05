@@ -22,6 +22,7 @@ const builtin = @import("builtin");
 const process = @import("osprocess");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
+const testoptions = @import("testoptions");
 
 fn delay() void {
     for (0..8192) |_| {
@@ -53,6 +54,12 @@ pub fn kmain(
     arch_agnostic_hal.terminal.writeLine("Testing writeLine...");
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line!");
     arch_agnostic_hal.terminal.writeLine("Hi there from a new line again!");
+
+    if (testoptions.test_panic) {
+        arch_agnostic_hal.terminal.writeLine("Testing Panic");
+        delay();
+        @panic("Testing Panic");
+    }
 
     if (builtin.target.cpu.arch == .riscv32) {
         arch_agnostic_hal.terminal.writeLine(

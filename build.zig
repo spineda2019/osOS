@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) BuildError!void {
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
+    const optimize = b.standardOptimizeOption(.{});
     const kernel_name = "osOS.elf";
     const target_arch: SupportedTarget = b.option(
         SupportedTarget,
@@ -67,13 +68,20 @@ pub fn build(b: *std.Build) BuildError!void {
         "boot_specification",
         "Boot specification to boot the kernel with",
     ) orelse BootSpecification.MultibootOne;
-
     const boot_options = b.addOptions();
     boot_options.addOption(
         BootSpecification,
         "boot_specification",
         boot_specification,
     );
+
+    const test_panic: bool = b.option(
+        bool,
+        "test_panic",
+        "Test the panic handler in kmain",
+    ) orelse false;
+    const test_options = b.addOptions();
+    test_options.addOption(bool, "test_panic", test_panic);
 
     const depbochs = b.dependency(
         "bochs_zig",
@@ -133,7 +141,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/entry.zig"),
         .target = riscv32_target,
-        .optimize = .ReleaseSmall,
+        .optimize = optimize,
         .strip = false,
     });
     riscv32_module.addImport("riscv32tty", riscv32_tty_module);
@@ -175,7 +183,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),
         .target = x86_target,
-        .optimize = .ReleaseSmall,
+        .optimize = optimize,
         .strip = false,
     });
     x86_module.addImport("osprocess", osprocess_module);
@@ -202,6 +210,7 @@ pub fn build(b: *std.Build) BuildError!void {
     kmain_module.addImport("osstdlib", osstdlib_module);
     kmain_module.addImport("osprocess", osprocess_module);
     kmain_module.addImport("osformat", osformat_module);
+    kmain_module.addOptions("testoptions", test_options);
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);

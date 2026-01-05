@@ -84,8 +84,8 @@ pub const FrameBuffer: type = struct {
     /// a given cell, but this will likely be faster.
     buffer: [25][80]u8,
 
-    comptime letter_color: FrameBufferCellColor = .LightBrown,
-    comptime background_color: FrameBufferCellColor = .DarkGray,
+    letter_color: FrameBufferCellColor,
+    background_color: FrameBufferCellColor,
 
     /// calculate the address to write in terms of an x,y coordinate.
     ///
@@ -237,8 +237,8 @@ pub const FrameBuffer: type = struct {
         row: u8,
         column: u8,
         character: u8,
-        comptime cell_color: FrameBufferCellColor,
-        comptime letter_color: FrameBufferCellColor,
+        cell_color: FrameBufferCellColor,
+        letter_color: FrameBufferCellColor,
     ) void {
         if (row >= 25 or column >= 80) {
             return; // out of window
@@ -250,7 +250,7 @@ pub const FrameBuffer: type = struct {
         const address_int: u32 = calculatedAddress(row, column);
         const ascii_address: *volatile u8 = @ptrFromInt(address_int);
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
-        metadata_address.* = comptime (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
+        metadata_address.* = (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
         ascii_address.* = character;
     }
 

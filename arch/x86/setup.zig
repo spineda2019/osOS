@@ -23,6 +23,24 @@ const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 
+pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
+    @branchHint(.cold);
+    as.assembly_wrappers.disable_x86_interrupts();
+    var framebuffer: framebuffer_api.FrameBuffer = .init(.Black, .White);
+    framebuffer.clear();
+    _ = start_address;
+    framebuffer.write("Kernel Panic! Message: ");
+    framebuffer.writeLine(msg);
+    // subtract to get the previous address, i.e. the caller of panic
+    const call_instruction_size = comptime 5;
+    const return_addr = @returnAddress() - call_instruction_size;
+    const return_addr_str: osformat.format.StringFromInt(usize) = .init(return_addr);
+    framebuffer.writeLine(return_addr_str.getStr());
+    while (true) {
+        asm volatile ("");
+    }
+}
+
 /// Hardware setup; jumped to from the boot routine
 pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
