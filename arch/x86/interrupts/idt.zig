@@ -386,7 +386,10 @@ fn generateHandler(
 
     comptime {
         const handler_number: u32 = interrupt_number.get();
-        const handler_number_as_string: osformat.format.StringFromInt(u32) = .init(handler_number);
+        const handler_number_as_string: osformat.format.StringFromInt(u32) = .init(.{
+            .number = handler_number,
+            .base = 10,
+        });
         const exported_name: []const u8 = "interrupt_handler_" ++ handler_number_as_string.getStr();
         @export(fn_pointer, .{ .name = exported_name });
     }

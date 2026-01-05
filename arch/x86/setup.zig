@@ -34,7 +34,11 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
-    const return_addr_str: osformat.format.StringFromInt(usize) = .init(return_addr);
+    const return_addr_str: osformat.format.StringFromInt(usize) = .init(.{
+        .number = return_addr,
+        .base = 10,
+    });
+    framebuffer.write("Suspected caller address: 0x");
     framebuffer.writeLine(return_addr_str.getStr());
     while (true) {
         asm volatile ("");

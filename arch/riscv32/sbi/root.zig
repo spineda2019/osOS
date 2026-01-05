@@ -77,8 +77,7 @@ fn sbi(
           [arg5] "{a5}" (arg5),
           [arg6] "{a6}" (@intFromEnum(fid)),
           [arg7] "{a7}" (@intFromEnum(eid)),
-        : .{ .memory = true }
-    );
+        : .{ .memory = true });
 
     return .{ .err = err, .value = value };
 }
@@ -102,8 +101,8 @@ pub fn getSpecVersion() SbiVersion {
         const low_twenty_four_mask: u32 = 0b0000_0000_1111_1111_1111_1111_1111_1111;
         const low_twenty_four: u32 = sbi_result.value & low_twenty_four_mask;
         return .{
-            .major = .init(high_seven),
-            .minor = .init(low_twenty_four),
+            .major = .init(.{ .number = high_seven, .base = 10 }),
+            .minor = .init(.{ .number = low_twenty_four, .base = 10 }),
         };
     }
 }

@@ -80,12 +80,16 @@ pub inline fn panic(comptime source_info: FreeStandingSourceInfo) noreturn {
     terminal.write("Function: ");
     terminal.writeLine(source_info.fn_name);
 
-    const line_num: osformat.format.StringFromInt(@TypeOf(source_info.line)) = comptime .init(source_info.line);
+    const line_num: osformat.format.StringFromInt(@TypeOf(source_info.line)) = comptime .init(
+        .{ .number = source_info.line, .base = 10 },
+    );
 
     terminal.write("Line: ");
     terminal.writeLine(comptime line_num.getStr());
 
-    const column_num: osformat.format.StringFromInt(@TypeOf(source_info.column)) = comptime .init(source_info.column);
+    const column_num: osformat.format.StringFromInt(@TypeOf(source_info.column)) = comptime .init(
+        .{ .number = source_info.column, .base = 10 },
+    );
     terminal.write("Column: ");
     terminal.writeLine(comptime column_num.getStr());
 

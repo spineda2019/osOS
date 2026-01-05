@@ -14,6 +14,13 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! format.zig - Architecture agnostic API for numeric formatting
 
+pub fn NumberFormatInfo(comptime T: type) type {
+    return struct {
+        number: T,
+        base: usize,
+    };
+}
+
 /// Special type describing a string specifically serialized from an integer of
 /// an arbitrary size.
 pub fn StringFromInt(comptime T: type) type {
@@ -38,11 +45,11 @@ pub fn StringFromInt(comptime T: type) type {
 
         const Self: type = @This();
 
-        pub fn init(number: T) Self {
+        pub fn init(number_info: NumberFormatInfo(T)) Self {
             // 48 is '0' in ascii
             var buffer: [array_size]u8 = .{48} ** array_size;
             var ptr: usize = array_size;
-            var remainder: T = number;
+            var remainder: T = number_info.number;
 
             while (remainder > 0 and ptr > 0) {
                 ptr -= 1;
@@ -83,27 +90,27 @@ test StringFromInt {
     const ten_digit_str = "1234567890";
 
     inline for ([4]type{ u8, u16, u32, usize }) |ty| {
-        const zero: StringFromInt(ty) = .init(0);
-        const one: StringFromInt(ty) = .init(1);
-        const full_u8: StringFromInt(ty) = .init(255);
+        const zero: StringFromInt(ty) = .init(.{ .number = 0, .base = 10 });
+        const one: StringFromInt(ty) = .init(.{ .number = 1, .base = 10 });
+        const full_u8: StringFromInt(ty) = .init(.{ .number = 255, .base = 10 });
 
         try std.testing.expect(std.mem.eql(u8, zero_str, zero.getStr()));
         try std.testing.expect(std.mem.eql(u8, one_str, one.getStr()));
         try std.testing.expect(std.mem.eql(u8, full_u8_str, full_u8.getStr()));
     }
     inline for ([3]type{ u16, u32, usize }) |ty| {
-        const four_digit: StringFromInt(ty) = .init(1234);
-        const five_digit: StringFromInt(ty) = .init(12345);
+        const four_digit: StringFromInt(ty) = .init(.{ .number = 1234, .base = 10 });
+        const five_digit: StringFromInt(ty) = .init(.{ .number = 12345, .base = 10 });
 
         try std.testing.expect(std.mem.eql(u8, four_digit_str, four_digit.getStr()));
         try std.testing.expect(std.mem.eql(u8, five_digit_str, five_digit.getStr()));
     }
     inline for ([2]type{ u32, usize }) |ty| {
-        const six_digit: StringFromInt(ty) = .init(123456);
-        const seven_digit: StringFromInt(ty) = .init(1234567);
-        const eight_digit: StringFromInt(ty) = .init(12345678);
-        const nine_digit: StringFromInt(ty) = .init(123456789);
-        const ten_digit: StringFromInt(ty) = .init(1234567890);
+        const six_digit: StringFromInt(ty) = .init(.{ .number = 123456, .base = 10 });
+        const seven_digit: StringFromInt(ty) = .init(.{ .number = 1234567, .base = 10 });
+        const eight_digit: StringFromInt(ty) = .init(.{ .number = 12345678, .base = 10 });
+        const nine_digit: StringFromInt(ty) = .init(.{ .number = 123456789, .base = 10 });
+        const ten_digit: StringFromInt(ty) = .init(.{ .number = 1234567890, .base = 10 });
 
         try std.testing.expect(std.mem.eql(u8, six_digit_str, six_digit.getStr()));
         try std.testing.expect(std.mem.eql(u8, seven_digit_str, seven_digit.getStr()));

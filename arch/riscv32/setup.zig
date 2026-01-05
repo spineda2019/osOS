@@ -37,11 +37,17 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
     terminal.writeSplashLogo();
 
     terminal.write("Hart ID: ");
-    const hart_id_string: osformat.format.StringFromInt(u32) = .init(hart_id);
+    const hart_id_string: osformat.format.StringFromInt(u32) = .init(.{
+        .number = hart_id,
+        .base = 10,
+    });
     terminal.writeLine(hart_id_string.getStr());
 
-    terminal.write("DTB Address: ");
-    const dtb_address_string: osformat.format.StringFromInt(u32) = .init(dtb_address);
+    terminal.write("DTB Address: 0x");
+    const dtb_address_string: osformat.format.StringFromInt(u32) = .init(.{
+        .number = dtb_address,
+        .base = 16,
+    });
     terminal.writeLine(dtb_address_string.getStr());
 
     const sbi_spec_version = sbi.getSpecVersion();
