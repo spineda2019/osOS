@@ -21,6 +21,13 @@ pub fn NumberFormatInfo(comptime T: type) type {
     };
 }
 
+/// Calculates the maximum needed buffer size to represent a number of a given
+/// bit width for a given base.
+pub fn numberBufSize(comptime bit_width: comptime_int, base: usize) comptime_int {
+    _ = base;
+    return @floor(bit_width * 0.30103) + 1;
+}
+
 /// Special type describing a string specifically serialized from an integer of
 /// an arbitrary size.
 pub fn StringFromInt(comptime T: type) type {
@@ -32,11 +39,10 @@ pub fn StringFromInt(comptime T: type) type {
     }
 
     const array_size: comptime_int = comptime blk: {
-        const bit_width: comptime_int = switch (T) {
+        break :blk numberBufSize(switch (T) {
             comptime_int => 64, // TODO: allow bigger comptime nums
             else => @bitSizeOf(T),
-        };
-        break :blk @floor(bit_width * 0.30103) + 1;
+        }, 10);
     };
 
     return struct {
@@ -70,6 +76,43 @@ pub fn StringFromInt(comptime T: type) type {
             return self.array[self.sentinel..];
         }
     };
+}
+
+test numberBufSize {
+    const expect = @import("std").testing.expect;
+    const print = @import("std").debug.print;
+
+    const Test = struct {
+        T: type,
+        base: usize,
+        expected_buffer_size: usize,
+    };
+
+    const tests = comptime [4]Test{
+        .{ .T = u8, .base = 10, .expected_buffer_size = 3 },
+        .{ .T = u16, .base = 10, .expected_buffer_size = 5 },
+        .{ .T = u32, .base = 10, .expected_buffer_size = 10 },
+        .{ .T = u64, .base = 10, .expected_buffer_size = 20 },
+    };
+
+    inline for (tests) |test_instance| {
+        const bit_width = @bitSizeOf(test_instance.T);
+        const calculated_bufsize = numberBufSize(bit_width, test_instance.base);
+        expect(calculated_bufsize == test_instance.expected_buffer_size) catch |err| {
+            //
+            const type_name = @typeName(test_instance.T);
+            print(
+                "Expected max bufsize of {} for type {s} of base {}, got {}\n",
+                .{
+                    test_instance.expected_buffer_size,
+                    type_name,
+                    test_instance.base,
+                    calculated_bufsize,
+                },
+            );
+            return err;
+        };
+    }
 }
 
 test StringFromInt {
