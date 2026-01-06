@@ -24,6 +24,7 @@ jobs:
     - uses: mlugg/setup-zig@v2
       with:
         version: master
+        use-cache: false
     - name: Build Kernel
       run: zig build --summary all
     - name: Upload Built Docs
