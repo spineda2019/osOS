@@ -69,10 +69,7 @@ pub fn kmain(
     }
 
     const col_width: u32 = 80;
-    const col_width_str: osformat.format.StringFromInt(u32) = .init(.{
-        .number = col_width,
-        .base = 10,
-    });
+    const col_width_str: osformat.format.StringFromInt(u32, 10) = .init(col_width);
     arch_agnostic_hal.terminal.write("Terminal Column Width: ");
     arch_agnostic_hal.terminal.writeLine(col_width_str.getStr());
 

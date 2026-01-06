@@ -28,18 +28,21 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     var framebuffer: framebuffer_api.FrameBuffer = .init(.Black, .White);
     framebuffer.clear();
-    _ = start_address;
     framebuffer.write("Kernel Panic! Message: ");
     framebuffer.writeLine(msg);
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
-    const return_addr_str: osformat.format.StringFromInt(usize) = .init(.{
-        .number = return_addr,
-        .base = 10,
-    });
+    const return_addr_str: osformat.format.StringFromInt(usize, 16) = .init(return_addr);
     framebuffer.write("Suspected caller address: 0x");
     framebuffer.writeLine(return_addr_str.getStr());
+
+    if (start_address) |addr| {
+        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(addr);
+        framebuffer.write("Reported start address: 0x");
+        framebuffer.writeLine(start_addr_str.getStr());
+    }
+
     while (true) {
         asm volatile ("");
     }

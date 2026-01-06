@@ -330,7 +330,7 @@ pub fn generateInterruptHandlers() InterruptHandlerTable {
     var table: [256]InterruptHandlerFnPtr = undefined;
 
     comptime {
-        @setEvalBranchQuota(4096);
+        @setEvalBranchQuota(16_384);
         for (&table, 0..) |*entry, interrupt_number| {
             // .. range is not inclusive on the right
             const i: InterruptNumber = .init(interrupt_number);
@@ -386,10 +386,10 @@ fn generateHandler(
 
     comptime {
         const handler_number: u32 = interrupt_number.get();
-        const handler_number_as_string: osformat.format.StringFromInt(u32) = .init(.{
-            .number = handler_number,
-            .base = 10,
-        });
+        const handler_number_as_string: osformat.format.StringFromInt(
+            u32,
+            10,
+        ) = .init(handler_number);
         const exported_name: []const u8 = "interrupt_handler_" ++ handler_number_as_string.getStr();
         @export(fn_pointer, .{ .name = exported_name });
     }

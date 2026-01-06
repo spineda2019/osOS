@@ -154,10 +154,7 @@ fn sendAcknowledgement(interrupt_request: u8) void {
 
 fn handleKeyboardIRQ() void {
     const scan_code: u8 = as.assembly_wrappers.x86_inb(0x60);
-    const scan_code_str: osformat.format.StringFromInt(u8) = .init(.{
-        .number = scan_code,
-        .base = 10,
-    });
+    const scan_code_str: osformat.format.StringFromInt(u8, 10) = .init(scan_code);
     framebuffer_handle.write("Keyboard input detected. Scancode: ");
     framebuffer_handle.writeLine(scan_code_str.getStr());
 }

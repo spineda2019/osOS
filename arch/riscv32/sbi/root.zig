@@ -83,8 +83,8 @@ fn sbi(
 }
 
 pub const SbiVersion = struct {
-    major: osformat.format.StringFromInt(u8),
-    minor: osformat.format.StringFromInt(u32),
+    major: osformat.format.StringFromInt(u8, 10),
+    minor: osformat.format.StringFromInt(u32, 10),
 };
 
 /// Per the SBI specification, this must always succeed
@@ -101,8 +101,8 @@ pub fn getSpecVersion() SbiVersion {
         const low_twenty_four_mask: u32 = 0b0000_0000_1111_1111_1111_1111_1111_1111;
         const low_twenty_four: u32 = sbi_result.value & low_twenty_four_mask;
         return .{
-            .major = .init(.{ .number = high_seven, .base = 10 }),
-            .minor = .init(.{ .number = low_twenty_four, .base = 10 }),
+            .major = .init(high_seven),
+            .minor = .init(low_twenty_four),
         };
     }
 }
