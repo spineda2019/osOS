@@ -23,14 +23,33 @@ pub fn NumberFormatInfo(comptime T: type) type {
 
 /// Calculates the maximum needed buffer size to represent a number of a given
 /// bit width for a given base.
-pub fn numberBufSize(comptime bit_width: comptime_int, base: usize) comptime_int {
-    _ = base;
-    return @floor(bit_width * 0.30103) + 1;
+pub fn numberBufSize(comptime bit_width: u8, base: usize) comptime_int {
+    const math = @import("std").math;
+    @setEvalBranchQuota(2000);
+
+    const log_arg: comptime_int = comptime pow: {
+        // pow is not implemented for comptime_int for some reason
+        // so I don't have an elegant way to get 2^bits
+        if (base == 0) {
+            @branchHint(.cold);
+            break :pow 1;
+        }
+
+        var accumulate: comptime_int = 2;
+        var idx: comptime_int = 1;
+        while (idx < bit_width) : (idx += 1) {
+            accumulate *= 2;
+        }
+
+        break :pow accumulate;
+    } - 1;
+    const log: comptime_float = math.log(comptime_float, base, log_arg);
+    return @floor(log) + 1;
 }
 
 /// Special type describing a string specifically serialized from an integer of
 /// an arbitrary size.
-pub fn StringFromInt(comptime T: type) type {
+pub fn StringFromInt(comptime T: type, comptime base: comptime_int) type {
     comptime {
         if (@typeInfo(T) != .int and type != comptime_int) {
             const err = "Expected an integer type, found: " ++ @typeName(T);
@@ -41,7 +60,11 @@ pub fn StringFromInt(comptime T: type) type {
     const array_size: comptime_int = comptime numberBufSize(switch (T) {
         comptime_int => 64, // TODO: allow bigger comptime nums
         else => @bitSizeOf(T),
-    }, 10);
+    }, base);
+
+    comptime if (base > 16) {
+        @compileError("TODO: Properly support bases > 16");
+    };
 
     return struct {
         array: [array_size]u8,
@@ -49,19 +72,31 @@ pub fn StringFromInt(comptime T: type) type {
 
         const Self: type = @This();
 
-        pub fn init(number_info: NumberFormatInfo(T)) Self {
+        pub fn init(number: T) Self {
             // 48 is '0' in ascii
             var buffer: [array_size]u8 = .{48} ** array_size;
             var ptr: usize = array_size;
-            var remainder: T = number_info.number;
+            var remainder: T = number;
 
             while (remainder > 0 and ptr > 0) {
                 ptr -= 1;
 
                 // int cast to u8 should be safe. Modulo will be 9 max.
-                const digit: u8 = @intCast(remainder % 10);
-                buffer[ptr] = digit + 48;
-                remainder /= 10;
+                const digit: u8 = @intCast(remainder % base);
+                const ascii = digit + 48;
+                buffer[ptr] = switch (base > 10) {
+                    false => ascii,
+                    else => switch (ascii) {
+                        58 => 'a',
+                        59 => 'b',
+                        60 => 'c',
+                        61 => 'd',
+                        62 => 'e',
+                        63 => 'f',
+                        else => ascii,
+                    },
+                };
+                remainder /= base;
             }
 
             return .{ .array = buffer, .sentinel = switch (ptr) {
@@ -86,8 +121,10 @@ test numberBufSize {
         expected_buffer_size: usize,
     };
 
-    const tests = comptime [4]Test{
+    const tests = comptime [6]Test{
         .{ .T = u8, .base = 10, .expected_buffer_size = 3 },
+        .{ .T = u8, .base = 16, .expected_buffer_size = 2 },
+        .{ .T = u8, .base = 2, .expected_buffer_size = 8 },
         .{ .T = u16, .base = 10, .expected_buffer_size = 5 },
         .{ .T = u32, .base = 10, .expected_buffer_size = 10 },
         .{ .T = u64, .base = 10, .expected_buffer_size = 20 },
@@ -130,7 +167,7 @@ test StringFromInt {
         // >= u8
         .{
             [4]type{ u8, u16, u32, usize },
-            [3]Test.Config(u8){
+            [_]Test.Config(u8){
                 .{
                     .number = 0,
                     .base = 10,
@@ -146,11 +183,21 @@ test StringFromInt {
                     .base = 10,
                     .expected_string = "255",
                 },
-                // .{
-                // .number = 15,
-                // .base = 16,
-                // .expected_string = "f",
-                // },
+                .{
+                    .number = 16,
+                    .base = 16,
+                    .expected_string = "10",
+                },
+                .{
+                    .number = 15,
+                    .base = 16,
+                    .expected_string = "f",
+                },
+                .{
+                    .number = 255,
+                    .base = 16,
+                    .expected_string = "ff",
+                },
             },
         },
         // >= u16
@@ -205,22 +252,22 @@ test StringFromInt {
     inline for (tests) |test_config| {
         inline for (test_config.@"0") |T| {
             inline for (test_config.@"1") |test_instance| {
-                const toTest: StringFromInt(T) = .init(.{
-                    .number = test_instance.number, // type upcast occurs
-                    .base = test_instance.base,
-                });
+                const toTest: StringFromInt(T, test_instance.base) = .init(
+                    test_instance.number, // type upcast occurs
+                );
                 std.testing.expect(std.mem.eql(
                     u8,
                     test_instance.expected_string,
                     toTest.getStr(),
                 )) catch |err| {
                     std.debug.print(
-                        "Number {} of type {s} in base {} did not match expected string {s}\n",
+                        "Number {} of type {s} in base {} did not match expected string {s}. Was {s}\n",
                         .{
                             test_instance.number,
                             @typeName(T),
                             test_instance.base,
                             test_instance.expected_string,
+                            toTest.getStr(),
                         },
                     );
                     return err;
