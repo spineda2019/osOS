@@ -25,7 +25,7 @@ pub fn NumberFormatInfo(comptime T: type) type {
 /// bit width for a given base.
 pub fn numberBufSize(comptime bit_width: u8, base: usize) comptime_int {
     const math = @import("std").math;
-    @setEvalBranchQuota(2000);
+    @setEvalBranchQuota(2750);
 
     const log_arg: comptime_int = comptime pow: {
         // pow is not implemented for comptime_int for some reason
@@ -168,83 +168,38 @@ test StringFromInt {
         .{
             [4]type{ u8, u16, u32, usize },
             [_]Test.Config(u8){
-                .{
-                    .number = 0,
-                    .base = 10,
-                    .expected_string = "0",
-                },
-                .{
-                    .number = 1,
-                    .base = 10,
-                    .expected_string = "1",
-                },
-                .{
-                    .number = 255,
-                    .base = 10,
-                    .expected_string = "255",
-                },
-                .{
-                    .number = 16,
-                    .base = 16,
-                    .expected_string = "10",
-                },
-                .{
-                    .number = 15,
-                    .base = 16,
-                    .expected_string = "f",
-                },
-                .{
-                    .number = 255,
-                    .base = 16,
-                    .expected_string = "ff",
-                },
+                .{ .number = 0, .base = 10, .expected_string = "0" },
+                .{ .number = 1, .base = 10, .expected_string = "1" },
+                .{ .number = 255, .base = 10, .expected_string = "255" },
+                .{ .number = 16, .base = 16, .expected_string = "10" },
+                .{ .number = 15, .base = 16, .expected_string = "f" },
+                .{ .number = 255, .base = 16, .expected_string = "ff" },
+                .{ .number = 0, .base = 2, .expected_string = "0" },
+                .{ .number = 1, .base = 2, .expected_string = "1" },
+                .{ .number = 2, .base = 2, .expected_string = "10" },
+                .{ .number = 3, .base = 2, .expected_string = "11" },
+                .{ .number = 4, .base = 2, .expected_string = "100" },
+                .{ .number = 255, .base = 2, .expected_string = "11111111" },
             },
         },
         // >= u16
         .{
             [3]type{ u16, u32, usize },
-            [2]Test.Config(u16){
-                .{
-                    .number = 1234,
-                    .base = 10,
-                    .expected_string = "1234",
-                },
-                .{
-                    .number = 12345,
-                    .base = 10,
-                    .expected_string = "12345",
-                },
+            [_]Test.Config(u16){
+                .{ .number = 1234, .base = 10, .expected_string = "1234" },
+                .{ .number = 12345, .base = 10, .expected_string = "12345" },
+                .{ .number = 256, .base = 2, .expected_string = "100000000" },
             },
         },
         // >= u32
         .{
             [2]type{ u32, usize },
-            [5]Test.Config(u32){
-                .{
-                    .number = 123456,
-                    .base = 10,
-                    .expected_string = "123456",
-                },
-                .{
-                    .number = 1234567,
-                    .base = 10,
-                    .expected_string = "1234567",
-                },
-                .{
-                    .number = 12345678,
-                    .base = 10,
-                    .expected_string = "12345678",
-                },
-                .{
-                    .number = 123456789,
-                    .base = 10,
-                    .expected_string = "123456789",
-                },
-                .{
-                    .number = 1234567890,
-                    .base = 10,
-                    .expected_string = "1234567890",
-                },
+            [_]Test.Config(u32){
+                .{ .number = 123456, .base = 10, .expected_string = "123456" },
+                .{ .number = 1234567, .base = 10, .expected_string = "1234567" },
+                .{ .number = 12345678, .base = 10, .expected_string = "12345678" },
+                .{ .number = 123456789, .base = 10, .expected_string = "123456789" },
+                .{ .number = 1234567890, .base = 10, .expected_string = "1234567890" },
             },
         },
     };
