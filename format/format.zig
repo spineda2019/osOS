@@ -38,12 +38,10 @@ pub fn StringFromInt(comptime T: type) type {
         }
     }
 
-    const array_size: comptime_int = comptime blk: {
-        break :blk numberBufSize(switch (T) {
-            comptime_int => 64, // TODO: allow bigger comptime nums
-            else => @bitSizeOf(T),
-        }, 10);
-    };
+    const array_size: comptime_int = comptime numberBufSize(switch (T) {
+        comptime_int => 64, // TODO: allow bigger comptime nums
+        else => @bitSizeOf(T),
+    }, 10);
 
     return struct {
         array: [array_size]u8,
