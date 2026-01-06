@@ -83,7 +83,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", test_panic);
 
-    const depbochs = b.dependency(
+    const depbochs = b.lazyDependency(
         "bochs_zig",
         .{ .@"with-x11" = true, .@"with-sdl" = true },
     );
@@ -128,7 +128,15 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("userland/stdlib/root.zig"),
     });
 
-    const modbochs = depbochs.module("bochs");
+    const modbochs = bochs: {
+        if (!build_bochs) {
+            break :bochs null;
+        } else if (depbochs) |dep| {
+            break :bochs dep.module("bochs");
+        } else {
+            break :bochs null;
+        }
+    };
 
     //* *************************** RISC Specific **************************** *
     const riscv32_asm_module = b.createModule(.{
@@ -240,10 +248,16 @@ pub fn build(b: *std.Build) BuildError!void {
     x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
 
     //* ******************************* Bochs ******************************** *
-    const exebochs = b.addExecutable(.{
-        .name = "bochs",
-        .root_module = modbochs,
-    });
+    const exebochs = bochs_exe: {
+        if (modbochs) |mod| {
+            break :bochs_exe b.addExecutable(.{
+                .name = "bochs",
+                .root_module = mod,
+            });
+        } else {
+            break :bochs_exe null;
+        }
+    };
 
     //**************************************************************************
     //                          Install Artifact Setup                         *
@@ -362,9 +376,17 @@ pub fn build(b: *std.Build) BuildError!void {
     b.getInstallStep().dependOn(doc_page_step);
 
     //* ******************************* Bochs ******************************** *
-    const installbochs = b.addInstallArtifact(exebochs, .{});
+    const installbochs = install_bochs: {
+        if (exebochs) |exe| {
+            break :install_bochs b.addInstallArtifact(exe, .{});
+        } else {
+            break :install_bochs null;
+        }
+    };
     if (build_bochs) {
-        b.getInstallStep().dependOn(&installbochs.step);
+        if (installbochs) |install_bochs| {
+            b.getInstallStep().dependOn(&install_bochs.step);
+        }
     }
 
     //**************************************************************************
