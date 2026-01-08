@@ -311,7 +311,7 @@ pub const FrameBuffer: type = struct {
         self.current_row = row;
         self.current_column = column;
 
-        const position: u16 = (row * 80) + (column);
+        const position: u16 = (@as(u16, row) * 80) + @as(u16, column);
         const low_byte: u8 = @truncate(position & 0b0000_0000_1111_1111);
         const high_byte: u8 = @truncate((position >> 8) & 0b0000_0000_1111_1111);
         as.assembly_wrappers.x86_out(command_port_address, low_byte_command);
