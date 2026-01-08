@@ -38,7 +38,9 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     framebuffer.writeLine(return_addr_str.getStr());
 
     if (start_address) |addr| {
-        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(addr);
+        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
+            addr - call_instruction_size,
+        );
         framebuffer.write("Reported start address: 0x");
         framebuffer.writeLine(start_addr_str.getStr());
     }
