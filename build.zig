@@ -48,7 +48,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const kernel_name = "osOS.elf";
     const target_arch: SupportedTarget = b.option(
         SupportedTarget,
-        "target_arch",
+        "arch",
         "Target Architecture",
     ) orelse .x86;
 

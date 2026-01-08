@@ -22,6 +22,9 @@ const setup: *const fn (u32, u32) callconv(.c) noreturn = &@import("setup.zig").
 /// Address to the top of the kernel stack
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
 
+const PanicNamespace = @import("std").debug.FullPanic;
+pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
+
 /// The entry point of our kernel. This is defined as the entry point of the
 /// executable in the linker script. It's only job is to set up the stack
 /// and jump to setup, which will do hardware initialization.
