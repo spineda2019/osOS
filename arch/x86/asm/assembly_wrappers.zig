@@ -32,8 +32,7 @@ pub inline fn x86_out(port_address: u16, data: u8) void {
         : // no outputs
         : [port_address] "{dx}" (port_address),
           [data] "{al}" (data),
-        : .{ .memory = true }
-    );
+        : .{ .memory = true });
 }
 
 /// Zig wrapper for the x86 "in" instruction

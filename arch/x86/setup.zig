@@ -67,9 +67,7 @@ pub fn setup() noreturn {
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
         for (0..32768) |_| {
-            asm volatile (
-                \\nop
-            );
+            asm volatile ("");
         }
     }
     framebuffer.clear();
@@ -92,7 +90,7 @@ pub fn setup() noreturn {
     as.assembly_wrappers.enable_x86_interrupts();
 
     const hal_layout: oshal.HalLayout = comptime .{
-        .assembly_wrappers = as,
+        .assembly_wrappers = as.assembly_wrappers,
         .Terminal = framebuffer_api.FrameBuffer,
     };
     kmain.kmain(
