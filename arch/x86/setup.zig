@@ -92,9 +92,13 @@ pub fn setup() noreturn {
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = as.assembly_wrappers,
         .Terminal = framebuffer_api.FrameBuffer,
+        .SerialPortIo = serial.SerialPort,
     };
     kmain.kmain(
         hal_layout,
-        oshal.HAL(hal_layout){ .terminal = &framebuffer },
+        oshal.HAL(hal_layout){
+            .terminal = &framebuffer,
+            .serial_io = &serial_port,
+        },
     );
 }

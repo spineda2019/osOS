@@ -24,16 +24,6 @@ const osformat = @import("osformat");
 const oshal = @import("oshal");
 const testoptions = @import("testoptions");
 
-fn delay() void {
-    for (0..8192) |_| {
-        for (0..8192) |_| {
-            asm volatile (
-                \\nop
-            );
-        }
-    }
-}
-
 pub fn kmain(
     comptime layout: oshal.HalLayout,
     arch_agnostic_hal: oshal.HAL(layout),
@@ -41,11 +31,11 @@ pub fn kmain(
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
 
     for (0..12) |_| {
-        delay();
+        arch_agnostic_hal.serial_io.delay(200_000);
         arch_agnostic_hal.terminal.write("Foo " ** 20);
-        delay();
+        arch_agnostic_hal.serial_io.delay(200_000);
         arch_agnostic_hal.terminal.write("Bar " ** 20);
-        delay();
+        arch_agnostic_hal.serial_io.delay(200_000);
         arch_agnostic_hal.terminal.write("Baz " ** 20);
     }
 
@@ -57,7 +47,7 @@ pub fn kmain(
 
     if (testoptions.test_panic) {
         arch_agnostic_hal.terminal.writeLine("Testing Panic");
-        delay();
+        arch_agnostic_hal.serial_io.delay(200_000);
         @panic("Testing Panic");
     }
 

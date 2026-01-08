@@ -20,11 +20,17 @@ pub const HalLayout = struct {
     /// Provides low level services such as putting characters on the screen
     /// and scrolling
     Terminal: type,
+
+    /// Provides means to do basic IO, whether via direct instrucions (like
+    /// 'out' on x86, or other means)
+    SerialPortIo: type,
 };
 
 pub fn HAL(comptime layout: HalLayout) type {
     return struct {
         comptime assembly_wrappers: type = layout.assembly_wrappers,
+
+        serial_io: *layout.SerialPortIo,
 
         /// Must be implemented. Pointer to an architecture's implemetation
         /// of a terminal for reading and writing

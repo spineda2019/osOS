@@ -4,6 +4,9 @@ const riscv32asm = @import("riscv32asm");
 const sbi = @import("sbi/root.zig");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
+const kmain = @import("kmain");
+const riscv32hal = @import("hal/hal.zig");
+const serial = @import("serial/serial.zig");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -16,9 +19,6 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 
 /// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
-
-const kmain = @import("kmain");
-const riscv32hal = @import("hal/hal.zig");
 
 pub fn handlePanic(message: []const u8, start_address: ?usize) noreturn {
     // TODO: Disable interrupts (once I have them working)
@@ -83,10 +83,16 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
     terminal.write("SBI Implementation: ");
     terminal.writeLine(sbi_impl);
 
+    var serial_stub: serial.SerialPort = .{};
+
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = riscv32asm.assembly_wrappers,
         .Terminal = tty.Terminal,
+        .SerialPortIo = serial.SerialPort,
     };
 
-    kmain.kmain(hal_layout, oshal.HAL(hal_layout){ .terminal = &terminal });
+    kmain.kmain(hal_layout, oshal.HAL(hal_layout){
+        .terminal = &terminal,
+        .serial_io = &serial_stub,
+    });
 }

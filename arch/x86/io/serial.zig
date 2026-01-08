@@ -75,6 +75,12 @@ pub const SerialPort: type = struct {
         }
     }
 
+    pub fn delay(_: *SerialPort, count: usize) void {
+        for (0..count) |_| {
+            ioWait();
+        }
+    }
+
     /// Perform a very small IO wait by writing to an unused port.
     pub fn ioWait() void {
         as.assembly_wrappers.x86_out(unused_serial_port, 0);
