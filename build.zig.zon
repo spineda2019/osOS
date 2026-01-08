@@ -9,8 +9,8 @@
 
     .dependencies = .{
         .bochs_zig = .{
-            .url = "git+https://github.com/spineda2019/bochs-zig?ref=main#730786a075b3f5c4cd9156db2a3961276d38dac2",
-            .hash = "bochs-2.7.0-WqPDhzdaLwElCWOglg5LyVGs21tHDHUbQXjiH0l2TGG3",
+            .url = "git+https://github.com/spineda2019/bochs-zig?ref=main#53ac9afbb555aa41347b83fbaaabc618a15fd067",
+            .hash = "bochs-2.7.0-WqPDh4dfLwEDMnTeF5IwPlDb4nqVhNhj68BZMcr7ZOi9",
             .lazy = true,
         },
     },
