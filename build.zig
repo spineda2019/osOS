@@ -420,21 +420,6 @@ pub fn build(b: *std.Build) BuildError!void {
         .install_dir = .prefix,
         .install_subdir = "docs/RISC-V32",
     });
-    const osformat_install_doc = b.addInstallDirectory(.{
-        .source_dir = shared_modules.osformat.emitted_doc_directory,
-        .install_dir = .prefix,
-        .install_subdir = "docs/shared_modules/osformat",
-    });
-    const osmemory_install_doc = b.addInstallDirectory(.{
-        .source_dir = shared_modules.osmemory.emitted_doc_directory,
-        .install_dir = .prefix,
-        .install_subdir = "docs/shared_modules/osmemory",
-    });
-    const osprocess_install_doc = b.addInstallDirectory(.{
-        .source_dir = shared_modules.osprocess.emitted_doc_directory,
-        .install_dir = .prefix,
-        .install_subdir = "docs/shared_modules/osprocess",
-    });
 
     const copy_landing_page = b.addSystemCommand(&.{
         "cp",
@@ -447,14 +432,20 @@ pub fn build(b: *std.Build) BuildError!void {
         "zig-out/docs/",
     });
 
+    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
+        const install_directory = b.addInstallDirectory(.{
+            .source_dir = @field(shared_modules, field_name).emitted_doc_directory,
+            .install_dir = .prefix,
+            .install_subdir = "docs/shared_modules/" ++ field_name,
+        });
+        copy_landing_page.step.dependOn(&install_directory.step);
+    }
+
     // build all module docs before copying index.html
     copy_landing_page.step.dependOn(&x86_install_doc.step);
     copy_landing_page.step.dependOn(&x86memory_install_doc.step);
     copy_landing_page.step.dependOn(&x86asm_install_doc.step);
     copy_landing_page.step.dependOn(&riscv32_install_doc.step);
-    copy_landing_page.step.dependOn(&osformat_install_doc.step);
-    copy_landing_page.step.dependOn(&osmemory_install_doc.step);
-    copy_landing_page.step.dependOn(&osprocess_install_doc.step);
 
     // then copy style.css
     copy_landing_style.step.dependOn(&copy_landing_page.step);
