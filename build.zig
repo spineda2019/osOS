@@ -167,9 +167,9 @@ pub fn build(b: *std.Build) BuildError!void {
     };
 
     const shared_modules: SharedModules = .{
-        .osformat = .create(b, "osformat", "format/osformat.zig"),
-        .osmemory = .create(b, "osmemory", "memory/memory.zig"),
-        .osprocess = .create(b, "osprocess", "process/process.zig"),
+        .osformat = .create(b, "osformat", "format/root.zig"),
+        .osmemory = .create(b, "osmemory", "memory/root.zig"),
+        .osprocess = .create(b, "osprocess", "process/root.zig"),
         .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig"),
         .oshal = .create(b, "oshal", "HAL/root.zig"),
         .osshell = .create(b, "osshell", "userland/shell/shell.zig"),
