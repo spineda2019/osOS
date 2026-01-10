@@ -18,7 +18,7 @@ const setup: *const fn () noreturn = &@import("setup.zig").setup;
 
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
-const bootutils = @import("x86boot");
+const bootutils = @import("osboot");
 
 /// Defined in the build script
 const bootoptions = @import("bootoptions");

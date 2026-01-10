@@ -32,6 +32,62 @@ const BootSpecification = enum {
     Limine,
 };
 
+const entry_modules = .{};
+
+const CommonModule = struct {
+    name: []const u8,
+    module: *std.Build.Module,
+    // Some tests are not yet supported to run on my OS just yet, and need
+    // to happen on the native target.
+    test_artifact: *std.Build.Step.Compile,
+    emitted_doc_directory: std.Build.LazyPath,
+
+    pub fn create(
+        b: *std.Build,
+        name: []const u8,
+        root_source_file: []const u8,
+    ) CommonModule {
+        const root = b.path(root_source_file);
+        const actual_module = b.createModule(.{
+            .root_source_file = root,
+        });
+        const doc_directory, const test_artifact = doc: {
+            const native_target = builtin.target;
+            const native_target_query = std.Target.Query.fromTarget(
+                &native_target,
+            );
+            const resolved_native_target = b.resolveTargetQuery(
+                native_target_query,
+            );
+            // The library object shouldn't be used by anyone, so encapsulate
+            // it here
+            const doc_mod = b.createModule(.{
+                .root_source_file = root,
+                .target = resolved_native_target,
+            });
+            const doc_lib = b.addLibrary(.{
+                .name = name,
+                .root_module = doc_mod,
+            });
+
+            break :doc .{
+                doc_lib.getEmittedDocs(),
+                b.addTest(.{
+                    .root_module = doc_mod,
+                }),
+            };
+        };
+
+        return .{
+            .name = name,
+            .module = actual_module,
+            .emitted_doc_directory = doc_directory,
+            .test_artifact = test_artifact,
+        };
+    }
+};
+const common_modules = .{};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -99,34 +155,26 @@ pub fn build(b: *std.Build) BuildError!void {
     //**************************************************************************
 
     //* ******************************* Shared ******************************* *
-    const osformat_module = b.createModule(.{
-        .root_source_file = b.path("format/osformat.zig"),
-    });
 
-    const osmemory_module = b.createModule(.{
-        .root_source_file = b.path("memory/memory.zig"),
-    });
+    const SharedModules = struct {
+        osformat: CommonModule,
+        osmemory: CommonModule,
+        osprocess: CommonModule,
+        osboot: CommonModule,
+        oshal: CommonModule,
+        osshell: CommonModule,
+        osstdlib: CommonModule,
+    };
 
-    const osprocess_module = b.createModule(.{
-        .root_source_file = b.path("process/process.zig"),
-    });
-
-    const osboot_module = b.createModule(.{
-        .root_source_file = b.path("boot_utilities/bootutils.zig"),
-    });
-
-    const oshal_module = b.createModule(.{
-        .root_source_file = b.path("HAL/root.zig"),
-    });
-
-    // the kernel's main process
-    const osshell_module = b.createModule(.{
-        .root_source_file = b.path("userland/shell/shell.zig"),
-    });
-
-    const osstdlib_module = b.createModule(.{
-        .root_source_file = b.path("userland/stdlib/root.zig"),
-    });
+    const shared_modules: SharedModules = .{
+        .osformat = .create(b, "osformat", "format/osformat.zig"),
+        .osmemory = .create(b, "osmemory", "memory/memory.zig"),
+        .osprocess = .create(b, "osprocess", "process/process.zig"),
+        .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig"),
+        .oshal = .create(b, "oshal", "HAL/root.zig"),
+        .osshell = .create(b, "osshell", "userland/shell/shell.zig"),
+        .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig"),
+    };
 
     const modbochs = bochs: {
         if (!build_bochs) {
@@ -145,7 +193,10 @@ pub fn build(b: *std.Build) BuildError!void {
     const riscv32_tty_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/tty/tty.zig"),
     });
-    riscv32_tty_module.addImport("osformat", osformat_module);
+    riscv32_tty_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/entry.zig"),
         .target = riscv32_target,
@@ -154,10 +205,22 @@ pub fn build(b: *std.Build) BuildError!void {
     });
     riscv32_module.addImport("riscv32tty", riscv32_tty_module);
     riscv32_module.addImport("riscv32asm", riscv32_asm_module);
-    riscv32_module.addImport("osformat", osformat_module);
-    riscv32_module.addImport("osmemory", osmemory_module);
-    riscv32_module.addImport("osprocess", osprocess_module);
-    riscv32_module.addImport("oshal", oshal_module);
+    riscv32_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
+    riscv32_module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.module,
+    );
+    riscv32_module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
+    );
+    riscv32_module.addImport(
+        shared_modules.oshal.name,
+        shared_modules.oshal.module,
+    );
 
     //* *************************** x86 Specific ***************************** *
     const x86_asm_module = b.createModule(.{
@@ -173,7 +236,10 @@ pub fn build(b: *std.Build) BuildError!void {
         .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
     });
     x86_framebuffer_module.addImport("x86asm", x86_asm_module);
-    x86_framebuffer_module.addImport("osformat", osformat_module);
+    x86_framebuffer_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
 
     const x86_memory_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/memory/memory.zig"),
@@ -183,7 +249,10 @@ pub fn build(b: *std.Build) BuildError!void {
     const x86_interrupt_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/interrupts/interrupts.zig"),
     });
-    x86_interrupt_module.addImport("osformat", osformat_module);
+    x86_interrupt_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
     x86_interrupt_module.addImport("x86asm", x86_asm_module);
     x86_interrupt_module.addImport("x86serial", x86_serial_module);
     x86_interrupt_module.addImport("x86framebuffer", x86_framebuffer_module);
@@ -194,15 +263,27 @@ pub fn build(b: *std.Build) BuildError!void {
         .optimize = optimize,
         .strip = false,
     });
-    x86_module.addImport("osprocess", osprocess_module);
-    x86_module.addImport("osformat", osformat_module);
     x86_module.addImport("x86asm", x86_asm_module);
     x86_module.addImport("x86memory", x86_memory_module);
-    x86_module.addImport("x86boot", osboot_module);
     x86_module.addImport("x86interrupts", x86_interrupt_module);
     x86_module.addImport("x86framebuffer", x86_framebuffer_module);
     x86_module.addImport("x86serial", x86_serial_module);
-    x86_module.addImport("oshal", oshal_module);
+    x86_module.addImport(
+        shared_modules.osboot.name,
+        shared_modules.osboot.module,
+    );
+    x86_module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
+    );
+    x86_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
+    x86_module.addImport(
+        shared_modules.oshal.name,
+        shared_modules.oshal.module,
+    );
     x86_module.addOptions("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
@@ -213,12 +294,30 @@ pub fn build(b: *std.Build) BuildError!void {
     const kmain_module = b.createModule(.{
         .root_source_file = b.path("kmain/kmain.zig"),
     });
-    kmain_module.addImport("oshal", oshal_module);
-    kmain_module.addImport("osshell", osshell_module);
-    kmain_module.addImport("osstdlib", osstdlib_module);
-    kmain_module.addImport("osprocess", osprocess_module);
-    kmain_module.addImport("osformat", osformat_module);
-    kmain_module.addOptions("testoptions", test_options);
+    kmain_module.addImport(
+        shared_modules.oshal.name,
+        shared_modules.oshal.module,
+    );
+    kmain_module.addImport(
+        shared_modules.osshell.name,
+        shared_modules.osshell.module,
+    );
+    kmain_module.addImport(
+        shared_modules.osstdlib.name,
+        shared_modules.osstdlib.module,
+    );
+    kmain_module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
+    );
+    kmain_module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
+    kmain_module.addOptions(
+        "testoptions",
+        test_options,
+    );
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
@@ -322,29 +421,17 @@ pub fn build(b: *std.Build) BuildError!void {
         .install_subdir = "docs/RISC-V32",
     });
     const osformat_install_doc = b.addInstallDirectory(.{
-        .source_dir = createDocumentationObject(
-            b,
-            osformat_module,
-            "osformat_src",
-        ).getEmittedDocs(),
+        .source_dir = shared_modules.osformat.emitted_doc_directory,
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osformat",
     });
     const osmemory_install_doc = b.addInstallDirectory(.{
-        .source_dir = createDocumentationObject(
-            b,
-            osmemory_module,
-            "osmemory_src",
-        ).getEmittedDocs(),
+        .source_dir = shared_modules.osmemory.emitted_doc_directory,
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osmemory",
     });
     const osprocess_install_doc = b.addInstallDirectory(.{
-        .source_dir = createDocumentationObject(
-            b,
-            osprocess_module,
-            "osprocess_src",
-        ).getEmittedDocs(),
+        .source_dir = shared_modules.osprocess.emitted_doc_directory,
         .install_dir = .prefix,
         .install_subdir = "docs/shared_modules/osprocess",
     });
@@ -542,43 +629,12 @@ pub fn build(b: *std.Build) BuildError!void {
         "Run arch-agnostic unit tests (Runnable from any host)",
     );
 
-    const osformat_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osformat_module),
-    });
-    const osmemory_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osmemory_module),
-    });
-    const osprocess_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osprocess_module),
-    });
-    const osboot_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osboot_module),
-    });
-    const oshal_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, oshal_module),
-    });
-    const osshell_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osshell_module),
-    });
-    const osstdlib_test = b.addTest(.{
-        .root_module = copyToNativeModule(b, osstdlib_module),
-    });
-
-    const run_osformat_test = b.addRunArtifact(osformat_test);
-    const run_osmemory_test = b.addRunArtifact(osmemory_test);
-    const run_osprocess_test = b.addRunArtifact(osprocess_test);
-    const run_osboot_test = b.addRunArtifact(osboot_test);
-    const run_oshal_test = b.addRunArtifact(oshal_test);
-    const run_osshell_test = b.addRunArtifact(osshell_test);
-    const run_osstdlib_test = b.addRunArtifact(osstdlib_test);
-
-    arch_agnostic_test_step.dependOn(&run_osformat_test.step);
-    arch_agnostic_test_step.dependOn(&run_osmemory_test.step);
-    arch_agnostic_test_step.dependOn(&run_osprocess_test.step);
-    arch_agnostic_test_step.dependOn(&run_osboot_test.step);
-    arch_agnostic_test_step.dependOn(&run_oshal_test.step);
-    arch_agnostic_test_step.dependOn(&run_osshell_test.step);
-    arch_agnostic_test_step.dependOn(&run_osstdlib_test.step);
+    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
+        const run_test = b.addRunArtifact(
+            @field(shared_modules, field_name).test_artifact,
+        );
+        arch_agnostic_test_step.dependOn(&run_test.step);
+    }
 }
 
 fn copyToNativeModule(
