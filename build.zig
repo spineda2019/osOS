@@ -37,6 +37,7 @@ const entry_modules = .{};
 const CommonModule = struct {
     name: []const u8,
     module: *std.Build.Module,
+
     // Some tests are not yet supported to run on my OS just yet, and need
     // to happen on the native target.
     test_artifact: *std.Build.Step.Compile,
@@ -86,12 +87,11 @@ const CommonModule = struct {
         };
     }
 };
-const common_modules = .{};
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) BuildError!void {
+pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     const zigver = builtin.zig_version;
     std.debug.print(
         "building with zig version: {}.{}.{}\n",
@@ -187,24 +187,34 @@ pub fn build(b: *std.Build) BuildError!void {
     };
 
     //* *************************** RISC Specific **************************** *
-    const riscv32_asm_module = b.createModule(.{
-        .root_source_file = b.path("arch/riscv32/asm/root.zig"),
-    });
-    const riscv32_tty_module = b.createModule(.{
-        .root_source_file = b.path("arch/riscv32/tty/tty.zig"),
-    });
-    riscv32_tty_module.addImport(
+    const RiscV32Modules = struct {
+        asm_module: CommonModule,
+        tty_module: CommonModule,
+    };
+    const riscv32_modules: RiscV32Modules = .{
+        .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig"),
+        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/tty.zig"),
+    };
+
+    riscv32_modules.tty_module.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
+
     const riscv32_module = b.createModule(.{
         .root_source_file = b.path("arch/riscv32/entry.zig"),
         .target = riscv32_target,
         .optimize = optimize,
         .strip = false,
     });
-    riscv32_module.addImport("riscv32tty", riscv32_tty_module);
-    riscv32_module.addImport("riscv32asm", riscv32_asm_module);
+    riscv32_module.addImport(
+        riscv32_modules.tty_module.name,
+        riscv32_modules.tty_module.module,
+    );
+    riscv32_module.addImport(
+        riscv32_modules.asm_module.name,
+        riscv32_modules.asm_module.module,
+    );
     riscv32_module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
@@ -223,39 +233,56 @@ pub fn build(b: *std.Build) BuildError!void {
     );
 
     //* *************************** x86 Specific ***************************** *
-    const x86_asm_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/asm/asm.zig"),
-    });
+    const X86Modules = struct {
+        asm_module: CommonModule,
+        serial_module: CommonModule,
+        framebuffer_module: CommonModule,
+        memory_module: CommonModule,
+        interrupts_module: CommonModule,
+    };
+    const x86_modules: X86Modules = .{
+        .asm_module = .create(b, "x86asm", "arch/x86/asm/asm.zig"),
+        .serial_module = .create(b, "x86serial", "arch/x86/io/serial.zig"),
+        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/framebuffer.zig"),
+        .memory_module = .create(b, "x86memory", "arch/x86/memory/memory.zig"),
+        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/interrupts.zig"),
+    };
 
-    const x86_serial_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/io/serial.zig"),
-    });
-    x86_serial_module.addImport("x86asm", x86_asm_module);
+    x86_modules.serial_module.module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
 
-    const x86_framebuffer_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/framebuffer/framebuffer.zig"),
-    });
-    x86_framebuffer_module.addImport("x86asm", x86_asm_module);
-    x86_framebuffer_module.addImport(
+    x86_modules.framebuffer_module.module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
+    x86_modules.framebuffer_module.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
 
-    const x86_memory_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/memory/memory.zig"),
-    });
-    x86_memory_module.addImport("x86asm", x86_asm_module);
+    x86_modules.memory_module.module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
 
-    const x86_interrupt_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/interrupts/interrupts.zig"),
-    });
-    x86_interrupt_module.addImport(
+    x86_modules.interrupts_module.module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
+    x86_modules.interrupts_module.module.addImport(
+        x86_modules.serial_module.name,
+        x86_modules.serial_module.module,
+    );
+    x86_modules.interrupts_module.module.addImport(
+        x86_modules.framebuffer_module.name,
+        x86_modules.framebuffer_module.module,
+    );
+    x86_modules.interrupts_module.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
-    x86_interrupt_module.addImport("x86asm", x86_asm_module);
-    x86_interrupt_module.addImport("x86serial", x86_serial_module);
-    x86_interrupt_module.addImport("x86framebuffer", x86_framebuffer_module);
 
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),
@@ -263,11 +290,26 @@ pub fn build(b: *std.Build) BuildError!void {
         .optimize = optimize,
         .strip = false,
     });
-    x86_module.addImport("x86asm", x86_asm_module);
-    x86_module.addImport("x86memory", x86_memory_module);
-    x86_module.addImport("x86interrupts", x86_interrupt_module);
-    x86_module.addImport("x86framebuffer", x86_framebuffer_module);
-    x86_module.addImport("x86serial", x86_serial_module);
+    x86_module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
+    x86_module.addImport(
+        x86_modules.memory_module.name,
+        x86_modules.memory_module.module,
+    );
+    x86_module.addImport(
+        x86_modules.interrupts_module.name,
+        x86_modules.interrupts_module.module,
+    );
+    x86_module.addImport(
+        x86_modules.framebuffer_module.name,
+        x86_modules.framebuffer_module.module,
+    );
+    x86_module.addImport(
+        x86_modules.serial_module.name,
+        x86_modules.serial_module.module,
+    );
     x86_module.addImport(
         shared_modules.osboot.name,
         shared_modules.osboot.module,
@@ -367,7 +409,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const riscv32_out = b.addInstallArtifact(riscv32_exe, .{
         .dest_dir = .{
             .override = .{
-                .custom = "RISC-v32",
+                .custom = @tagName(std.Target.Cpu.Arch.riscv32),
             },
         },
     });
@@ -379,7 +421,7 @@ pub fn build(b: *std.Build) BuildError!void {
     const x86_out = b.addInstallArtifact(x86_exe, .{
         .dest_dir = .{
             .override = .{
-                .custom = "x86",
+                .custom = @tagName(std.Target.Cpu.Arch.x86),
             },
         },
     });
@@ -392,35 +434,6 @@ pub fn build(b: *std.Build) BuildError!void {
         "Build all docs and tie them together with the landing page",
     );
 
-    const x86_install_doc = b.addInstallDirectory(.{
-        .source_dir = x86_exe.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/x86",
-    });
-    const x86memory_install_doc = b.addInstallDirectory(.{
-        .source_dir = createDocumentationObject(
-            b,
-            x86_memory_module,
-            "x86memory_src",
-        ).getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/x86modules/x86memory",
-    });
-    const x86asm_install_doc = b.addInstallDirectory(.{
-        .source_dir = createDocumentationObject(
-            b,
-            x86_asm_module,
-            "x86asm_src",
-        ).getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/x86modules/x86asm",
-    });
-    const riscv32_install_doc = b.addInstallDirectory(.{
-        .source_dir = riscv32_exe.getEmittedDocs(),
-        .install_dir = .prefix,
-        .install_subdir = "docs/RISC-V32",
-    });
-
     const copy_landing_page = b.addSystemCommand(&.{
         "cp",
         "docs/index.html",
@@ -432,19 +445,60 @@ pub fn build(b: *std.Build) BuildError!void {
         "zig-out/docs/",
     });
 
-    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
+    // build all module docs before copying index.html
+    const x86_install_doc = b.addInstallDirectory(.{
+        .source_dir = x86_exe.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/x86",
+    });
+    inline for (comptime std.meta.fieldNames(X86Modules)) |field| {
+        const member = @field(x86_modules, field);
         const install_directory = b.addInstallDirectory(.{
-            .source_dir = @field(shared_modules, field_name).emitted_doc_directory,
+            .source_dir = member.emitted_doc_directory,
+            .install_dir = .prefix,
+            .install_subdir = buf_calc: {
+                var buf: std.ArrayList(u8) = .empty;
+                try buf.appendSlice(b.allocator, "docs/x86modules/");
+                try buf.appendSlice(b.allocator, member.name);
+
+                break :buf_calc buf.items;
+            },
+        });
+        copy_landing_page.step.dependOn(&install_directory.step);
+    }
+
+    const riscv32_install_doc = b.addInstallDirectory(.{
+        .source_dir = riscv32_exe.getEmittedDocs(),
+        .install_dir = .prefix,
+        .install_subdir = "docs/" ++ @tagName(std.Target.Cpu.Arch.riscv32),
+    });
+    inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field| {
+        const member = @field(riscv32_modules, field);
+        const install_directory = b.addInstallDirectory(.{
+            .source_dir = member.emitted_doc_directory,
+            .install_dir = .prefix,
+            .install_subdir = buf_calc: {
+                var buf: std.ArrayList(u8) = .empty;
+                try buf.appendSlice(b.allocator, "docs/riscv32modules/");
+                try buf.appendSlice(b.allocator, member.name);
+
+                break :buf_calc buf.items;
+            },
+        });
+        copy_landing_page.step.dependOn(&install_directory.step);
+    }
+
+    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
+        const member = @field(shared_modules, field_name);
+        const install_directory = b.addInstallDirectory(.{
+            .source_dir = member.emitted_doc_directory,
             .install_dir = .prefix,
             .install_subdir = "docs/shared_modules/" ++ field_name,
         });
         copy_landing_page.step.dependOn(&install_directory.step);
     }
 
-    // build all module docs before copying index.html
     copy_landing_page.step.dependOn(&x86_install_doc.step);
-    copy_landing_page.step.dependOn(&x86memory_install_doc.step);
-    copy_landing_page.step.dependOn(&x86asm_install_doc.step);
     copy_landing_page.step.dependOn(&riscv32_install_doc.step);
 
     // then copy style.css
@@ -626,26 +680,4 @@ pub fn build(b: *std.Build) BuildError!void {
         );
         arch_agnostic_test_step.dependOn(&run_test.step);
     }
-}
-
-fn copyToNativeModule(
-    b: *std.Build,
-    from: *std.Build.Module,
-) *std.Build.Module {
-    return b.createModule(.{
-        .root_source_file = from.root_source_file,
-        .target = b.resolveTargetQuery(.{}),
-    });
-}
-
-fn createDocumentationObject(
-    b: *std.Build,
-    from: *std.Build.Module,
-    comptime name: []const u8,
-) *std.Build.Step.Compile {
-    return b.addLibrary(.{
-        .name = name,
-        .root_module = copyToNativeModule(b, from),
-        .linkage = .static,
-    });
 }
