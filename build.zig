@@ -193,7 +193,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     };
     const riscv32_modules: RiscV32Modules = .{
         .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig"),
-        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/tty.zig"),
+        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/root.zig"),
     };
 
     riscv32_modules.tty_module.module.addImport(
@@ -241,11 +241,11 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         interrupts_module: CommonModule,
     };
     const x86_modules: X86Modules = .{
-        .asm_module = .create(b, "x86asm", "arch/x86/asm/asm.zig"),
-        .serial_module = .create(b, "x86serial", "arch/x86/io/serial.zig"),
-        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/framebuffer.zig"),
-        .memory_module = .create(b, "x86memory", "arch/x86/memory/memory.zig"),
-        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/interrupts.zig"),
+        .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig"),
+        .serial_module = .create(b, "x86serial", "arch/x86/io/root.zig"),
+        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/root.zig"),
+        .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig"),
+        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig"),
     };
 
     x86_modules.serial_module.module.addImport(
