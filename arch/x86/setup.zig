@@ -25,6 +25,10 @@ const oshal = @import("oshal");
 
 var page_directory = memory.paging.uninitialized_directory;
 var kernel_page_table = memory.paging.uninitialized_table;
+const physical_kernel_base = @extern(
+    *anyopaque,
+    .{ .name = "__physical_kernel_base" },
+);
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
