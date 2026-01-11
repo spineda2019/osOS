@@ -22,3 +22,7 @@
 pub const gdt = @import("gdt.zig");
 
 pub const paging = @import("paging.zig");
+
+test {
+    @import("std").testing.refAllDeclsRecursive(@This());
+}

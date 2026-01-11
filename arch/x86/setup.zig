@@ -23,6 +23,9 @@ const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 
+var page_directory = memory.paging.uninitialized_directory;
+var kernel_page_table = memory.paging.uninitialized_table;
+
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
     as.assembly_wrappers.disable_x86_interrupts();
@@ -82,10 +85,14 @@ pub fn setup() noreturn {
     framebuffer.writeLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
-    // framebuffer.writeLine("x86: Setting up paging...");
-    // var first_page_table: memory.paging.Page.Table = .init();
-    // var page_table_directory: memory.paging.Page.Table.Directory = .init();
-    // page_table_directory.insertTable(&first_page_table);
+    // Will map starting physical addresses 0x0 through
+    // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
+    // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
+    for (&kernel_page_table, 0..) |*entry, idx| {
+        entry.writeable = true;
+        entry.in_physical_memory = true;
+        entry.page_frame_address = @truncate(memory.paging.PAGE_SIZE * idx);
+    }
 
     as.assembly_wrappers.enable_x86_interrupts();
 
