@@ -90,3 +90,36 @@ pub const PageTableEntry = packed struct(u32) {
         .page_frame_address = 0,
     };
 };
+
+/// Virtual to Physical Transation does the following (largely ripped from
+/// the OSDev Wiki). A Virtual Address is 32 bits and is translated by extracting
+/// three parts from the virtual address.
+///
+/// 1) The most significant 10 bits (22-31) specify the index into the page
+/// directory. A u10 can represent numbers in the range [0, 1023], meaning it
+/// can index the whole array of PageDirectoryEntry's (see PageDirectory and
+/// PageDirectoryEntry)
+///
+/// 2) The next 10 bits (12-21) specify the index into the page table indexed
+/// from part 1. For the same reason from part 1, this u10 can index into every
+/// PageTableEntry (see PageTable and PageTableEntry).
+///
+/// 3) The remaining bits, which are the least significant 12 bits (0-11),
+/// specify an offset. Remeber, each page frame is aligned to 4096 bytes, so
+/// once (1) and (2) get us a page table entry, we use the offset from these
+/// 12 bits and add it to the frame address specified in the table entry. A u12
+/// can represent numbers in the range [0, 4095], so this offset will NEVER
+/// result in an address residing in another frame.
+pub fn virtualToPhysical(virtualAddress: u32, pd: *const PageDirectory) u32 {
+    const pd_index: u32 = (virtualAddress & 0b1111111111_0000000000000000000000) >> 22;
+    const pt_index: u32 = (virtualAddress & 0b0000000000_1111111111_000000000000) >> 12;
+    const offset: u32 = (virtualAddress & 0b0000000000_0000000000_111111111111);
+
+    const pde: *const PageDirectoryEntry = &pd[pd_index];
+    const pt: *const PageTable = @ptrFromInt(pde.page_table_address);
+    const pte: *const PageTableEntry = &pt[pt_index];
+
+    return @as(u32, pte.page_frame_address) + offset;
+}
+
+test virtualToPhysical {}
