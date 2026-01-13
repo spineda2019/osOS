@@ -110,6 +110,16 @@ pub fn initHigherHalfPages(
     pt_to_use: *align(PAGE_SIZE) PageTable, // must be PAGE_SIZE aligned
     desired_virtual_kernel_base: u32,
 ) void {
+    comptime {
+        // gives a clearer error code rather than cryptic u64 vs usize error
+        if (@sizeOf(usize) > 4) {
+            var err: []const u8 = "Only valid on 32 bit architectures. Here, ";
+            err = err ++ "paging makes assumptions around sizeof(usize) being ";
+            err = err ++ "equal to sizeof(u32)";
+            @compileError(err);
+        }
+    }
+
     const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
         desired_virtual_kernel_base,
     );
@@ -123,7 +133,7 @@ pub fn initHigherHalfPages(
     // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
     // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
     for (pt_to_use, 0..) |*entry, idx| {
-        const scale: u32 = idx;
+        const scale: u32 = (idx);
         entry.*.writeable = true;
         entry.*.in_physical_memory = true;
         entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
@@ -175,6 +185,8 @@ pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
 }
 
 test virtualToPhysical {
+    const std = @import("std");
+
     var page_directory: PageDirectory align(PAGE_SIZE) = uninitialized_directory;
     var kernel_page_table: PageTable align(PAGE_SIZE) = uninitialized_table;
     const virtual_kernel_base: u32 = 0xC0_00_00_00;
@@ -187,8 +199,6 @@ test virtualToPhysical {
         &kernel_page_table,
         virtual_kernel_base,
     );
-
-    const std = @import("std");
 
     var translated = virtualToPhysical(
         &page_directory,
