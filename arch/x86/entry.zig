@@ -44,3 +44,7 @@ export fn boot() linksection(".text") callconv(.naked) noreturn {
           [setup_address] "r" (setup),
     );
 }
+
+test {
+    @import("std").testing.refAllDeclsRecursive(@This());
+}

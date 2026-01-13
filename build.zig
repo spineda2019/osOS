@@ -680,4 +680,16 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         );
         arch_agnostic_test_step.dependOn(&run_test.step);
     }
+    inline for (comptime std.meta.fieldNames(X86Modules)) |field_name| {
+        const run_test = b.addRunArtifact(
+            @field(x86_modules, field_name).test_artifact,
+        );
+        arch_agnostic_test_step.dependOn(&run_test.step);
+    }
+    inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field_name| {
+        const run_test = b.addRunArtifact(
+            @field(riscv32_modules, field_name).test_artifact,
+        );
+        arch_agnostic_test_step.dependOn(&run_test.step);
+    }
 }

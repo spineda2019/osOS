@@ -29,6 +29,7 @@ const physical_kernel_base = @extern(
     *anyopaque,
     .{ .name = "__physical_kernel_base" },
 );
+const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
@@ -62,6 +63,13 @@ pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
+    memory.paging.initHigherHalfPages(
+        &page_directory,
+        &kernel_page_table,
+        virtual_kernel_base,
+    );
+    // as.assembly_wrappers.enablePaging(&page_directory);
+
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
@@ -88,15 +96,6 @@ pub fn setup() noreturn {
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.writeLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
-
-    // Will map starting physical addresses 0x0 through
-    // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
-    // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
-    for (&kernel_page_table, 0..) |*entry, idx| {
-        entry.writeable = true;
-        entry.in_physical_memory = true;
-        entry.page_frame_address = @truncate(memory.paging.PAGE_SIZE * idx);
-    }
 
     as.assembly_wrappers.enable_x86_interrupts();
 

@@ -54,14 +54,14 @@ pub const GDTDescriptor = packed struct {
     pub fn init(table: GlobalDescriptorTable) GDTDescriptor {
         return .{
             .size = @truncate(table.len * @sizeOf(SegmentDescriptor) - 1),
-            .address = @intFromPtr(&table),
+            .address = @intCast(@intFromPtr(&table)),
         };
     }
 
     pub fn defaultInit(gdt: *const DefaultGlobalDescriptorTable) GDTDescriptor {
         return .{
             .size = @truncate((@bitSizeOf(DefaultGlobalDescriptorTable) / 8) - 1),
-            .address = @intFromPtr(gdt),
+            .address = @intCast(@intFromPtr(gdt)),
         };
     }
 

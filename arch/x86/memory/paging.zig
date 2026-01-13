@@ -28,8 +28,8 @@ pub const PageDirectoryEntry = packed struct(u32) {
     in_physical_memory: bool,
     writable: bool,
     userland_accesible: bool,
-    write_through: u1,
-    cache_disable: u1,
+    write_through: bool,
+    cache_disable: bool,
     /// Set if read during virtual address translation. CPU will not clear this
     /// bit EVER, so OS needs to do so if desired.
     accessed: bool,
@@ -49,12 +49,16 @@ pub const PageDirectoryEntry = packed struct(u32) {
         .writable = false,
         .userland_accesible = false,
         .write_through = false,
-        .cache_disable = true,
+        .cache_disable = false,
         .accessed = false,
         .written_to = false,
         .enable_4mb_page_size = false,
         .page_table_address = 0,
     };
+
+    pub inline fn IndexFromVirtual(address: u32) u32 {
+        return (address & 0b1111111111_0000000000000000000000) >> 22;
+    }
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
@@ -82,14 +86,48 @@ pub const PageTableEntry = packed struct(u32) {
         .writeable = false,
         .userland_accesible = false,
         .write_through = false,
-        .cache_disable = true,
+        .cache_disable = false,
         .accessed = false,
         .written_to = false,
         .page_attribute_table = false,
         .global = false,
         .page_frame_address = 0,
     };
+
+    pub inline fn IndexFromVirtual(address: u32) u32 {
+        return (address & 0b0000000000_1111111111_000000000000) >> 12;
+    }
 };
+
+pub inline fn offsetFromVirtual(address: u32) u32 {
+    return (address & 0b0000000000_0000000000_111111111111);
+}
+
+/// Sets up the higher half kernel by enabling paging and mapping
+/// the first 4MB starting at 0xC0_00_00_00 ()
+pub fn initHigherHalfPages(
+    pd: *PageDirectory, // must be PAGE_SIZE aligned
+    pt_to_use: *PageTable, // must be PAGE_SIZE aligned
+    desired_virtual_kernel_base: u32,
+) void {
+    const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
+        desired_virtual_kernel_base,
+    );
+    const pde: *PageDirectoryEntry = &pd[pd_index];
+    pde.* = .default;
+    pde.writable = true;
+    pde.page_table_address = @truncate(@intFromPtr(pt_to_use));
+    pde.in_physical_memory = true;
+
+    // Will map starting physical addresses 0x0 through
+    // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
+    // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
+    for (pt_to_use, 0..) |*entry, idx| {
+        entry.writeable = true;
+        entry.in_physical_memory = true;
+        entry.page_frame_address = @truncate(PAGE_SIZE * idx);
+    }
+}
 
 /// Virtual to Physical Transation does the following (largely ripped from
 /// the OSDev Wiki). A Virtual Address is 32 bits and is translated by extracting
@@ -111,9 +149,9 @@ pub const PageTableEntry = packed struct(u32) {
 /// can represent numbers in the range [0, 4095], so this offset will NEVER
 /// result in an address residing in another frame.
 pub fn virtualToPhysical(virtualAddress: u32, pd: *const PageDirectory) u32 {
-    const pd_index: u32 = (virtualAddress & 0b1111111111_0000000000000000000000) >> 22;
-    const pt_index: u32 = (virtualAddress & 0b0000000000_1111111111_000000000000) >> 12;
-    const offset: u32 = (virtualAddress & 0b0000000000_0000000000_111111111111);
+    const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
+    const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
+    const offset: u32 = offsetFromVirtual(virtualAddress);
 
     const pde: *const PageDirectoryEntry = &pd[pd_index];
     const pt: *const PageTable = @ptrFromInt(pde.page_table_address);
@@ -122,4 +160,44 @@ pub fn virtualToPhysical(virtualAddress: u32, pd: *const PageDirectory) u32 {
     return @as(u32, pte.page_frame_address) + offset;
 }
 
-test virtualToPhysical {}
+/// Extracting a virtualAddress from a physical one is not as straight forward
+/// as the other way around. We pretty much have to do the reverse of virtual
+/// Address translation:
+///
+/// 1) Strip off the offset to find which index into the PageTable you are
+///
+pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
+    return 0;
+}
+
+test virtualToPhysical {
+    var page_directory = uninitialized_directory;
+    var kernel_page_table = uninitialized_table;
+    const virtual_kernel_base: u32 = 0xC0_00_00_00;
+
+    initHigherHalfPages(
+        &page_directory,
+        &kernel_page_table,
+        virtual_kernel_base,
+    );
+
+    const std = @import("std");
+    const physical_framebuffer_start = 0x000B8000;
+    const virtual_framebuffer_start = 0xC03FF000;
+
+    const translated = virtualToPhysical(
+        virtual_framebuffer_start,
+        &page_directory,
+    );
+    std.testing.expect(
+        translated == physical_framebuffer_start,
+    ) catch |err| {
+        std.debug.print(
+            "Expected virt address {x} to be translated to {x} but was instead {x}",
+            .{ virtual_framebuffer_start, physical_framebuffer_start, translated },
+        );
+        return err;
+    };
+}
+
+test initHigherHalfPages {}
