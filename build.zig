@@ -47,6 +47,7 @@ const CommonModule = struct {
         b: *std.Build,
         name: []const u8,
         root_source_file: []const u8,
+        test_target: std.Build.ResolvedTarget,
     ) CommonModule {
         const root = b.path(root_source_file);
         const actual_module = b.createModule(.{
@@ -71,10 +72,15 @@ const CommonModule = struct {
                 .root_module = doc_mod,
             });
 
+            const test_mod = b.createModule(.{
+                .root_source_file = root,
+                .target = test_target,
+            });
+
             break :doc .{
                 doc_lib.getEmittedDocs(),
                 b.addTest(.{
-                    .root_module = doc_mod,
+                    .root_module = test_mod,
                 }),
             };
         };
@@ -101,6 +107,8 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     //                               Option Setup                              *
     //**************************************************************************
     const optimize = b.standardOptimizeOption(.{});
+    const test_target = b.standardTargetOptions(.{});
+
     const kernel_name = "osOS.elf";
     const target_arch: SupportedTarget = b.option(
         SupportedTarget,
@@ -167,13 +175,13 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     };
 
     const shared_modules: SharedModules = .{
-        .osformat = .create(b, "osformat", "format/root.zig"),
-        .osmemory = .create(b, "osmemory", "memory/root.zig"),
-        .osprocess = .create(b, "osprocess", "process/root.zig"),
-        .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig"),
-        .oshal = .create(b, "oshal", "HAL/root.zig"),
-        .osshell = .create(b, "osshell", "userland/shell/shell.zig"),
-        .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig"),
+        .osformat = .create(b, "osformat", "format/root.zig", test_target),
+        .osmemory = .create(b, "osmemory", "memory/root.zig", test_target),
+        .osprocess = .create(b, "osprocess", "process/root.zig", test_target),
+        .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig", test_target),
+        .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
+        .osshell = .create(b, "osshell", "userland/shell/shell.zig", test_target),
+        .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
     };
 
     const modbochs = bochs: {
@@ -192,8 +200,8 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         tty_module: CommonModule,
     };
     const riscv32_modules: RiscV32Modules = .{
-        .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig"),
-        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/root.zig"),
+        .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig", test_target),
+        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/root.zig", test_target),
     };
 
     riscv32_modules.tty_module.module.addImport(
@@ -241,11 +249,11 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         interrupts_module: CommonModule,
     };
     const x86_modules: X86Modules = .{
-        .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig"),
-        .serial_module = .create(b, "x86serial", "arch/x86/io/root.zig"),
-        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/root.zig"),
-        .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig"),
-        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig"),
+        .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig", test_target),
+        .serial_module = .create(b, "x86serial", "arch/x86/io/root.zig", test_target),
+        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/root.zig", test_target),
+        .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig", test_target),
+        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig", test_target),
     };
 
     x86_modules.serial_module.module.addImport(

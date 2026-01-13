@@ -106,8 +106,8 @@ pub inline fn offsetFromVirtual(address: u32) u32 {
 /// Sets up the higher half kernel by enabling paging and mapping
 /// the first 4MB starting at 0xC0_00_00_00 ()
 pub fn initHigherHalfPages(
-    pd: *PageDirectory, // must be PAGE_SIZE aligned
-    pt_to_use: *PageTable, // must be PAGE_SIZE aligned
+    pd: *align(PAGE_SIZE) PageDirectory, // must be PAGE_SIZE aligned
+    pt_to_use: *align(PAGE_SIZE) PageTable, // must be PAGE_SIZE aligned
     desired_virtual_kernel_base: u32,
 ) void {
     const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
@@ -116,16 +116,17 @@ pub fn initHigherHalfPages(
     const pde: *PageDirectoryEntry = &pd[pd_index];
     pde.* = .default;
     pde.writable = true;
-    pde.page_table_address = @truncate(@intFromPtr(pt_to_use));
+    pde.page_table_address = @intCast(@intFromPtr(pt_to_use) >> 12);
     pde.in_physical_memory = true;
 
     // Will map starting physical addresses 0x0 through
     // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
     // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
     for (pt_to_use, 0..) |*entry, idx| {
-        entry.writeable = true;
-        entry.in_physical_memory = true;
-        entry.page_frame_address = @truncate(PAGE_SIZE * idx);
+        const scale: u32 = idx;
+        entry.*.writeable = true;
+        entry.*.in_physical_memory = true;
+        entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
     }
 }
 
@@ -148,16 +149,19 @@ pub fn initHigherHalfPages(
 /// 12 bits and add it to the frame address specified in the table entry. A u12
 /// can represent numbers in the range [0, 4095], so this offset will NEVER
 /// result in an address residing in another frame.
-pub fn virtualToPhysical(virtualAddress: u32, pd: *const PageDirectory) u32 {
+pub fn virtualToPhysical(
+    pd: *align(PAGE_SIZE) const PageDirectory,
+    virtualAddress: u32,
+) u32 {
     const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
-    const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
-    const offset: u32 = offsetFromVirtual(virtualAddress);
-
     const pde: *const PageDirectoryEntry = &pd[pd_index];
-    const pt: *const PageTable = @ptrFromInt(pde.page_table_address);
+
+    const pt: *align(PAGE_SIZE) const PageTable = @ptrFromInt(@as(u32, pde.page_table_address) << 12);
+    const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
     const pte: *const PageTableEntry = &pt[pt_index];
 
-    return @as(u32, pte.page_frame_address) + offset;
+    const offset: u32 = offsetFromVirtual(virtualAddress);
+    return (@as(u32, pte.page_frame_address) << 12) + offset;
 }
 
 /// Extracting a virtualAddress from a physical one is not as straight forward
@@ -171,9 +175,12 @@ pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
 }
 
 test virtualToPhysical {
-    var page_directory = uninitialized_directory;
-    var kernel_page_table = uninitialized_table;
+    var page_directory: PageDirectory align(PAGE_SIZE) = uninitialized_directory;
+    var kernel_page_table: PageTable align(PAGE_SIZE) = uninitialized_table;
     const virtual_kernel_base: u32 = 0xC0_00_00_00;
+
+    const physical_framebuffer_start = 0x00_0B_80_00;
+    const virtual_framebuffer_start = 0xC0_0B_80_00;
 
     initHigherHalfPages(
         &page_directory,
@@ -182,18 +189,30 @@ test virtualToPhysical {
     );
 
     const std = @import("std");
-    const physical_framebuffer_start = 0x000B8000;
-    const virtual_framebuffer_start = 0xC03FF000;
 
-    const translated = virtualToPhysical(
-        virtual_framebuffer_start,
+    var translated = virtualToPhysical(
         &page_directory,
+        virtual_kernel_base,
+    );
+    std.testing.expect(
+        translated == 0,
+    ) catch |err| {
+        std.debug.print(
+            "Expected virt address {x} to be translated to {x} but was instead {x}\n",
+            .{ virtual_kernel_base, 0, translated },
+        );
+        return err;
+    };
+
+    translated = virtualToPhysical(
+        &page_directory,
+        virtual_framebuffer_start,
     );
     std.testing.expect(
         translated == physical_framebuffer_start,
     ) catch |err| {
         std.debug.print(
-            "Expected virt address {x} to be translated to {x} but was instead {x}",
+            "Expected virt address {x} to be translated to {x} but was instead {x}\n",
             .{ virtual_framebuffer_start, physical_framebuffer_start, translated },
         );
         return err;
