@@ -29,7 +29,8 @@ jobs:
     - name: Unit Test
       # Don't be wasteful with CI resources, unit tests on one agent is enough
       if: matrix.os == 'ubuntu-latest'
-      run: zig build test --summary all
+      # target must be 32 bit for paging unit tests to work w/ their u32 assumptions
+      run: zig build test -Dtarget=x86-linux-musl --summary all
     - name: Upload Built Docs
       if: matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
