@@ -19,7 +19,7 @@ pub const PAGE_SIZE: comptime_int = 4096;
 const ENTRY_COUNT = 1024;
 
 pub const PageDirectory = [ENTRY_COUNT]PageDirectoryEntry;
-pub const uninitialized_directory: PageDirectory align(PAGE_SIZE) = .{
+pub var uninitialized_directory: PageDirectory align(PAGE_SIZE) = .{
     PageDirectoryEntry.default,
 } ** ENTRY_COUNT;
 
@@ -62,7 +62,7 @@ pub const PageDirectoryEntry = packed struct(u32) {
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
-pub const uninitialized_table: PageTable align(PAGE_SIZE) = .{
+pub var uninitialized_table: PageTable align(PAGE_SIZE) = .{
     PageTableEntry.default,
 } ** ENTRY_COUNT;
 

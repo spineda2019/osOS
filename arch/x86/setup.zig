@@ -23,8 +23,6 @@ const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 
-var page_directory = memory.paging.uninitialized_directory;
-var kernel_page_table = memory.paging.uninitialized_table;
 const physical_kernel_base = @extern(
     *anyopaque,
     .{ .name = "__physical_kernel_base" },
@@ -64,8 +62,8 @@ pub fn setup() noreturn {
     as.assembly_wrappers.enableSSE();
 
     memory.paging.initHigherHalfPages(
-        &page_directory,
-        &kernel_page_table,
+        &memory.paging.uninitialized_directory,
+        &memory.paging.uninitialized_table,
         virtual_kernel_base,
     );
     // as.assembly_wrappers.enablePaging(&page_directory);
