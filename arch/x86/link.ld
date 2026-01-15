@@ -20,12 +20,15 @@ ENTRY(boot)
 
 SECTIONS {
     . = 0x00100000;        /* Load code at exactly 1MB */
-    __physical_kernel_base = .;
+
+    .multiboot ALIGN(0x1000):
+    {
+        KEEP(*(.multiboot*))
+    }
 
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
-    .text ALIGN(0x1000) : 
+    .text : 
     {
-        KEEP(*(.text.multiboot*))
         *(.text)           /* All text sections from all files */
     }
 

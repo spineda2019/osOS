@@ -26,7 +26,7 @@ const bootoptions = @import("bootoptions");
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
 /// of bytes defining how the kernel will be booted.
-export const multiboot_header linksection(".text.multiboot") = switch (bootoptions.boot_specification) {
+export const multiboot_header linksection(".multiboot") = switch (bootoptions.boot_specification) {
     .MultibootOne => bootutils.headers.MultiBootOneHeader.defaultInit(),
     else => |e| @compileError("(Currently) Unsupported boot specification for x86: " ++ @tagName(e)),
 };
