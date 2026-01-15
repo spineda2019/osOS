@@ -120,6 +120,19 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         .cpu_arch = .x86,
         .os_tag = .freestanding,
         .abi = .none,
+        // remove features not guaranteed to exist on the original i386
+        .cpu_features_sub = std.Target.x86.featureSet(&.{
+            .mmx,
+            .sse,
+            .sse2,
+            .sse3,
+            .sse4_1,
+            .sse4_2,
+            .sse4a,
+            .sse_unaligned_mem,
+            .ssse3,
+            .avx,
+        }),
     });
     const riscv32_target = b.resolveTargetQuery(.{
         .cpu_arch = .riscv32,
