@@ -59,6 +59,16 @@ pub const PageDirectoryEntry = packed struct(u32) {
     pub inline fn IndexFromVirtual(address: u32) u32 {
         return (address & 0b1111111111_0000000000000000000000) >> 22;
     }
+
+    pub fn basicInit(
+        self: *PageDirectoryEntry,
+        pt_to_use: *align(PAGE_SIZE) PageTable,
+    ) void {
+        self.* = .default;
+        self.writable = true;
+        self.page_table_address = @intCast(@intFromPtr(pt_to_use) >> 12);
+        self.in_physical_memory = true;
+    }
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
@@ -106,8 +116,8 @@ pub inline fn offsetFromVirtual(address: u32) u32 {
 /// Sets up the higher half kernel by enabling paging and mapping
 /// the first 4MB starting at 0xC0_00_00_00 ()
 pub fn initHigherHalfPages(
-    pd: *align(PAGE_SIZE) PageDirectory, // must be PAGE_SIZE aligned
-    pt_to_use: *align(PAGE_SIZE) PageTable, // must be PAGE_SIZE aligned
+    pd: *align(PAGE_SIZE) PageDirectory,
+    pt_to_use: *align(PAGE_SIZE) PageTable,
     desired_virtual_kernel_base: u32,
 ) void {
     comptime {
@@ -124,10 +134,7 @@ pub fn initHigherHalfPages(
         desired_virtual_kernel_base,
     );
     const pde: *PageDirectoryEntry = &pd[pd_index];
-    pde.* = .default;
-    pde.writable = true;
-    pde.page_table_address = @intCast(@intFromPtr(pt_to_use) >> 12);
-    pde.in_physical_memory = true;
+    pde.basicInit(pt_to_use);
 
     // Will map starting physical addresses 0x0 through
     // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
@@ -138,6 +145,11 @@ pub fn initHigherHalfPages(
         entry.*.in_physical_memory = true;
         entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
     }
+
+    // We also have to identity map the first 4mb to make the kernel not crash
+    // when paging is turned on.
+    const first_pde: *PageDirectoryEntry = &pd[0];
+    first_pde.basicInit(pt_to_use);
 }
 
 /// Virtual to Physical Transation does the following (largely ripped from

@@ -66,7 +66,7 @@ pub fn setup() noreturn {
         &memory.paging.uninitialized_table,
         virtual_kernel_base,
     );
-    // as.assembly_wrappers.enablePaging(&page_directory);
+    // as.assembly_wrappers.enablePaging(&memory.paging.uninitialized_directory);
 
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
