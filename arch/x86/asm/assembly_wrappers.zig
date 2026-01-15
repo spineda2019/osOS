@@ -128,10 +128,10 @@ pub inline fn illegal_instruction() void {}
 
 pub inline fn enablePaging(pd: *anyopaque) void {
     asm volatile (
-        \\mov %cr3, %[pd_address]
-        \\mov %eax, %cr0
-        \\or %eax, 0x80000001
+        \\mov %[pd_address], %cr3
         \\mov %cr0, %eax
+        \\or 0x80000001, %eax
+        \\mov %eax, %cr0
         : // no outputs
         : [pd_address] "r" (pd),
     );
