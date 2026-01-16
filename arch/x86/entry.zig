@@ -14,14 +14,16 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const setup: *const fn () noreturn = &@import("setup.zig").setup;
-
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("osboot");
 
 /// Defined in the build script
 const bootoptions = @import("bootoptions");
+
+const memory = @import("x86memory");
+const as = @import("x86asm");
+const setup = @import("setup.zig");
 
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
@@ -38,14 +40,32 @@ pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
-        \\    jmpl *%[setup_address]
+        \\    jmpl *%[boot_landing_pad]
         :
         : [stack_top] "i" (stack_top),
-          [setup_address] "r" (setup),
+          [boot_landing_pad] "r" (&bootLandingPad),
     );
 }
 
-fn bootLandingPad() void {}
+fn bootLandingPad() linksection(".trampoline") noreturn {
+    const virtual_kernel_base: u32 = 0xC0_00_00_00;
+
+    @call(.always_inline, memory.paging.initHigherHalfPages, .{
+        &kernel_page_directory,
+        &kernel_page_table,
+        virtual_kernel_base,
+    });
+    as.assembly_wrappers.enablePaging(&kernel_page_directory);
+    setup.setup();
+}
+
+pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageDirectoryEntry.default,
+} ** memory.paging.ENTRY_COUNT;
+
+pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageTableEntry.default,
+} ** memory.paging.ENTRY_COUNT;
 
 test {
     @import("std").testing.refAllDeclsRecursive(@This());
