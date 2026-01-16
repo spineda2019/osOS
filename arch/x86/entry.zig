@@ -35,7 +35,7 @@ const PanicNamespace = @import("std").debug.FullPanic;
 pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 
 /// Entry point of our kernel. Will only setup our stack and jump to setup.
-export fn boot() linksection(".text") callconv(.naked) noreturn {
+export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
         \\    jmpl *%[setup_address]
@@ -44,6 +44,8 @@ export fn boot() linksection(".text") callconv(.naked) noreturn {
           [setup_address] "r" (setup),
     );
 }
+
+fn bootLandingPad() void {}
 
 test {
     @import("std").testing.refAllDeclsRecursive(@This());

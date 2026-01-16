@@ -23,7 +23,12 @@ SECTIONS {
 
     .multiboot ALIGN(0x1000):
     {
-        KEEP(*(.multiboot*))
+        KEEP(*(.multiboot))
+    }
+
+    .boot :
+    {
+        KEEP(*(.boot))
     }
 
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
