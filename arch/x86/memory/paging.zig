@@ -16,12 +16,9 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub const PAGE_SIZE: comptime_int = 4096;
-const ENTRY_COUNT = 1024;
+pub const ENTRY_COUNT = 1024;
 
 pub const PageDirectory = [ENTRY_COUNT]PageDirectoryEntry;
-pub var uninitialized_directory: PageDirectory align(PAGE_SIZE) = .{
-    PageDirectoryEntry.default,
-} ** ENTRY_COUNT;
 
 /// Must be aligned to 4KiB, or 4096 bytes.
 pub const PageDirectoryEntry = packed struct(u32) {
@@ -72,9 +69,6 @@ pub const PageDirectoryEntry = packed struct(u32) {
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
-pub var uninitialized_table: PageTable align(PAGE_SIZE) = .{
-    PageTableEntry.default,
-} ** ENTRY_COUNT;
 
 /// Must be aligned to 4KiB, or 4096 bytes.
 pub const PageTableEntry = packed struct(u32) {
@@ -199,8 +193,12 @@ pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
 test virtualToPhysical {
     const std = @import("std");
 
-    var page_directory: PageDirectory align(PAGE_SIZE) = uninitialized_directory;
-    var kernel_page_table: PageTable align(PAGE_SIZE) = uninitialized_table;
+    var page_directory: PageDirectory align(PAGE_SIZE) = .{
+        PageDirectoryEntry.default,
+    } ** ENTRY_COUNT;
+    var kernel_page_table: PageTable align(PAGE_SIZE) = .{
+        PageTableEntry.default,
+    } ** ENTRY_COUNT;
     const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
     const physical_framebuffer_start = 0x00_0B_80_00;

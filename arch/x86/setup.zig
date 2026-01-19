@@ -61,14 +61,8 @@ pub fn setup() noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
-    memory.paging.initHigherHalfPages(
-        &memory.paging.uninitialized_directory,
-        &memory.paging.uninitialized_table,
-        virtual_kernel_base,
-    );
-    // as.assembly_wrappers.enablePaging(&memory.paging.uninitialized_directory);
-
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
+
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
