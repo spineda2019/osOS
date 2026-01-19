@@ -152,4 +152,88 @@ pub const V1 = extern struct {
             };
         };
     };
+
+    /// Per the MultiBoot V1 spec, ebx shall hold the physical address to a
+    /// multiboot info struct that looks like this.
+    pub const Info = extern struct {
+        flags: u32,
+
+        mem_lower: u32,
+        mem_upper: u32,
+
+        boot_device: u32,
+
+        cmdline: u32,
+
+        mods_count: u32,
+        mods_addr: u32,
+
+        u: SymbolTable,
+
+        mmap_length: u32,
+        mmap_addr: u32,
+
+        drives_length: u32,
+        drives_addr: u32,
+
+        config_table: u32,
+
+        boot_loader_name: u32,
+
+        apm_table: u32,
+
+        vbe_control_info: u32,
+        vbe_mode_info: u32,
+        vbe_mode: u16,
+        vbe_interface_seg: u16,
+        vbe_interface_off: u16,
+        vbe_interface_len: u16,
+
+        framebuffer_addr_lower: u32,
+        framebuffer_addr_higher: u32,
+        framebuffer_pitch: u32,
+        framebuffer_width: u32,
+        framebuffer_height: u32,
+        framebuffer_bpp: u8,
+        framebuffer_type: u8,
+        framebuffer_info: FrameBufferColorInfo,
+
+        const SymbolTable = extern union {
+            pub const AOutSymbolTable = extern struct {
+                tabsize: u32,
+                strsize: u32,
+                addr: u32,
+                _reserved: u32,
+            };
+            pub const ElfSectionTable = extern struct {
+                num: u32,
+                size: u32,
+                addr: u32,
+                shndx: u32,
+            };
+
+            aout: AOutSymbolTable,
+            elf: ElfSectionTable,
+        };
+
+        const FrameBufferColorInfo = extern union {
+            const PaletteInfo = extern struct {
+                address: u32,
+                num_colors: u16,
+            };
+            const RGBInfo = extern struct {
+                red_field_position: u8,
+                red_mask_size: u8,
+
+                green_field_position: u8,
+                green_mask_size: u8,
+
+                blue_field_position: u8,
+                blue_mask_size: u8,
+            };
+
+            palette_info: PaletteInfo,
+            rgb_info: RGBInfo,
+        };
+    };
 };
