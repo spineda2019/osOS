@@ -15,4 +15,4 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /// Access to multiboot header structures, such as multiboot 1.
-pub const headers = @import("headers.zig");
+pub const MultiBoot = @import("MultiBoot.zig");

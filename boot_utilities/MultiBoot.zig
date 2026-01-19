@@ -31,11 +31,15 @@
 /// 36        u32     width         if flags[2] is set
 /// 40        u32     height        if flags[2] is set
 /// 44        u32     depth         if flags[2] is set
-pub const MultiBootOneHeader = extern struct {
+pub const V1 = extern struct {
+    const Self = @This();
+
+    /// MUST be set to the MultiBoot V1 Magic Number of 0x1BADB002
     magic_number: u32,
 
     flags: Flags,
 
+    /// Calculated via a combination of the flags and magic number.
     checksum: u32,
 
     /// if flags[16] is set
@@ -53,14 +57,20 @@ pub const MultiBootOneHeader = extern struct {
     /// if flags[16] is set
     entry_addr: u32,
 
-    video_information: VideoInformation,
+    mode_type: VideoInformation.ModeType,
+
+    width: u32,
+
+    height: u32,
+
+    depth: u32,
 
     pub const magic_number_value: u32 = 0x1BADB002;
-    pub fn init(flags: Flags, video_info: VideoInformation) MultiBootOneHeader {
+    pub fn init(flags: Flags, video_info: VideoInformation) Self {
         return .{
-            .magic_number = MultiBootOneHeader.magic_number_value,
+            .magic_number = Self.magic_number_value,
             .flags = flags,
-            .checksum = 0 -% MultiBootOneHeader.magic_number_value -% @as(
+            .checksum = 0 -% Self.magic_number_value -% @as(
                 u32,
                 @bitCast(flags),
             ),
@@ -69,17 +79,20 @@ pub const MultiBootOneHeader = extern struct {
             .load_end_addr = undefined,
             .bss_end_addr = undefined,
             .entry_addr = undefined,
-            .video_information = video_info,
+            .mode_type = video_info.mode_type,
+            .width = video_info.width,
+            .height = video_info.height,
+            .depth = video_info.depth,
         };
     }
 
-    pub fn defaultInit() MultiBootOneHeader {
+    pub fn defaultInit() Self {
         return init(Flags.cleared, VideoInformation.default);
     }
 
-    pub const VideoInformation = packed struct(u128) {
+    pub const VideoInformation = struct {
         /// if flags[2] is set. 0 for linear graphics and 1 for EGA text mode.
-        mode_type: u32,
+        mode_type: ModeType,
 
         /// if flags[2] is set. Framebuffer width. Measured in pixels in graphics
         /// mode, or characters in text mode.
@@ -95,10 +108,15 @@ pub const MultiBootOneHeader = extern struct {
         depth: u32,
 
         pub const default: VideoInformation = .{
-            .mode_type = 1,
+            .mode_type = .ega_text,
             .width = 80,
             .height = 25,
             .depth = 0,
+        };
+
+        pub const ModeType = enum(u32) {
+            linear = 0,
+            ega_text = 1,
         };
     };
 
