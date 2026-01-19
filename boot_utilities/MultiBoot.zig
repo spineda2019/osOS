@@ -22,15 +22,15 @@
 /// 0         u32     magic         required
 /// 4         u32     flags         required
 /// 8         u32     checksum      required
-/// 12        u32     header_addr   if flags[16] is set
-/// 16        u32     load_addr     if flags[16] is set
-/// 20        u32     load_end_addr if flags[16] is set
-/// 24        u32     bss_end_addr  if flags[16] is set
-/// 28        u32     entry_addr    if flags[16] is set
-/// 32        u32     mode_type     if flags[2] is set
-/// 36        u32     width         if flags[2] is set
-/// 40        u32     height        if flags[2] is set
-/// 44        u32     depth         if flags[2] is set
+/// 12        u32     header_addr   if flags.activate_address_configurations is set
+/// 16        u32     load_addr     if flags.activate_address_configurations is set
+/// 20        u32     load_end_addr if flags.activate_address_configurations is set
+/// 24        u32     bss_end_addr  if flags.activate_address_configurations is set
+/// 28        u32     entry_addr    if flags.activate_address_configurations is set
+/// 32        u32     mode_type     if flags.include_video_mode_info is set
+/// 36        u32     width         if flags.include_video_mode_info is set
+/// 40        u32     height        if flags.include_video_mode_info is set
+/// 44        u32     depth         if flags.include_video_mode_info is set
 pub const V1 = extern struct {
     const Self = @This();
 
@@ -42,19 +42,19 @@ pub const V1 = extern struct {
     /// Calculated via a combination of the flags and magic number.
     checksum: u32,
 
-    /// if flags[16] is set
+    /// if flags.activate_address_configurations is set
     header_addr: u32,
 
-    /// if flags[16] is set
+    /// if flags.activate_address_configurations is set
     load_addr: u32,
 
-    /// if flags[16] is set
+    /// if flags.activate_address_configurations is set
     load_end_addr: u32,
 
-    /// if flags[16] is set
+    /// if flags.activate_address_configurations is set
     bss_end_addr: u32,
 
-    /// if flags[16] is set
+    /// if flags.activate_address_configurations is set
     entry_addr: u32,
 
     mode_type: VideoInformation.ModeType,
@@ -66,19 +66,19 @@ pub const V1 = extern struct {
     depth: u32,
 
     pub const magic_number_value: u32 = 0x1BADB002;
-    pub fn init(flags: Flags, video_info: VideoInformation) Self {
+    pub fn init(flags: Flags.InitInfo, video_info: VideoInformation) Self {
         return .{
             .magic_number = Self.magic_number_value,
-            .flags = flags,
+            .flags = flags.flags,
             .checksum = 0 -% Self.magic_number_value -% @as(
                 u32,
-                @bitCast(flags),
+                @bitCast(flags.flags),
             ),
-            .header_addr = undefined,
-            .load_addr = undefined,
-            .load_end_addr = undefined,
-            .bss_end_addr = undefined,
-            .entry_addr = undefined,
+            .header_addr = flags.header_addr,
+            .load_addr = flags.load_addr,
+            .load_end_addr = flags.load_end_addr,
+            .bss_end_addr = flags.bss_end_addr,
+            .entry_addr = flags.entry_addr,
             .mode_type = video_info.mode_type,
             .width = video_info.width,
             .height = video_info.height,
@@ -86,25 +86,22 @@ pub const V1 = extern struct {
         };
     }
 
-    pub fn defaultInit() Self {
-        return init(Flags.cleared, VideoInformation.default);
-    }
-
     pub const VideoInformation = struct {
-        /// if flags[2] is set. 0 for linear graphics and 1 for EGA text mode.
+        /// if flags.include_video_mode_info is set. 0 for linear graphics and
+        /// 1 for EGA text mode.
         mode_type: ModeType,
 
-        /// if flags[2] is set. Framebuffer width. Measured in pixels in graphics
-        /// mode, or characters in text mode.
+        /// if flags.include_video_mode_info is set. Framebuffer width. Measured
+        /// in pixels in graphics mode, or characters in text mode.
         width: u32,
 
-        /// if flags[2] is set. Framebuffer height. Measured in pixels in graphics
-        /// mode, or characters in text mode.
+        /// if flags.include_video_mode_info is set. Framebuffer height.
+        /// Measured in pixels in graphics mode, or characters in text mode.
         height: u32,
 
-        /// if flags[2] is set. Contains the number of bits per pixel in a graphics
-        /// mode, and zero in a text mode. The value zero indicates that the OS
-        /// image has no preference.
+        /// if flags.include_video_mode_info is set. Contains the number of bits
+        /// per pixel in a graphics mode, and zero in a text mode. The value
+        /// zero indicates that the OS image has no preference.
         depth: u32,
 
         pub const default: VideoInformation = .{
@@ -135,6 +132,24 @@ pub const V1 = extern struct {
             ._zeros = 0,
             .activate_address_configurations = 0,
             ._more_zeroes = 0,
+        };
+
+        pub const InitInfo = struct {
+            flags: Flags,
+            header_addr: u32,
+            load_addr: u32,
+            load_end_addr: u32,
+            bss_end_addr: u32,
+            entry_addr: u32,
+
+            pub const default: InitInfo = .{
+                .flags = .cleared,
+                .header_addr = undefined,
+                .load_addr = undefined,
+                .load_end_addr = undefined,
+                .bss_end_addr = undefined,
+                .entry_addr = undefined,
+            };
         };
     };
 };
