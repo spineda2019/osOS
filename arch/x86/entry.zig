@@ -41,6 +41,7 @@ pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
+        \\    push %EBX
         \\    jmpl *%[trampoline]
         : // No outputs
         : [stack_top] "i" (stack_top),
@@ -56,7 +57,9 @@ pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE
     memory.paging.PageTableEntry.default,
 } ** memory.paging.ENTRY_COUNT;
 
-fn trampoline() linksection(".trampoline") noreturn {
+fn trampoline(
+    mbInfo: *allowzero const bootutils.MultiBoot.V1.Info,
+) linksection(".trampoline") callconv(.c) noreturn {
     const setup = @import("setup.zig");
     // const virtual_kernel_base: u32 = 0xC0_00_00_00;
     //
@@ -66,7 +69,7 @@ fn trampoline() linksection(".trampoline") noreturn {
     // virtual_kernel_base,
     // });
     // as.assembly_wrappers.enablePaging(&kernel_page_directory);
-    setup.setup();
+    setup.setup(mbInfo);
 }
 
 test {

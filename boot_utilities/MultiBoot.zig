@@ -156,7 +156,7 @@ pub const V1 = extern struct {
     /// Per the MultiBoot V1 spec, ebx shall hold the physical address to a
     /// multiboot info struct that looks like this.
     pub const Info = extern struct {
-        flags: u32,
+        flags: InfoFlags,
 
         mem_lower: u32,
         mem_upper: u32,
@@ -168,7 +168,7 @@ pub const V1 = extern struct {
         mods_count: u32,
         mods_addr: u32,
 
-        u: SymbolTable,
+        syms: SymbolTable,
 
         mmap_length: u32,
         mmap_addr: u32,
@@ -196,7 +196,53 @@ pub const V1 = extern struct {
         framebuffer_height: u32,
         framebuffer_bpp: u8,
         framebuffer_type: u8,
-        framebuffer_info: FrameBufferColorInfo,
+        framebuffer_color_info: FrameBufferColorInfo,
+
+        const InfoFlags = packed struct(u32) {
+            valid_mem: bool,
+
+            boot_device: bool,
+
+            cmdline: bool,
+
+            mods: bool,
+
+            syms_aout: bool,
+            syms_elf: bool,
+
+            mmap: bool,
+
+            drives: bool,
+
+            config: bool,
+
+            boot_loader_name: bool,
+
+            apm_table: bool,
+
+            vbe: bool,
+
+            framebuffer: bool,
+
+            _reserved: u19,
+        };
+
+        pub const MemMapEntry = extern struct {
+            size: u32,
+            addr_low: u32,
+            addr_high: u32,
+            len_low: u32,
+            len_high: u32,
+            entry_type: EntryType,
+
+            pub const EntryType = enum(u32) {
+                available = 1,
+                reserved = 2,
+                acpi_reclaimable = 3,
+                nvs = 4,
+                badram = 5,
+            };
+        };
 
         const SymbolTable = extern union {
             pub const AOutSymbolTable = extern struct {

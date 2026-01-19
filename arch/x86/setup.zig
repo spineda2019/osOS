@@ -22,6 +22,7 @@ const interrupts = @import("x86interrupts");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
+const bootutils = @import("osboot");
 
 const physical_kernel_base = @extern(
     *anyopaque,
@@ -57,7 +58,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 }
 
 /// Hardware setup; jumped to from the boot routine
-pub fn setup() noreturn {
+pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
@@ -79,11 +80,54 @@ pub fn setup() noreturn {
     }
     framebuffer.clear();
 
+    framebuffer.writeLine("Probing MultibootInfo...");
+    framebuffer.write("Info Struct Address: ");
+    {
+        const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
+            @intFromPtr(mbInfo),
+        );
+        framebuffer.writeLine(mbInfoAddrStr.getStr());
+        if (mbInfo.flags.mmap) {
+            framebuffer.writeLine("MMap info found!");
+            framebuffer.write("    Length: ");
+            const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
+                mbInfo.mmap_length,
+            );
+            framebuffer.writeLine(lenStr.getStr());
+
+            // Something below is causing an incorrect alignment panbic...
+            // const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
+            // const StringFormatType = osformat.format.StringFromInt(u32, 10);
+            // const AddressFormatType = osformat.format.StringFromInt(u32, 16);
+
+            // const entry: *const EntryType = @ptrFromInt(mbInfo.mmap_addr);
+            // const size_str: StringFormatType = .init(entry.size);
+            // const addr_str: AddressFormatType = .init(entry.addr_low);
+            // const len_str: StringFormatType = .init(entry.len_low);
+
+            // framebuffer.writeLine("    Peek Entry #1: ");
+
+            // framebuffer.write("        Size: ");
+            // framebuffer.writeLine(size_str.getStr());
+
+            // framebuffer.write("        Addr: 0x");
+            // framebuffer.writeLine(addr_str.getStr());
+
+            // framebuffer.write("        Len: ");
+            // framebuffer.writeLine(len_str.getStr());
+
+            // framebuffer.write("        Type: ");
+            // framebuffer.writeLine(@tagName(entry.entry_type));
+        } else {
+            framebuffer.writeLine("MMap info not available");
+        }
+    }
+
     var serial_port = serial.SerialPort.defaultInit();
 
-    const message = "Trying to write out of COM port 1...!";
+    const message = "Trying to write out of COM port 1...";
     serial_port.write(message);
-    framebuffer.write(message);
+    framebuffer.writeLine(message);
 
     framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
     framebuffer.writeLine("x86: Activating PIC...");
