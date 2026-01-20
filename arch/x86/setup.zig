@@ -32,6 +32,8 @@ const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
+    const StackIterator = @import("std").debug.StackIterator;
+
     as.assembly_wrappers.disable_x86_interrupts();
     var framebuffer: framebuffer_api.FrameBuffer = .init(.Black, .White);
     framebuffer.clear();
@@ -45,11 +47,17 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     framebuffer.writeLine(return_addr_str.getStr());
 
     if (start_address) |addr| {
-        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
-            addr - call_instruction_size,
-        );
-        framebuffer.write("Reported start address: 0x");
-        framebuffer.writeLine(start_addr_str.getStr());
+        framebuffer.writeLine("Received first_address info:");
+        var iterator: StackIterator = .init(addr, @frameAddress());
+        while (iterator.next()) |next| {
+            const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
+                next,
+            );
+            framebuffer.write("    Frame address: 0x");
+            framebuffer.writeLine(start_addr_str.getStr());
+        }
+    } else {
+        framebuffer.writeLine("No reported start_address");
     }
 
     while (true) {

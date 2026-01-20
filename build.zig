@@ -32,8 +32,6 @@ const BootSpecification = enum {
     Limine,
 };
 
-const entry_modules = .{};
-
 const CommonModule = struct {
     name: []const u8,
     module: *std.Build.Module,
