@@ -252,6 +252,18 @@ pub const FrameBuffer: type = struct {
         const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
         metadata_address.* = (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
         ascii_address.* = character;
+
+        // MMIO hackery?
+        _ = asm volatile (
+            \\ mov (%[ascii]), %[ret]
+            : [ret] "={eax}" (-> *volatile u8),
+            : [ascii] "r" (ascii_address),
+        );
+        _ = asm volatile (
+            \\ mov (%[meta]), %[ret]
+            : [ret] "={eax}" (-> *volatile u8),
+            : [meta] "r" (metadata_address),
+        );
     }
 
     pub fn clear(self: *FrameBuffer) void {
