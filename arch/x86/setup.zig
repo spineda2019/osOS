@@ -80,6 +80,8 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
     idt_descriptor.loadIDT();
 
     var framebuffer: framebuffer_api.FrameBuffer = .init(.LightBrown, .DarkGray);
+    var serial_port = serial.SerialPort.defaultInit();
+
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
         for (0..32768) |_| {
@@ -89,49 +91,80 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
     framebuffer.clear();
 
     framebuffer.writeLine("Probing MultibootInfo...");
-    framebuffer.write("Info Struct Address: ");
-    {
-        const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
-            @intFromPtr(mbInfo),
+    framebuffer.write("Info Struct Address: 0x");
+    const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
+        @intFromPtr(mbInfo),
+    );
+
+    framebuffer.writeLine(mbInfoAddrStr.getStr());
+    if (mbInfo.flags.framebuffer) {
+        framebuffer.writeLine("FB Info found!");
+        framebuffer.write("    Lower: 0x");
+        const fb_lower_str: osformat.format.StringFromInt(u32, 16) = .init(
+            mbInfo.framebuffer_addr_lower,
         );
-        framebuffer.writeLine(mbInfoAddrStr.getStr());
-        if (mbInfo.flags.mmap) {
-            framebuffer.writeLine("MMap info found!");
-            framebuffer.write("    Length: ");
-            const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
-                mbInfo.mmap_length,
-            );
-            framebuffer.writeLine(lenStr.getStr());
-
-            // Something below is causing an incorrect alignment panbic...
-            // const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
-            // const StringFormatType = osformat.format.StringFromInt(u32, 10);
-            // const AddressFormatType = osformat.format.StringFromInt(u32, 16);
-
-            // const entry: *const EntryType = @ptrFromInt(mbInfo.mmap_addr);
-            // const size_str: StringFormatType = .init(entry.size);
-            // const addr_str: AddressFormatType = .init(entry.addr_low);
-            // const len_str: StringFormatType = .init(entry.len_low);
-
-            // framebuffer.writeLine("    Peek Entry #1: ");
-
-            // framebuffer.write("        Size: ");
-            // framebuffer.writeLine(size_str.getStr());
-
-            // framebuffer.write("        Addr: 0x");
-            // framebuffer.writeLine(addr_str.getStr());
-
-            // framebuffer.write("        Len: ");
-            // framebuffer.writeLine(len_str.getStr());
-
-            // framebuffer.write("        Type: ");
-            // framebuffer.writeLine(@tagName(entry.entry_type));
-        } else {
-            framebuffer.writeLine("MMap info not available");
-        }
+        framebuffer.writeLine(fb_lower_str.getStr());
+    } else {
+        framebuffer.writeLine("No FB info...");
     }
 
-    var serial_port = serial.SerialPort.defaultInit();
+    if (mbInfo.flags.mmap) {
+        framebuffer.writeLine("MMap info found!");
+        framebuffer.write("    Length: ");
+        const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
+            mbInfo.mmap_length,
+        );
+        framebuffer.writeLine(lenStr.getStr());
+
+        // Something below is causing an incorrect alignment panbic...
+        const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
+        const StringFormatType = osformat.format.StringFromInt(u32, 10);
+        const AddressFormatType = osformat.format.StringFromInt(u32, 16);
+
+        const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
+
+        var buf: []const u8 = undefined;
+        for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
+            const size_str: StringFormatType = .init(entry[idx].size);
+            const addr_str: AddressFormatType = .init(entry[idx].addr_low);
+            const len_str: StringFormatType = .init(entry[idx].len_low);
+
+            buf = "    Entry: ";
+            framebuffer.writeLine(buf);
+            serial_port.write(buf);
+            serial_port.write("\r\n");
+
+            buf = "        Size: ";
+            framebuffer.write(buf);
+            framebuffer.writeLine(size_str.getStr());
+            serial_port.write(buf);
+            serial_port.write(size_str.getStr());
+            serial_port.write("\r\n");
+
+            buf = "        Addr: 0x";
+            framebuffer.write(buf);
+            framebuffer.writeLine(addr_str.getStr());
+            serial_port.write(buf);
+            serial_port.write(addr_str.getStr());
+            serial_port.write("\r\n");
+
+            buf = "        Len: ";
+            framebuffer.write(buf);
+            framebuffer.writeLine(len_str.getStr());
+            serial_port.write(buf);
+            serial_port.write(len_str.getStr());
+            serial_port.write("\r\n");
+
+            buf = "        Type: ";
+            framebuffer.write(buf);
+            framebuffer.writeLine(@tagName(entry[idx].entry_type));
+            serial_port.write(buf);
+            serial_port.write(@tagName(entry[idx].entry_type));
+            serial_port.write("\r\n");
+        }
+    } else {
+        framebuffer.writeLine("MMap info not available");
+    }
 
     const message = "Trying to write out of COM port 1...";
     serial_port.write(message);

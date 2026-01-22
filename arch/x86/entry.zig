@@ -42,7 +42,7 @@ export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
         \\    push %EBX
-        \\    jmpl *%[trampoline]
+        \\    call *%[trampoline]
         : // No outputs
         : [stack_top] "i" (stack_top),
           [trampoline] "r" (&trampoline),
