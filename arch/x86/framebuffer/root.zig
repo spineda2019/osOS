@@ -256,12 +256,12 @@ pub const FrameBuffer: type = struct {
         // MMIO hackery?
         _ = asm volatile (
             \\ mov (%[ascii]), %[ret]
-            : [ret] "={eax}" (-> *volatile u8),
+            : [ret] "={eax}" (-> u8),
             : [ascii] "r" (ascii_address),
         );
         _ = asm volatile (
             \\ mov (%[meta]), %[ret]
-            : [ret] "={eax}" (-> *volatile u8),
+            : [ret] "={eax}" (-> u8),
             : [meta] "r" (metadata_address),
         );
     }
