@@ -118,12 +118,12 @@ pub const V1 = extern struct {
     };
 
     pub const Flags = packed struct(u32) {
-        enforce_all_4kb_alignment: u1,
-        include_memory_information: u1,
-        include_video_mode_info: u1,
-        _zeros: u13,
-        activate_address_configurations: u1,
-        _more_zeroes: u15,
+        enforce_all_4kb_alignment: bool,
+        include_memory_information: bool,
+        include_video_mode_info: bool,
+        _zeros: u13 = 0,
+        activate_address_configurations: bool,
+        _more_zeroes: u15 = 0,
 
         pub const cleared: Flags = .{
             .enforce_all_4kb_alignment = 0,

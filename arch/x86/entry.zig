@@ -28,7 +28,22 @@ const as = @import("x86asm");
 /// our kernel's binary, and will be interpretted by the bootloader as the header
 /// of bytes defining how the kernel will be booted.
 pub export const multiboot_header linksection(".multiboot") = switch (bootoptions.boot_specification) {
-    .MultibootOne => bootutils.MultiBoot.V1.init(.default, .default),
+    .MultibootOne => bootutils.MultiBoot.V1.init(
+        .{
+            .flags = .{
+                .enforce_all_4kb_alignment = false,
+                .include_memory_information = false,
+                .include_video_mode_info = true,
+                .activate_address_configurations = false,
+            },
+            .header_addr = undefined,
+            .load_addr = undefined,
+            .load_end_addr = undefined,
+            .bss_end_addr = undefined,
+            .entry_addr = undefined,
+        },
+        .{ .height = 25, .width = 80, .mode_type = .ega_text, .depth = 0 },
+    ),
     else => |e| @compileError(
         "(Currently) Unsupported boot specification for x86: " ++ @tagName(e),
     ),
