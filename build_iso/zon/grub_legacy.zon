@@ -1,0 +1,21 @@
+.{
+    .to_create = .{
+        // Directories MUST end in '/'
+        "zig-out/x86/iso/boot/grub/",
+    },
+    .to_copy = .{
+        .{
+            .src = "arch/x86/stage2_eltorito",
+            .dest = "zig-out/x86/iso/boot/grub/stage2_eltorito",
+        },
+        .{
+            .src = "arch/x86/menu.lst",
+            .dest = "zig-out/x86/iso/boot/grub/menu.lst",
+        },
+        .{
+            .src = "arch/x86/bochs.config",
+            .dest = "zig-out/x86/bochs.config",
+        },
+    },
+    .kernel_destination = "zig-out/x86/iso/boot/",
+}

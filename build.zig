@@ -587,6 +587,22 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     riscv32_run_step.dependOn(&run_riscv32.step);
 
     //* *************************** x86 Specific ***************************** *
+    const isooptions = b.addOptions();
+    isooptions.addOption(BootLoader, "bootloader", build_options.boot_loader);
+    const modiso = b.createModule(.{
+        .root_source_file = b.path("build_iso/main.zig"),
+        .optimize = .ReleaseSafe,
+        .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
+    });
+    modiso.addOptions("isooptions", isooptions);
+    const exeiso = b.addExecutable(.{
+        .name = "build_iso",
+        .root_module = modiso,
+    });
+    const runiso = b.addRunArtifact(exeiso);
+    runiso.addFileArg(b.path(""));
+    runiso.addArtifactArg(x86_exe);
+
     // TODO: Make these copy steps system agnostic
     const create_x86_iso_structure = b.addSystemCommand(&.{
         "mkdir",
@@ -652,6 +668,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
 
     const x86_iso_step = b.step("iso_x86", "Build the x86 ISO disc image");
     x86_iso_step.dependOn(&create_x86_iso.step);
+    x86_iso_step.dependOn(&runiso.step);
 
     const x86_run_step_qemu = b.step("run_x86_qemu", "Boot kernel with QEMU on x86");
     x86_run_step_qemu.dependOn(&x86_run_qemu.step);
