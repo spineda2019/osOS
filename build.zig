@@ -20,6 +20,7 @@ const builtin = @import("builtin");
 const BuildOptions = struct {
     default_run_target: SupportedTarget,
     boot_specification: BootSpecification,
+    boot_loader: BootLoader,
     test_panic: bool,
     build_bochs: bool,
 
@@ -40,6 +41,11 @@ const BuildOptions = struct {
                 "test_panic",
                 "Test the panic handler in kmain",
             ) orelse false,
+            .boot_loader = b.option(
+                BootLoader,
+                "bootloader",
+                "Boot loader to build into image (only on x86)",
+            ) orelse .grub_legacy,
             .build_bochs = b.option(
                 bool,
                 "build_bochs",
@@ -58,6 +64,11 @@ const BootSpecification = enum {
     MultibootOne,
     MultibootTwo,
     Limine,
+};
+
+const BootLoader = enum {
+    grub_legacy,
+    limine,
 };
 
 const CommonModule = struct {
