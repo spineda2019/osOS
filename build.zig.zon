@@ -13,6 +13,11 @@
             .hash = "bochs-2.7.0-WqPDh6tfLwHPur5cfhCaVeeKZyIdibJI13JhJi9LdB6J",
             .lazy = true,
         },
+        .limine = .{
+            .url = "git+https://github.com/limine-bootloader/limine.git?ref=v10.6.3-binary#a464531c5e1192b83230da29d74ddcf40ea30efd",
+            .hash = "N-V-__8AAFNxSgAmqC734zRSm3zL_0brYgzmptnRM0U_q6Zk",
+            .lazy = true,
+        },
     },
 
     .paths = .{
