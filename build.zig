@@ -17,8 +17,36 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-const BuildError = error{
-    unsupported,
+const BuildOptions = struct {
+    default_run_target: SupportedTarget,
+    boot_specification: BootSpecification,
+    test_panic: bool,
+    build_bochs: bool,
+
+    pub fn init(b: *std.Build) BuildOptions {
+        return .{
+            .default_run_target = b.option(
+                SupportedTarget,
+                "arch",
+                "Target Architecture",
+            ) orelse .x86,
+            .boot_specification = b.option(
+                BootSpecification,
+                "boot_specification",
+                "Boot specification to boot the kernel with",
+            ) orelse .MultibootOne,
+            .test_panic = b.option(
+                bool,
+                "test_panic",
+                "Test the panic handler in kmain",
+            ) orelse false,
+            .build_bochs = b.option(
+                bool,
+                "build_bochs",
+                "Build bochs from source",
+            ) orelse false,
+        };
+    }
 };
 
 const SupportedTarget = enum {
@@ -101,6 +129,16 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         "building with zig version: {}.{}.{}\n",
         .{ zigver.major, zigver.minor, zigver.patch },
     );
+
+    std.debug.print("*************** Build time options **************\n", .{});
+    const build_options: BuildOptions = .init(b);
+    inline for (comptime std.meta.fieldNames(BuildOptions)) |option_name| {
+        const option = @field(build_options, option_name);
+        std.debug.print("Option: {s}\n", .{option_name});
+        std.debug.print("\tValue: {}\n\n", .{option});
+    }
+    std.debug.print("*************************************************\n", .{});
+
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
@@ -108,11 +146,6 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     const test_target = b.standardTargetOptions(.{});
 
     const kernel_name = "osOS.elf";
-    const target_arch: SupportedTarget = b.option(
-        SupportedTarget,
-        "arch",
-        "Target Architecture",
-    ) orelse .x86;
 
     const x86_target = b.resolveTargetQuery(.{
         .cpu_arch = .x86,
@@ -138,36 +171,20 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         .abi = .none,
     });
 
-    const boot_specification: BootSpecification = b.option(
-        BootSpecification,
-        "boot_specification",
-        "Boot specification to boot the kernel with",
-    ) orelse BootSpecification.MultibootOne;
     const boot_options = b.addOptions();
     boot_options.addOption(
         BootSpecification,
         "boot_specification",
-        boot_specification,
+        build_options.boot_specification,
     );
 
-    const test_panic: bool = b.option(
-        bool,
-        "test_panic",
-        "Test the panic handler in kmain",
-    ) orelse false;
     const test_options = b.addOptions();
-    test_options.addOption(bool, "test_panic", test_panic);
+    test_options.addOption(bool, "test_panic", build_options.test_panic);
 
     const depbochs = b.lazyDependency(
         "bochs_zig",
         .{ .@"with-x11" = true, .@"with-sdl" = true },
     );
-
-    const build_bochs: bool = b.option(
-        bool,
-        "build_bochs",
-        "Build bochs from source",
-    ) orelse false;
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -196,7 +213,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     };
 
     const modbochs = bochs: {
-        if (!build_bochs) {
+        if (!build_options.build_bochs) {
             break :bochs null;
         } else if (depbochs) |dep| {
             break :bochs dep.module("bochs");
@@ -382,10 +399,6 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
 
     x86_module.addImport("kmain", kmain_module);
     riscv32_module.addImport("kmain", kmain_module);
-    std.debug.print(
-        "Selected default run target: {s}\n",
-        .{@tagName(target_arch)},
-    );
 
     //**************************************************************************
     //                           Compile Step Setup                            *
@@ -534,7 +547,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
             break :install_bochs null;
         }
     };
-    if (build_bochs) {
+    if (build_options.build_bochs) {
         if (installbochs) |install_bochs| {
             b.getInstallStep().dependOn(&install_bochs.step);
         }
@@ -672,7 +685,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         "run",
         "Boot kernel for specified target (x86 by default)",
     );
-    generic_run_step.dependOn(switch (target_arch) {
+    generic_run_step.dependOn(switch (build_options.default_run_target) {
         .x86 => x86_run_step_qemu,
         .riscv32 => riscv32_run_step,
     });
@@ -681,7 +694,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         "kernel",
         "Build the kernel for just the specified target",
     );
-    generic_build_step.dependOn(switch (target_arch) {
+    generic_build_step.dependOn(switch (build_options.default_run_target) {
         .x86 => x86_step,
         .riscv32 => riscv32_step,
     });
