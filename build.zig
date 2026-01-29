@@ -591,7 +591,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     isooptions.addOption(BootLoader, "bootloader", build_options.boot_loader);
     const modiso = b.createModule(.{
         .root_source_file = b.path("build_iso/main.zig"),
-        .optimize = .ReleaseSafe,
+        .optimize = .Debug,
         .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
     });
     modiso.addOptions("isooptions", isooptions);

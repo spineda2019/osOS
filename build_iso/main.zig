@@ -9,6 +9,24 @@ const ArgError = error{
     bad_arg_count,
 };
 
+fn createDirectories(root: [:0]const u8, allocator: std.mem.Allocator) !void {
+    inline for (config.to_create) |dir| {
+        const destination = try std.fs.path.join(allocator, &.{ root, dir });
+        defer allocator.free(destination);
+        std.debug.print("Creating {s} ...\n", .{destination});
+    }
+}
+
+fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator) !void {
+    inline for (config.to_copy) |pair| {
+        const source = try std.fs.path.join(allocator, &.{ root, pair.src });
+        const destination = try std.fs.path.join(allocator, &.{ root, pair.dest });
+        defer allocator.free(destination);
+        defer allocator.free(source);
+        std.debug.print("Copying {s} to {s} ...\n", .{ source, destination });
+    }
+}
+
 pub fn main() !void {
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     const allocator: std.mem.Allocator = debug_allocator.allocator();
@@ -25,15 +43,8 @@ pub fn main() !void {
     const root = args[1];
     const kernel_path = args[2];
 
-    std.debug.print("Files relative to {s}\n", .{root});
-
-    inline for (config.to_create) |dir| {
-        std.debug.print("Must create {s}\n", .{dir});
-    }
-
-    inline for (config.to_copy) |pair| {
-        std.debug.print("Must copy {s} to {s}\n", .{ pair.src, pair.dest });
-    }
+    try createDirectories(root, allocator);
+    try copyFiles(root, allocator);
 
     std.debug.print(
         "Must copy {s} to dir {s}\n",
