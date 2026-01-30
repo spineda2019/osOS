@@ -40,6 +40,25 @@ fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator) !void {
     }
 }
 
+fn copyKernel(
+    root: [:0]const u8,
+    kernel_path: [:0]const u8,
+    allocator: std.mem.Allocator,
+) !void {
+    std.debug.print(
+        "Copying kernel {s} to dir {s} ...\n",
+        .{ kernel_path, config.kernel_destination },
+    );
+
+    const destination = try std.fs.path.join(allocator, &.{
+        root,
+        config.kernel_destination,
+        std.fs.path.basename(kernel_path),
+    });
+    defer allocator.free(destination);
+    try std.fs.copyFileAbsolute(kernel_path, destination, .{});
+}
+
 pub fn main() !void {
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     const allocator: std.mem.Allocator = debug_allocator.allocator();
@@ -54,13 +73,10 @@ pub fn main() !void {
     }
 
     const root = args[1];
-    const kernel_path = args[2];
 
     try createDirectories(root);
     try copyFiles(root, allocator);
 
-    std.debug.print(
-        "Must copy {s} to dir {s}\n",
-        .{ kernel_path, config.kernel_destination },
-    );
+    const kernel_path = args[2];
+    try copyKernel(root, kernel_path, allocator);
 }
