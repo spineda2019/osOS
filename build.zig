@@ -602,35 +602,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     const runiso = b.addRunArtifact(exeiso);
     runiso.addFileArg(b.path(""));
     runiso.addArtifactArg(x86_exe);
-
-    // TODO: Make these copy steps system agnostic
-    const create_x86_iso_structure = b.addSystemCommand(&.{
-        "mkdir",
-        "-p",
-        "zig-out/x86/iso/boot/grub",
-    });
-    create_x86_iso_structure.step.dependOn(x86_step);
-
-    const copy_grub_files = b.addSystemCommand(&.{
-        "cp",
-        "arch/x86/stage2_eltorito",
-        "zig-out/x86/iso/boot/grub",
-    });
-    copy_grub_files.step.dependOn(&create_x86_iso_structure.step);
-
-    const copy_grub_menu = b.addSystemCommand(&.{
-        "cp",
-        "arch/x86/menu.lst",
-        "zig-out/x86/iso/boot/grub",
-    });
-    copy_grub_menu.step.dependOn(&copy_grub_files.step);
-
-    const copy_x86_kernel = b.addSystemCommand(&.{
-        "cp",
-    });
-    copy_x86_kernel.addArtifactArg(x86_exe);
-    copy_x86_kernel.addArg("zig-out/x86/iso/boot");
-    copy_x86_kernel.step.dependOn(&copy_grub_menu.step);
+    runiso.step.dependOn(b.getInstallStep());
 
     const create_x86_iso = b.addSystemCommand(&.{
         "genisoimage",
@@ -650,7 +622,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         "zig-out/x86/osOS.iso",
         "zig-out/x86/iso/",
     });
-    create_x86_iso.step.dependOn(&copy_x86_kernel.step);
+    create_x86_iso.step.dependOn(&runiso.step);
 
     const x86_run_qemu = b.addSystemCommand(&.{
         "qemu-system-i386",
@@ -673,27 +645,23 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
     const x86_run_step_qemu = b.step("run_x86_qemu", "Boot kernel with QEMU on x86");
     x86_run_step_qemu.dependOn(&x86_run_qemu.step);
 
-    const x86_copy_bochs = b.addSystemCommand(&.{
-        "cp",
-        "arch/x86/bochs.config",
-        "zig-out/x86/",
-    });
-    x86_copy_bochs.step.dependOn(&create_x86_iso.step);
-
+    const x86_run_step_bochs = b.step(
+        "run_x86_bochs",
+        "Boot kernel with BOCHS on x86",
+    );
     const x86_run_bochs = b.addSystemCommand(&.{
         "bochs",
         "-f",
         "zig-out/x86/bochs.config",
         "-q",
     });
-    x86_run_bochs.step.dependOn(&x86_copy_bochs.step);
-
-    const x86_run_step_bochs = b.step(
-        "run_x86_bochs",
-        "Boot kernel with BOCHS on x86",
-    );
+    x86_run_bochs.step.dependOn(&runiso.step);
     x86_run_step_bochs.dependOn(&x86_run_bochs.step);
 
+    const x86_run_step_bochs_debugger = b.step(
+        "run_x86_bochs_debugger",
+        "Boot kernel with BOCHS on x86 using the built in debugger",
+    );
     const x86_run_bochs_debugger = b.addSystemCommand(&.{
         "bochs",
         "-f",
@@ -701,11 +669,7 @@ pub fn build(b: *std.Build) std.mem.Allocator.Error!void {
         "-q",
         "-debugger",
     });
-    x86_run_bochs_debugger.step.dependOn(&x86_copy_bochs.step);
-    const x86_run_step_bochs_debugger = b.step(
-        "run_x86_bochs_debugger",
-        "Boot kernel with BOCHS on x86 using the built in debugger",
-    );
+    x86_run_bochs_debugger.step.dependOn(&runiso.step);
     x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
 
     //* ************************* Generic Run Target ************************* *
