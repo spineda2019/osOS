@@ -10,15 +10,15 @@
     },
     .to_copy = .{
         .{
-            .src = "arch/x86/stage2_eltorito",
+            .src = "arch/x86/grub/stage2_eltorito",
             .dest = "zig-out/x86/iso/boot/grub/stage2_eltorito",
         },
         .{
-            .src = "arch/x86/menu.lst",
+            .src = "arch/x86/grub/menu.lst",
             .dest = "zig-out/x86/iso/boot/grub/menu.lst",
         },
         .{
-            .src = "arch/x86/bochs.config",
+            .src = "arch/x86/bochs/bochs.config",
             .dest = "zig-out/x86/bochs.config",
         },
     },
