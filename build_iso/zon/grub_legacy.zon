@@ -1,3 +1,8 @@
+// Because grub-legacy components are old and difficult to find hosted on a
+// stable platform, their binaries are checked in (which I hate) and this zon
+// can therefore be completely specified manually. Other complicated systems
+// like limine which _can_ be reliably pulled in via the package manager are
+// assembled in the build system.
 .{
     .to_create = .{
         // Directories MUST end in '/'

@@ -2,7 +2,7 @@ const std = @import("std");
 const isooptions = @import("isooptions");
 const config = switch (isooptions.bootloader) {
     .grub_legacy => @import("zon/grub_legacy.zon"),
-    .limine => @compileError("TODO: Support Limine"),
+    .limine => @import("zon/limine.zon"),
 };
 
 const ArgError = error{
