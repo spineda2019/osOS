@@ -728,6 +728,10 @@ pub fn build(b: *std.Build) Err!void {
     });
     create_x86_iso.step.dependOn(&runiso.step);
 
+    const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
+    x86_iso_step.dependOn(&create_x86_iso.step);
+    x86_iso_step.dependOn(&runiso.step);
+
     const x86_run_qemu = b.addSystemCommand(&.{
         "qemu-system-i386",
         "-machine",
@@ -739,12 +743,8 @@ pub fn build(b: *std.Build) Err!void {
         "-m",
         "1024",
     });
-
+    x86_run_qemu.step.dependOn(&runiso.step);
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
-
-    const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
-    x86_iso_step.dependOn(&create_x86_iso.step);
-    x86_iso_step.dependOn(&runiso.step);
 
     const x86_run_bochs = b.addSystemCommand(&.{
         "bochs",
@@ -753,6 +753,7 @@ pub fn build(b: *std.Build) Err!void {
         "-q",
     });
     x86_run_bochs.step.dependOn(&runiso.step);
+    x86_run_bochs.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs_debugger = b.addSystemCommand(&.{
         "bochs",
@@ -762,6 +763,7 @@ pub fn build(b: *std.Build) Err!void {
         "-debugger",
     });
     x86_run_bochs_debugger.step.dependOn(&runiso.step);
+    x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
     all_step.dependOn(x86_iso_step);
 
     //* ************************* Generic Run Target ************************* *
