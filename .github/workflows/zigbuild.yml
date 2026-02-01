@@ -26,10 +26,10 @@ jobs:
         version: 0.15.2
     - name: Build Kernel & Docs for all targets
       run: zig build kernel -Darch=x86 --summary all
-      run: zig build kernel -Darch=riscv32 --summary all
-      run: zig build kernel -Darch=x86 -Dbootloader=limine --summary all
-      run: zig build kernel -Darch=riscv32 -Dbootloader=limine --summary all
-      run: zig build docs --summary all
+           zig build kernel -Darch=riscv32 --summary all
+           zig build kernel -Darch=x86 -Dbootloader=limine --summary all
+           zig build kernel -Darch=riscv32 -Dbootloader=limine --summary all
+           zig build docs --summary all
     - name: Unit Test
       # Don't be wasteful with CI resources, unit tests on one agent is enough
       if: matrix.os == 'ubuntu-latest'
