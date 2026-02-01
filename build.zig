@@ -734,9 +734,12 @@ pub fn build(b: *std.Build) Err!void {
             x86_iso_step.dependOn(&create_x86_iso.step);
             x86_iso_step.dependOn(&runiso.step);
         },
-        inline else => |arch| @panic(
-            "ISO image creation not yet supported on " ++ @tagName(arch),
-        ),
+        .riscv32 => {
+            // riscv32 currently doesn't make an iso
+        },
+        // inline else => |arch| @panic(
+        // "ISO image creation not yet supported on " ++ @tagName(arch),
+        // ),
     }
 
     const common_x86_qemu_flags = comptime [_][]const u8{
