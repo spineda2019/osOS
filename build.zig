@@ -739,7 +739,7 @@ pub fn build(b: *std.Build) Err!void {
         ),
     }
 
-    const x86_run_qemu = b.addSystemCommand(&.{
+    const common_x86_qemu_flags = comptime [_][]const u8{
         "qemu-system-i386",
         "-machine",
         "pc",
@@ -749,9 +749,21 @@ pub fn build(b: *std.Build) Err!void {
         "d",
         "-m",
         "1024",
-    });
+    };
+
+    const x86_run_qemu = b.addSystemCommand(&common_x86_qemu_flags);
     x86_run_qemu.step.dependOn(&runiso.step);
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
+
+    const x86_run_qemu_debugger = b.addSystemCommand(add_debug_flags: {
+        var flag_buf: std.ArrayList([]const u8) = .empty;
+        try flag_buf.appendSlice(b.allocator, &common_x86_qemu_flags);
+        try flag_buf.append(b.allocator, "-s");
+        try flag_buf.append(b.allocator, "-S");
+        break :add_debug_flags flag_buf.items;
+    });
+    x86_run_qemu_debugger.step.dependOn(&runiso.step);
+    x86_run_qemu_debugger.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs = b.addSystemCommand(&.{
         "bochs",
@@ -797,7 +809,7 @@ pub fn build(b: *std.Build) Err!void {
                 },
                 .qemu => switch (build_options.use_debugger) {
                     false => &x86_run_qemu.step,
-                    true => @panic("-Ddebugger not yet supported with qemu"),
+                    true => &x86_run_qemu_debugger.step,
                 },
             });
         },
