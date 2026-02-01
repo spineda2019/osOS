@@ -18,13 +18,12 @@
 //! on board the chip (if I underatand correctly)
 
 const as = @import("x86asm");
-const serial = @import("x86serial");
-const framebuffer = @import("x86framebuffer");
+const io = @import("x86io");
 const osformat = @import("osformat");
 
 const Self: type = @This();
 
-var framebuffer_handle: *framebuffer.FrameBuffer = undefined;
+var framebuffer_handle: *io.FrameBuffer = undefined;
 const irq_offset: u8 = 0x20;
 var clock_tics: usize = 0;
 
@@ -70,7 +69,7 @@ const common_messages = struct {
 /// Initialize the PIC master and slave with a predefined offset into the
 /// IDT (or else the default IRQ nums will be 0-7 which conflict wity x86
 /// CPU exceptions)
-pub fn init(fb_handle: *framebuffer.FrameBuffer) void {
+pub fn init(fb_handle: *io.FrameBuffer) void {
     // TODO: log warn if no pic found. Right ow we assume it exists.
 
     // sending the initialization byte to a PIC makes it prepare for 3 more
@@ -81,55 +80,55 @@ pub fn init(fb_handle: *framebuffer.FrameBuffer) void {
         master_command_port,
         common_messages.pic_initialize,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     as.assembly_wrappers.x86_out(
         slave_command_port,
         common_messages.pic_initialize,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     // ************************* ICW 2: Offset ************************** //
     as.assembly_wrappers.x86_out(master_data_port, irq_offset);
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     as.assembly_wrappers.x86_out(slave_data_port, irq_offset + 8);
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     // ************** ICW 3: Cascade (Master<-Slave) Setup ************** //
     as.assembly_wrappers.x86_out(
         master_data_port,
         common_messages.masks.slave_wire_on_master,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     as.assembly_wrappers.x86_out(
         slave_data_port,
         common_messages.masks.slave_cascade_irq,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     // ************************ ICW 4: 8086 mode ************************ //
     as.assembly_wrappers.x86_out(
         master_data_port,
         common_messages.initialize_8086_mode,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     as.assembly_wrappers.x86_out(
         slave_data_port,
         common_messages.initialize_8086_mode,
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     as.assembly_wrappers.x86_out(
         master_data_port,
         comptime ~(common_messages.masks.keyboard | common_messages.masks.timer),
     );
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
     // as.assembly_wrappers.x86_out(slave_data_port, common_messages.unmask);
     as.assembly_wrappers.x86_out(slave_data_port, common_messages.masks.mask_all);
-    serial.SerialPort.ioWait();
+    io.SerialPort.ioWait();
 
     framebuffer_handle = fb_handle;
 }

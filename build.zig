@@ -310,29 +310,22 @@ pub fn build(b: *std.Build) Err!void {
     //* *************************** x86 Specific ***************************** *
     const X86Modules = struct {
         asm_module: CommonModule,
-        serial_module: CommonModule,
-        framebuffer_module: CommonModule,
+        io_module: CommonModule,
         memory_module: CommonModule,
         interrupts_module: CommonModule,
     };
     const x86_modules: X86Modules = .{
         .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig", test_target),
-        .serial_module = .create(b, "x86serial", "arch/x86/io/root.zig", test_target),
-        .framebuffer_module = .create(b, "x86framebuffer", "arch/x86/framebuffer/root.zig", test_target),
+        .io_module = .create(b, "x86io", "arch/x86/io/root.zig", test_target),
         .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig", test_target),
         .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig", test_target),
     };
 
-    x86_modules.serial_module.module.addImport(
+    x86_modules.io_module.module.addImport(
         x86_modules.asm_module.name,
         x86_modules.asm_module.module,
     );
-
-    x86_modules.framebuffer_module.module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.module,
-    );
-    x86_modules.framebuffer_module.module.addImport(
+    x86_modules.io_module.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
@@ -347,12 +340,8 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.asm_module.module,
     );
     x86_modules.interrupts_module.module.addImport(
-        x86_modules.serial_module.name,
-        x86_modules.serial_module.module,
-    );
-    x86_modules.interrupts_module.module.addImport(
-        x86_modules.framebuffer_module.name,
-        x86_modules.framebuffer_module.module,
+        x86_modules.io_module.name,
+        x86_modules.io_module.module,
     );
     x86_modules.interrupts_module.module.addImport(
         shared_modules.osformat.name,
@@ -378,12 +367,8 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.interrupts_module.module,
     );
     x86_module.addImport(
-        x86_modules.framebuffer_module.name,
-        x86_modules.framebuffer_module.module,
-    );
-    x86_module.addImport(
-        x86_modules.serial_module.name,
-        x86_modules.serial_module.module,
+        x86_modules.io_module.name,
+        x86_modules.io_module.module,
     );
     x86_module.addImport(
         shared_modules.osboot.name,

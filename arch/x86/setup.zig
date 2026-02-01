@@ -14,8 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const framebuffer_api = @import("x86framebuffer");
-const serial = @import("x86serial");
+const io = @import("x86io");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
@@ -35,7 +34,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     const StackIterator = @import("std").debug.StackIterator;
 
     as.assembly_wrappers.disable_x86_interrupts();
-    var framebuffer: framebuffer_api.FrameBuffer = .init(.Black, .White);
+    var framebuffer: io.FrameBuffer = .init(.Black, .White);
     framebuffer.clear();
     framebuffer.write("Kernel Panic! Message: ");
     framebuffer.writeLine(msg);
@@ -79,8 +78,8 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
-    var framebuffer: framebuffer_api.FrameBuffer = .init(.LightBrown, .DarkGray);
-    var serial_port = serial.SerialPort.defaultInit();
+    var framebuffer: io.FrameBuffer = .init(.LightBrown, .DarkGray);
+    var serial_port = io.SerialPort.defaultInit();
 
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
@@ -178,8 +177,8 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
 
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = as.assembly_wrappers,
-        .Terminal = framebuffer_api.FrameBuffer,
-        .SerialPortIo = serial.SerialPort,
+        .Terminal = io.FrameBuffer,
+        .SerialPortIo = io.SerialPort,
     };
     kmain.kmain(
         hal_layout,
