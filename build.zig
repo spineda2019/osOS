@@ -729,8 +729,15 @@ pub fn build(b: *std.Build) Err!void {
     create_x86_iso.step.dependOn(&runiso.step);
 
     const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
-    x86_iso_step.dependOn(&create_x86_iso.step);
-    x86_iso_step.dependOn(&runiso.step);
+    switch (build_options.default_run_target) {
+        .x86 => {
+            x86_iso_step.dependOn(&create_x86_iso.step);
+            x86_iso_step.dependOn(&runiso.step);
+        },
+        inline else => |arch| @panic(
+            "ISO image creation not yet supported on " ++ @tagName(arch),
+        ),
+    }
 
     const x86_run_qemu = b.addSystemCommand(&.{
         "qemu-system-i386",
