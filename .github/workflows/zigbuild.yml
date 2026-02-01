@@ -30,7 +30,7 @@ jobs:
         zig build kernel -Darch="riscv32" --summary all
         zig build kernel -Darch="x86" -Dbootloader="limine" --summary all
         zig build kernel -Darch="riscv32" -Dbootloader="limine" --summary all
-        zig build docs --summary all
+        zig build doc_site --summary all
     - name: Unit Test
       # Don't be wasteful with CI resources, unit tests on one agent is enough
       if: matrix.os == 'ubuntu-latest'
