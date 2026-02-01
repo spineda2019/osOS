@@ -21,8 +21,10 @@ const BuildOptions = struct {
     default_run_target: SupportedTarget,
     boot_specification: BootSpecification,
     boot_loader: BootLoader,
+    emulator: Emulator,
     test_panic: bool,
     build_bochs: bool,
+    use_debugger: bool,
 
     pub fn init(b: *std.Build) BuildOptions {
         return .{
@@ -51,6 +53,16 @@ const BuildOptions = struct {
                 "build_bochs",
                 "Build bochs from source",
             ) orelse false,
+            .emulator = b.option(
+                Emulator,
+                "emulator",
+                "Emulator to use when running the OS",
+            ) orelse .qemu,
+            .use_debugger = b.option(
+                bool,
+                "debugger",
+                "Enable usage of the debugger associated with the selected emulator",
+            ) orelse false,
         };
     }
 
@@ -60,6 +72,11 @@ const BuildOptions = struct {
             .limine => "boot/limine/limine-bios-cd.bin",
         };
     }
+};
+
+const Emulator = enum {
+    qemu,
+    bochs,
 };
 
 const SupportedTarget = enum {
@@ -457,9 +474,12 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                          Install Artifact Setup                         *
     //**************************************************************************
+    const all_step = b.step(
+        "all",
+        "Build the Kernel for all supported architectures",
+    );
 
     //* *************************** RISC Specific **************************** *
-    const riscv32_step = b.step("riscv32", "Build the RISC-V32 Kernel");
     const riscv32_out = b.addInstallArtifact(riscv32_exe, .{
         .dest_dir = .{
             .override = .{
@@ -467,11 +487,9 @@ pub fn build(b: *std.Build) Err!void {
             },
         },
     });
-    riscv32_step.dependOn(&riscv32_out.step);
-    b.getInstallStep().dependOn(&riscv32_out.step);
+    all_step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
-    const x86_step = b.step("x86", "Build the x86 Kernel");
     const x86_out = b.addInstallArtifact(x86_exe, .{
         .dest_dir = .{
             .override = .{
@@ -479,8 +497,7 @@ pub fn build(b: *std.Build) Err!void {
             },
         },
     });
-    x86_step.dependOn(&x86_out.step);
-    b.getInstallStep().dependOn(&x86_out.step);
+    all_step.dependOn(&x86_out.step);
 
     //* *************************** Doc Specific ***************************** *
     const doc_page_step = b.step(
@@ -559,7 +576,7 @@ pub fn build(b: *std.Build) Err!void {
     copy_landing_style.step.dependOn(&copy_landing_page.step);
 
     doc_page_step.dependOn(&copy_landing_style.step);
-    b.getInstallStep().dependOn(doc_page_step);
+    all_step.dependOn(doc_page_step);
 
     //* ******************************* Bochs ******************************** *
     const installbochs = install_bochs: {
@@ -580,7 +597,6 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
 
     //* *************************** RISC Specific **************************** *
-    const riscv32_run_step = b.step("run_riscv32", "Boot kernel with qemu on riscv32");
     const run_riscv32 = b.addSystemCommand(&.{
         "qemu-system-riscv32",
         "-machine",
@@ -594,8 +610,7 @@ pub fn build(b: *std.Build) Err!void {
         "-kernel",
     });
     run_riscv32.addArtifactArg(riscv32_exe);
-    run_riscv32.step.dependOn(riscv32_step);
-    riscv32_run_step.dependOn(&run_riscv32.step);
+    run_riscv32.step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
     const isooptions = b.addOptions();
@@ -727,17 +742,10 @@ pub fn build(b: *std.Build) Err!void {
 
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
 
-    const x86_iso_step = b.step("iso_x86", "Build the x86 ISO disc image");
+    const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
     x86_iso_step.dependOn(&create_x86_iso.step);
     x86_iso_step.dependOn(&runiso.step);
 
-    const x86_run_step_qemu = b.step("run_x86_qemu", "Boot kernel with QEMU on x86");
-    x86_run_step_qemu.dependOn(&x86_run_qemu.step);
-
-    const x86_run_step_bochs = b.step(
-        "run_x86_bochs",
-        "Boot kernel with BOCHS on x86",
-    );
     const x86_run_bochs = b.addSystemCommand(&.{
         "bochs",
         "-f",
@@ -745,12 +753,7 @@ pub fn build(b: *std.Build) Err!void {
         "-q",
     });
     x86_run_bochs.step.dependOn(&runiso.step);
-    x86_run_step_bochs.dependOn(&x86_run_bochs.step);
 
-    const x86_run_step_bochs_debugger = b.step(
-        "run_x86_bochs_debugger",
-        "Boot kernel with BOCHS on x86 using the built in debugger",
-    );
     const x86_run_bochs_debugger = b.addSystemCommand(&.{
         "bochs",
         "-f",
@@ -759,26 +762,40 @@ pub fn build(b: *std.Build) Err!void {
         "-debugger",
     });
     x86_run_bochs_debugger.step.dependOn(&runiso.step);
-    x86_run_step_bochs_debugger.dependOn(&x86_run_bochs_debugger.step);
+    all_step.dependOn(x86_iso_step);
 
     //* ************************* Generic Run Target ************************* *
-    const generic_run_step = b.step(
-        "run",
-        "Boot kernel for specified target (x86 by default)",
-    );
-    generic_run_step.dependOn(switch (build_options.default_run_target) {
-        .x86 => x86_run_step_qemu,
-        .riscv32 => riscv32_run_step,
-    });
-
     const generic_build_step = b.step(
         "kernel",
         "Build the kernel for just the specified target",
     );
     generic_build_step.dependOn(switch (build_options.default_run_target) {
-        .x86 => x86_step,
-        .riscv32 => riscv32_step,
+        .x86 => &x86_out.step,
+        .riscv32 => &riscv32_out.step,
     });
+    b.getInstallStep().dependOn(generic_build_step);
+
+    const generic_run_step = b.step(
+        "run",
+        "Boot kernel for specified target (x86 by default)",
+    );
+    switch (build_options.default_run_target) {
+        .x86 => {
+            generic_run_step.dependOn(switch (build_options.emulator) {
+                .bochs => switch (build_options.use_debugger) {
+                    false => &x86_run_bochs.step,
+                    true => &x86_run_bochs_debugger.step,
+                },
+                .qemu => switch (build_options.use_debugger) {
+                    false => &x86_run_qemu.step,
+                    true => @panic("-Ddebugger not yet supported with qemu"),
+                },
+            });
+        },
+        .riscv32 => {
+            generic_run_step.dependOn(&run_riscv32.step);
+        },
+    }
 
     //* ***************************** Unit Tests ***************************** *
 
