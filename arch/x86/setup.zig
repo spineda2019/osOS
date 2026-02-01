@@ -65,7 +65,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 }
 
 /// Hardware setup; jumped to from the boot routine
-pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
+pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     as.assembly_wrappers.enableSSE();
 
@@ -80,6 +80,8 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
 
     var framebuffer: io.FrameBuffer = .init(.LightBrown, .DarkGray);
     var serial_port = io.SerialPort.defaultInit();
+    const message = "Trying to write out of COM port 1...\r\n";
+    serial_port.write(message);
 
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
@@ -89,88 +91,111 @@ pub fn setup(mbInfo: *allowzero const bootutils.MultiBoot.V1.Info) noreturn {
     }
     framebuffer.clear();
 
-    framebuffer.writeLine("Probing MultibootInfo...");
-    framebuffer.write("Info Struct Address: 0x");
+    io.log(&serial_port, &framebuffer, "MultibootInfo Struct Address: 0x");
     const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
         @intFromPtr(mbInfo),
     );
 
-    framebuffer.writeLine(mbInfoAddrStr.getStr());
+    io.logLine(&serial_port, &framebuffer, mbInfoAddrStr.getStr());
+    const bootLoaderName: [*:0]const u8 = @ptrFromInt(mbInfo.boot_loader_name);
+    io.log(&serial_port, &framebuffer, "Bootloader name: ");
+    io.logLine(&serial_port, &framebuffer, bootLoaderName[0..len: {
+        for (0..64) |offset| {
+            if (bootLoaderName[offset] == 0) {
+                break :len offset;
+            }
+        }
+
+        unreachable;
+    }]);
+    io.logLine(&serial_port, &framebuffer, "Probing MultibootInfo...");
+
+    {
+        const std = @import("std");
+        inline for (comptime std.meta.fieldNames(bootutils.MultiBoot.V1.Info)) |field| {
+            io.log(&serial_port, &framebuffer, "    " ++ field ++ ": ");
+            const field_val = @field(mbInfo.*, field);
+            const T = @TypeOf(field_val);
+
+            switch (@typeInfo(T)) {
+                .int => {
+                    const base = comptime if (@bitSizeOf(T) > 16) 16 else 10;
+                    if (base > 10) {
+                        io.log(&serial_port, &framebuffer, "0x");
+                    }
+                    var str: osformat.format.StringFromInt(u32, base) = .init(field_val);
+                    io.logLine(&serial_port, &framebuffer, str.getStr());
+                },
+                .@"union" => {
+                    io.logLine(&serial_port, &framebuffer, "TODO (Union)");
+                },
+                inline else => {
+                    io.logLine(&serial_port, &framebuffer, "TODO (else)");
+                },
+            }
+        }
+    }
+
     if (mbInfo.flags.framebuffer) {
-        framebuffer.writeLine("FB Info found!");
-        framebuffer.write("    Lower: 0x");
+        io.logLine(&serial_port, &framebuffer, "FB Info found!");
+        io.log(&serial_port, &framebuffer, "    Lower: 0x");
         const fb_lower_str: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_addr_lower,
         );
-        framebuffer.writeLine(fb_lower_str.getStr());
+        io.logLine(&serial_port, &framebuffer, fb_lower_str.getStr());
     } else {
-        framebuffer.writeLine("No FB info...");
+        io.logLine(&serial_port, &framebuffer, "No FB info...");
     }
 
     if (mbInfo.flags.mmap) {
-        framebuffer.writeLine("MMap info found!");
-        framebuffer.write("    Length: ");
+        io.logLine(&serial_port, &framebuffer, "MMap info found!");
+        io.log(&serial_port, &framebuffer, "    Length: ");
         const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
             mbInfo.mmap_length,
         );
-        framebuffer.writeLine(lenStr.getStr());
+        io.logLine(&serial_port, &framebuffer, lenStr.getStr());
 
-        // Something below is causing an incorrect alignment panbic...
-        const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
-        const StringFormatType = osformat.format.StringFromInt(u32, 10);
-        const AddressFormatType = osformat.format.StringFromInt(u32, 16);
-
-        const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
-
-        var buf: []const u8 = undefined;
-        for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
-            const size_str: StringFormatType = .init(entry[idx].size);
-            const addr_str: AddressFormatType = .init(entry[idx].addr_low);
-            const len_str: StringFormatType = .init(entry[idx].len_low);
-
-            buf = "    Entry: ";
-            framebuffer.writeLine(buf);
-            serial_port.write(buf);
-            serial_port.write("\r\n");
-
-            buf = "        Size: ";
-            framebuffer.write(buf);
-            framebuffer.writeLine(size_str.getStr());
-            serial_port.write(buf);
-            serial_port.write(size_str.getStr());
-            serial_port.write("\r\n");
-
-            buf = "        Addr: 0x";
-            framebuffer.write(buf);
-            framebuffer.writeLine(addr_str.getStr());
-            serial_port.write(buf);
-            serial_port.write(addr_str.getStr());
-            serial_port.write("\r\n");
-
-            buf = "        Len: ";
-            framebuffer.write(buf);
-            framebuffer.writeLine(len_str.getStr());
-            serial_port.write(buf);
-            serial_port.write(len_str.getStr());
-            serial_port.write("\r\n");
-
-            buf = "        Type: ";
-            framebuffer.write(buf);
-            framebuffer.writeLine(@tagName(entry[idx].entry_type));
-            serial_port.write(buf);
-            serial_port.write(@tagName(entry[idx].entry_type));
-            serial_port.write("\r\n");
-        }
+        // Something below is causing an incorrect alignment panic...
+        //
+        // const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
+        // const StringFormatType = osformat.format.StringFromInt(u32, 10);
+        // const AddressFormatType = osformat.format.StringFromInt(u32, 16);
+        //
+        // const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
+        //
+        // for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
+        // const size_str: StringFormatType = .init(entry[idx].size);
+        // const addr_str: AddressFormatType = .init(entry[idx].addr_low);
+        // const len_str: StringFormatType = .init(entry[idx].len_low);
+        //
+        // io.logLine(&serial_port, &framebuffer, "    Entry: ");
+        //
+        // io.log(&serial_port, &framebuffer, "        Size: ");
+        // io.logLine(&serial_port, &framebuffer, size_str.getStr());
+        //
+        // io.log(&serial_port, &framebuffer, "        Addr: 0x");
+        // io.logLine(&serial_port, &framebuffer, addr_str.getStr());
+        //
+        // io.log(&serial_port, &framebuffer, "        Len: ");
+        // io.logLine(&serial_port, &framebuffer, len_str.getStr());
+        //
+        // io.log(&serial_port, &framebuffer, "        Type: ");
+        // io.logLine(
+        // &serial_port,
+        // &framebuffer,
+        // @tagName(entry[idx].entry_type),
+        // );
+        // }
     } else {
-        framebuffer.writeLine("MMap info not available");
+        io.logLine(&serial_port, &framebuffer, "MMap info not available");
     }
 
-    const message = "Trying to write out of COM port 1...";
-    serial_port.write(message);
-    framebuffer.writeLine(message);
-
-    framebuffer.writeLine("COM1 succesfully written to! Testing cursor movement...");
-    framebuffer.writeLine("x86: Activating PIC...");
+    io.logLine(
+        &serial_port,
+        &framebuffer,
+        "COM1 succesfully written to! Testing cursor movement...",
+    );
+    io.logLine(&serial_port, &framebuffer, "x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
     as.assembly_wrappers.enable_x86_interrupts();
