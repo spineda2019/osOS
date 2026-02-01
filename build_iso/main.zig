@@ -31,10 +31,27 @@ fn createDirectories(root: [:0]const u8) !void {
 
 fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator) !void {
     inline for (config.to_copy) |pair| {
-        const source = try std.fs.path.join(allocator, &.{ root, pair.src });
+        const source, const should_free = handle_absolute: {
+            var result: []const u8 = undefined;
+            var free = false;
+            if (std.fs.path.isAbsolute(pair.src)) {
+                // source files may be absolute if passed from a build system
+                // dependency (e.g.: limine)
+                result = pair.src;
+            } else {
+                result = try std.fs.path.join(allocator, &.{ root, pair.src });
+                free = true;
+            }
+
+            break :handle_absolute .{ result, free };
+        };
         const destination = try std.fs.path.join(allocator, &.{ root, pair.dest });
         defer allocator.free(destination);
-        defer allocator.free(source);
+        defer {
+            if (should_free) {
+                allocator.free(source);
+            }
+        }
         std.debug.print("Copying {s} to {s} ...\n", .{ source, destination });
         try std.fs.copyFileAbsolute(source, destination, .{});
     }

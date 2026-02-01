@@ -593,8 +593,6 @@ pub fn build(b: *std.Build) Err!void {
     //* *************************** x86 Specific ***************************** *
     const isooptions = b.addOptions();
     if (b.lazyDependency("limine", .{})) |limine| {
-        _ = limine;
-
         var buf: [4096]u8 = undefined;
         var dir: std.fs.Dir = std.fs.cwd();
         var output: std.fs.File = try dir.createFile(
@@ -630,7 +628,28 @@ pub fn build(b: *std.Build) Err!void {
         }
 
         {
+            const pairs = .{
+                .{
+                    .src = "arch/x86/limine/limine.conf",
+                    .dest = "zig-out/x86/iso/boot/limine/limine.conf",
+                },
+                .{
+                    .src = limine.builder.pathResolve(&.{
+                        limine.builder.build_root.path.?,
+                        "limine-bios-cd.bin",
+                    }),
+                    .dest = "zig-out/x86/iso/boot/limine/limine-bios-cd.bin",
+                },
+            };
             var to_copy = try obj.beginTupleField("to_copy", .{});
+
+            inline for (pairs) |pair| {
+                var pair_field = try to_copy.beginStructField(.{});
+                try pair_field.field("src", pair.src, .{});
+                try pair_field.field("dest", pair.dest, .{});
+                try pair_field.end();
+            }
+
             try to_copy.end();
         }
 
