@@ -1,0 +1,42 @@
+        <p>
+            Of course, if you would like to check out the source, you can check out
+            the repo hosted on github:
+        </p>
+        <ul>
+            <li><a href="https://github.com/spineda2019/osOS">Source Repo</a></li>
+        </ul>
+        <p>
+            Github stars are appreciated! But of course, they are not required.
+        </p>
+    </body>
+
+    <footer>
+        <h1>osOS is Free Software!</h1>
+        <p>Although this is just a pet project, osOS is still free software licensed
+            under the GPL v3 (or later). This is due in part because I like the
+            GPL, and also because the kernel ships with GPL binaries. If I wrote/created
+            a file/source code, it's GPLv3. No ifs, ands, or buts. They should all have
+            the license notice, but just in case, here's what the notice actually look like:
+            <br /><br />
+            Copyright &copy; 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com) <i>Or Other Contributer(s)</i><br />
+            <br />
+            <!-- Preserve line breaks below -->
+            This program is free software: you can redistribute it and/or modify<br />
+            it under the terms of the GNU General Public License as published by<br />
+            the Free Software Foundation, either version 3 of the License, or<br />
+            (at your option) any later version.<br />
+            <br />
+            This program is distributed in the hope that it will be useful,<br />
+            but WITHOUT ANY WARRANTY; without even the implied warranty of<br />
+            MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the<br />
+            GNU General Public License for more details.<br />
+            <br />
+            You should have received a copy of the GNU General Public License<br />
+            along with this program. If not, see
+            <a href="https://www.gnu.org/licenses">&lt;https://www.gnu.org/licenses&gt;</a>.
+        </p>
+    </footer>
+</div>
+
+</html>
+
