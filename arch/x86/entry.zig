@@ -74,7 +74,7 @@ pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE
 fn trampoline() linksection(".trampoline") callconv(.c) noreturn {
     const mbInfo: *const bootutils.MultiBoot.V1.Info = asm volatile (
         \\ mov %ebx, %[info]
-        : [info] "={ecx}" (-> *const bootutils.MultiBoot.V1.Info),
+        : [info] "=r" (-> *const bootutils.MultiBoot.V1.Info),
     );
     const setup = @import("setup.zig");
     // const virtual_kernel_base: u32 = 0xC0_00_00_00;
