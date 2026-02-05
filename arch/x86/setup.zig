@@ -67,7 +67,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 /// Hardware setup; jumped to from the boot routine
 pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
-    as.assembly_wrappers.enableSSE();
+    // as.assembly_wrappers.enableSSE();
 
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
 

@@ -26,14 +26,14 @@ SECTIONS {
         KEEP(*(.multiboot))
     }
 
-    .boot :
-    {
-        KEEP(*(.boot))
-    }
-
     .pagedata :
     {
         KEEP(*(.pagedata))
+    }
+
+    .boot :
+    {
+        KEEP(*(.boot))
     }
 
     .trampoline :

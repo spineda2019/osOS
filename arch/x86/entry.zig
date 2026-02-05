@@ -49,6 +49,14 @@ pub export const multiboot_header linksection(".multiboot") = switch (bootoption
     ),
 };
 
+pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageDirectoryEntry.default,
+} ** memory.paging.ENTRY_COUNT;
+
+pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageTableEntry.default,
+} ** memory.paging.ENTRY_COUNT;
+
 const PanicNamespace = @import("std").debug.FullPanic;
 pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 
@@ -62,14 +70,6 @@ export fn boot() linksection(".boot") callconv(.naked) noreturn {
           [trampoline] "r" (&trampoline),
     );
 }
-
-pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
-    memory.paging.PageDirectoryEntry.default,
-} ** memory.paging.ENTRY_COUNT;
-
-pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
-    memory.paging.PageTableEntry.default,
-} ** memory.paging.ENTRY_COUNT;
 
 fn trampoline() linksection(".trampoline") callconv(.c) noreturn {
     const mbInfo: *const bootutils.MultiBoot.V1.Info = asm volatile (
