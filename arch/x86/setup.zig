@@ -99,15 +99,7 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     io.logLine(&serial_port, &framebuffer, mbInfoAddrStr.getStr());
     const bootLoaderName: [*:0]const u8 = @ptrFromInt(mbInfo.boot_loader_name);
     io.log(&serial_port, &framebuffer, "Bootloader name: ");
-    io.logLine(&serial_port, &framebuffer, bootLoaderName[0..len: {
-        for (0..64) |offset| {
-            if (bootLoaderName[offset] == 0) {
-                break :len offset;
-            }
-        }
-
-        unreachable;
-    }]);
+    io.logLineCStr(&serial_port, &framebuffer, bootLoaderName);
     io.logLine(&serial_port, &framebuffer, "Probing MultibootInfo...");
 
     {
@@ -157,35 +149,35 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
 
         // Something below is causing an incorrect alignment panic...
         //
-        // const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
-        // const StringFormatType = osformat.format.StringFromInt(u32, 10);
-        // const AddressFormatType = osformat.format.StringFromInt(u32, 16);
-        //
-        // const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
-        //
-        // for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
-        // const size_str: StringFormatType = .init(entry[idx].size);
-        // const addr_str: AddressFormatType = .init(entry[idx].addr_low);
-        // const len_str: StringFormatType = .init(entry[idx].len_low);
-        //
-        // io.logLine(&serial_port, &framebuffer, "    Entry: ");
-        //
-        // io.log(&serial_port, &framebuffer, "        Size: ");
-        // io.logLine(&serial_port, &framebuffer, size_str.getStr());
-        //
-        // io.log(&serial_port, &framebuffer, "        Addr: 0x");
-        // io.logLine(&serial_port, &framebuffer, addr_str.getStr());
-        //
-        // io.log(&serial_port, &framebuffer, "        Len: ");
-        // io.logLine(&serial_port, &framebuffer, len_str.getStr());
-        //
-        // io.log(&serial_port, &framebuffer, "        Type: ");
-        // io.logLine(
-        // &serial_port,
-        // &framebuffer,
-        // @tagName(entry[idx].entry_type),
-        // );
-        // }
+        const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
+        const StringFormatType = osformat.format.StringFromInt(u32, 10);
+        const AddressFormatType = osformat.format.StringFromInt(u32, 16);
+
+        const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
+
+        for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
+            const size_str: StringFormatType = .init(entry[idx].size);
+            const addr_str: AddressFormatType = .init(entry[idx].addr_low);
+            const len_str: StringFormatType = .init(entry[idx].len_low);
+
+            io.logLine(&serial_port, &framebuffer, "    Entry: ");
+
+            io.log(&serial_port, &framebuffer, "        Size: ");
+            io.logLine(&serial_port, &framebuffer, size_str.getStr());
+
+            io.log(&serial_port, &framebuffer, "        Addr: 0x");
+            io.logLine(&serial_port, &framebuffer, addr_str.getStr());
+
+            io.log(&serial_port, &framebuffer, "        Len: ");
+            io.logLine(&serial_port, &framebuffer, len_str.getStr());
+
+            io.log(&serial_port, &framebuffer, "        Type: ");
+            io.logLine(
+                &serial_port,
+                &framebuffer,
+                @tagName(entry[idx].entry_type),
+            );
+        }
     } else {
         io.logLine(&serial_port, &framebuffer, "MMap info not available");
     }

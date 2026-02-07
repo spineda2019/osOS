@@ -23,8 +23,18 @@ pub fn log(sp: *SerialPort, fp: *FrameBuffer, buf: []const u8) void {
     sp.write(buf);
 }
 
+pub fn logCStr(sp: *SerialPort, fp: *FrameBuffer, c_buf: [*:0]const u8) void {
+    fp.writeCStr(c_buf);
+    sp.writeCStr(c_buf);
+}
+
 pub fn logLine(sp: *SerialPort, fp: *FrameBuffer, buf: []const u8) void {
     fp.writeLine(buf);
     sp.write(buf);
+    sp.write("\r\n");
+}
+pub fn logLineCStr(sp: *SerialPort, fp: *FrameBuffer, c_buf: [*:0]const u8) void {
+    fp.writeLineCStr(c_buf);
+    sp.writeCStr(c_buf);
     sp.write("\r\n");
 }

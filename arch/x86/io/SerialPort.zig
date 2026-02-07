@@ -73,6 +73,22 @@ pub fn write(self: *SerialPort, buffer: []const u8) void {
     }
 }
 
+pub fn writeCStr(self: *SerialPort, c_buf: [*:0]const u8) void {
+    while (!self.isFIFOClear()) {
+        asm volatile (
+            \\nop
+        );
+    }
+    var idx: usize = 0;
+    var letter = c_buf[idx];
+    while (letter != 0) : ({
+        idx += 1;
+        letter = c_buf[idx];
+    }) {
+        as.assembly_wrappers.x86_out(self.port, letter);
+    }
+}
+
 pub fn delay(_: *SerialPort, count: usize) void {
     for (0..count) |_| {
         ioWait();

@@ -162,11 +162,29 @@ pub fn writeLine(self: *FrameBuffer, buffer: []const u8) void {
     }
 }
 
+pub fn writeLineCStr(self: *FrameBuffer, c_buf: [*:0]const u8) void {
+    self.writeCStr(c_buf);
+    for (self.current_column..80) |_| {
+        self.putCharacter(' ');
+    }
+}
+
 /// Based zig lets us pass a safe slice and use the
 /// len field rather than depend on the caller giving us the
 /// write thing
 pub fn write(self: *FrameBuffer, buffer: []const u8) void {
     for (buffer) |letter| {
+        self.putCharacter(letter);
+    }
+}
+
+pub fn writeCStr(self: *FrameBuffer, c_buf: [*:0]const u8) void {
+    var idx: usize = 0;
+    var letter = c_buf[idx];
+    while (letter != 0) : ({
+        idx += 1;
+        letter = c_buf[idx];
+    }) {
         self.putCharacter(letter);
     }
 }
