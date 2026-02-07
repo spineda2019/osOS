@@ -91,50 +91,73 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     }
     framebuffer.clear();
 
+    io.logLine(&serial_port, &framebuffer, "Probing MultibootInfo...");
     io.log(&serial_port, &framebuffer, "MultibootInfo Struct Address: 0x");
     const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
         @intFromPtr(mbInfo),
     );
-
     io.logLine(&serial_port, &framebuffer, mbInfoAddrStr.getStr());
+
     const bootLoaderName: [*:0]const u8 = @ptrFromInt(mbInfo.boot_loader_name);
     io.log(&serial_port, &framebuffer, "Bootloader name: ");
     io.logLineCStr(&serial_port, &framebuffer, bootLoaderName);
-    io.logLine(&serial_port, &framebuffer, "Probing MultibootInfo...");
+
+    const command_line: [*:0]const u8 = @ptrFromInt(mbInfo.cmdline);
+    io.log(&serial_port, &framebuffer, "Command Line: ");
+    io.logLineCStr(&serial_port, &framebuffer, command_line);
 
     {
-        const std = @import("std");
-        inline for (comptime std.meta.fieldNames(bootutils.MultiBoot.V1.Info)) |field| {
-            io.log(&serial_port, &framebuffer, "    " ++ field ++ ": ");
-            const field_val = @field(mbInfo.*, field);
-            const T = @TypeOf(field_val);
-
-            switch (@typeInfo(T)) {
-                .int => {
-                    const base = comptime if (@bitSizeOf(T) > 16) 16 else 10;
-                    if (base > 10) {
-                        io.log(&serial_port, &framebuffer, "0x");
-                    }
-                    var str: osformat.format.StringFromInt(u32, base) = .init(field_val);
-                    io.logLine(&serial_port, &framebuffer, str.getStr());
-                },
-                .@"union" => {
-                    io.logLine(&serial_port, &framebuffer, "TODO (Union)");
-                },
-                inline else => {
-                    io.logLine(&serial_port, &framebuffer, "TODO (else)");
-                },
-            }
-        }
+        // const std = @import("std");
+        // inline for (comptime std.meta.fieldNames(bootutils.MultiBoot.V1.Info)) |field| {
+        // io.log(&serial_port, &framebuffer, "    " ++ field ++ ": ");
+        // const field_val = @field(mbInfo.*, field);
+        // const T = @TypeOf(field_val);
+        //
+        // switch (@typeInfo(T)) {
+        // .int => {
+        // const base = comptime if (@bitSizeOf(T) > 16) 16 else 10;
+        // if (base > 10) {
+        // io.log(&serial_port, &framebuffer, "0x");
+        // }
+        // var str: osformat.format.StringFromInt(u32, base) = .init(field_val);
+        // io.logLine(&serial_port, &framebuffer, str.getStr());
+        // },
+        // .@"union" => {
+        // io.logLine(&serial_port, &framebuffer, "TODO (Union)");
+        // },
+        // inline else => {
+        // io.logLine(&serial_port, &framebuffer, "TODO (else)");
+        // },
+        // }
+        // }
     }
 
     if (mbInfo.flags.framebuffer) {
         io.logLine(&serial_port, &framebuffer, "FB Info found!");
-        io.log(&serial_port, &framebuffer, "    Lower: 0x");
+
+        io.log(&serial_port, &framebuffer, "    Lower Addr: 0x");
         const fb_lower_str: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_addr_lower,
         );
         io.logLine(&serial_port, &framebuffer, fb_lower_str.getStr());
+
+        io.log(&serial_port, &framebuffer, "    Higher Addr: 0x");
+        const fb_higher_str: osformat.format.StringFromInt(u32, 16) = .init(
+            mbInfo.framebuffer_addr_higher,
+        );
+        io.logLine(&serial_port, &framebuffer, fb_higher_str.getStr());
+
+        io.log(&serial_port, &framebuffer, "    Framebuffer Height: 0x");
+        const fb_height: osformat.format.StringFromInt(u32, 16) = .init(
+            mbInfo.framebuffer_height,
+        );
+        io.logLine(&serial_port, &framebuffer, fb_height.getStr());
+
+        io.log(&serial_port, &framebuffer, "    Framebuffer Width: 0x");
+        const fb_width: osformat.format.StringFromInt(u32, 16) = .init(
+            mbInfo.framebuffer_width,
+        );
+        io.logLine(&serial_port, &framebuffer, fb_width.getStr());
     } else {
         io.logLine(&serial_port, &framebuffer, "No FB info...");
     }
