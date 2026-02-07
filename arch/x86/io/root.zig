@@ -18,23 +18,29 @@ pub const SerialPort = @import("SerialPort.zig");
 
 pub const FrameBuffer = @import("FrameBuffer.zig");
 
-pub fn log(sp: *SerialPort, fp: *FrameBuffer, buf: []const u8) void {
-    fp.write(buf);
-    sp.write(buf);
-}
+pub const Logger = struct {
+    sp: *SerialPort,
+    fp: *FrameBuffer,
 
-pub fn logCStr(sp: *SerialPort, fp: *FrameBuffer, c_buf: [*:0]const u8) void {
-    fp.writeCStr(c_buf);
-    sp.writeCStr(c_buf);
-}
+    pub fn log(self: Logger, buf: []const u8) void {
+        self.fp.write(buf);
+        self.sp.write(buf);
+    }
 
-pub fn logLine(sp: *SerialPort, fp: *FrameBuffer, buf: []const u8) void {
-    fp.writeLine(buf);
-    sp.write(buf);
-    sp.write("\r\n");
-}
-pub fn logLineCStr(sp: *SerialPort, fp: *FrameBuffer, c_buf: [*:0]const u8) void {
-    fp.writeLineCStr(c_buf);
-    sp.writeCStr(c_buf);
-    sp.write("\r\n");
-}
+    pub fn logCStr(self: Logger, c_buf: [*:0]const u8) void {
+        self.fp.writeCStr(c_buf);
+        self.sp.writeCStr(c_buf);
+    }
+
+    pub fn logLine(self: Logger, buf: []const u8) void {
+        self.fp.writeLine(buf);
+        self.sp.write(buf);
+        self.sp.write("\r\n");
+    }
+
+    pub fn logLineCStr(self: Logger, c_buf: [*:0]const u8) void {
+        self.fp.writeLineCStr(c_buf);
+        self.sp.writeCStr(c_buf);
+        self.sp.write("\r\n");
+    }
+};

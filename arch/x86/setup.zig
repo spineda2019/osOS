@@ -68,7 +68,6 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
-
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
 
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
@@ -80,6 +79,7 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
 
     var framebuffer: io.FrameBuffer = .init(.LightBrown, .DarkGray);
     var serial_port = io.SerialPort.defaultInit();
+    const logger: io.Logger = .{ .fp = &framebuffer, .sp = &serial_port };
     const message = "Trying to write out of COM port 1...\r\n";
     serial_port.write(message);
 
@@ -91,20 +91,20 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     }
     framebuffer.clear();
 
-    io.logLine(&serial_port, &framebuffer, "Probing MultibootInfo...");
-    io.log(&serial_port, &framebuffer, "MultibootInfo Struct Address: 0x");
+    logger.logLine("Probing MultibootInfo...");
+    logger.log("MultibootInfo Struct Address: 0x");
     const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
         @intFromPtr(mbInfo),
     );
-    io.logLine(&serial_port, &framebuffer, mbInfoAddrStr.getStr());
+    logger.logLine(mbInfoAddrStr.getStr());
 
     const bootLoaderName: [*:0]const u8 = @ptrFromInt(mbInfo.boot_loader_name);
-    io.log(&serial_port, &framebuffer, "Bootloader name: ");
-    io.logLineCStr(&serial_port, &framebuffer, bootLoaderName);
+    logger.log("Bootloader name: ");
+    logger.logLineCStr(bootLoaderName);
 
     const command_line: [*:0]const u8 = @ptrFromInt(mbInfo.cmdline);
-    io.log(&serial_port, &framebuffer, "Command Line: ");
-    io.logLineCStr(&serial_port, &framebuffer, command_line);
+    logger.log("Command Line: ");
+    logger.logLineCStr(command_line);
 
     {
         // const std = @import("std");
@@ -133,42 +133,42 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     }
 
     if (mbInfo.flags.framebuffer) {
-        io.logLine(&serial_port, &framebuffer, "FB Info found!");
+        logger.logLine("FB Info found!");
 
-        io.log(&serial_port, &framebuffer, "    Lower Addr: 0x");
+        logger.log("    Lower Addr: 0x");
         const fb_lower_str: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_addr_lower,
         );
-        io.logLine(&serial_port, &framebuffer, fb_lower_str.getStr());
+        logger.logLine(fb_lower_str.getStr());
 
-        io.log(&serial_port, &framebuffer, "    Higher Addr: 0x");
+        logger.log("    Higher Addr: 0x");
         const fb_higher_str: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_addr_higher,
         );
-        io.logLine(&serial_port, &framebuffer, fb_higher_str.getStr());
+        logger.logLine(fb_higher_str.getStr());
 
-        io.log(&serial_port, &framebuffer, "    Framebuffer Height: 0x");
+        logger.log("    Framebuffer Height: 0x");
         const fb_height: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_height,
         );
-        io.logLine(&serial_port, &framebuffer, fb_height.getStr());
+        logger.logLine(fb_height.getStr());
 
-        io.log(&serial_port, &framebuffer, "    Framebuffer Width: 0x");
+        logger.log("    Framebuffer Width: 0x");
         const fb_width: osformat.format.StringFromInt(u32, 16) = .init(
             mbInfo.framebuffer_width,
         );
-        io.logLine(&serial_port, &framebuffer, fb_width.getStr());
+        logger.logLine(fb_width.getStr());
     } else {
-        io.logLine(&serial_port, &framebuffer, "No FB info...");
+        logger.logLine("No FB info...");
     }
 
     if (mbInfo.flags.mmap) {
-        io.logLine(&serial_port, &framebuffer, "MMap info found!");
-        io.log(&serial_port, &framebuffer, "    Length: ");
+        logger.logLine("MMap info found!");
+        logger.log("    Length: ");
         const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
             mbInfo.mmap_length,
         );
-        io.logLine(&serial_port, &framebuffer, lenStr.getStr());
+        logger.logLine(lenStr.getStr());
 
         // Something below is causing an incorrect alignment panic...
         //
@@ -183,34 +183,26 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
             const addr_str: AddressFormatType = .init(entry[idx].addr_low);
             const len_str: StringFormatType = .init(entry[idx].len_low);
 
-            io.logLine(&serial_port, &framebuffer, "    Entry: ");
+            logger.logLine("    Entry: ");
 
-            io.log(&serial_port, &framebuffer, "        Size: ");
-            io.logLine(&serial_port, &framebuffer, size_str.getStr());
+            logger.log("        Size: ");
+            logger.logLine(size_str.getStr());
 
-            io.log(&serial_port, &framebuffer, "        Addr: 0x");
-            io.logLine(&serial_port, &framebuffer, addr_str.getStr());
+            logger.log("        Addr: 0x");
+            logger.logLine(addr_str.getStr());
 
-            io.log(&serial_port, &framebuffer, "        Len: ");
-            io.logLine(&serial_port, &framebuffer, len_str.getStr());
+            logger.log("        Len: ");
+            logger.logLine(len_str.getStr());
 
-            io.log(&serial_port, &framebuffer, "        Type: ");
-            io.logLine(
-                &serial_port,
-                &framebuffer,
-                @tagName(entry[idx].entry_type),
-            );
+            logger.log("        Type: ");
+            logger.logLine(@tagName(entry[idx].entry_type));
         }
     } else {
-        io.logLine(&serial_port, &framebuffer, "MMap info not available");
+        logger.logLine("MMap info not available");
     }
 
-    io.logLine(
-        &serial_port,
-        &framebuffer,
-        "COM1 succesfully written to! Testing cursor movement...",
-    );
-    io.logLine(&serial_port, &framebuffer, "x86: Activating PIC...");
+    logger.logLine("COM1 succesfully written to! Testing cursor movement...");
+    logger.logLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
     as.assembly_wrappers.enable_x86_interrupts();
