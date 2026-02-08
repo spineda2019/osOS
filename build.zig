@@ -342,6 +342,10 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.asm_module.name,
         x86_modules.asm_module.module,
     );
+    x86_modules.memory_module.test_artifact.root_module.addImport(
+        x86_modules.asm_module.name,
+        x86_modules.asm_module.module,
+    );
 
     x86_modules.interrupts_module.module.addImport(
         x86_modules.asm_module.name,

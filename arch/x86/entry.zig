@@ -76,15 +76,15 @@ fn trampoline() linksection(".trampoline") callconv(.c) noreturn {
         \\ mov %ebx, %[info]
         : [info] "=r" (-> *const bootutils.MultiBoot.V1.Info),
     );
+
+    const page_info: memory.paging.Info = .{
+        .virtual_kernel_base = 0xC0_00_00_00,
+        .page_directory = &kernel_page_directory,
+    };
+    page_info.initHigherHalfPages(&kernel_page_table);
+    page_info.enablePaging();
+
     const setup = @import("setup.zig");
-    // const virtual_kernel_base: u32 = 0xC0_00_00_00;
-    //
-    // @call(.always_inline, memory.paging.initHigherHalfPages, .{
-    // &kernel_page_directory,
-    // &kernel_page_table,
-    // virtual_kernel_base,
-    // });
-    // as.assembly_wrappers.enablePaging(&kernel_page_directory);
     setup.setup(mbInfo);
 }
 

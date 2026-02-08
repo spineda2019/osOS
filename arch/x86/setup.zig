@@ -91,6 +91,20 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     }
     framebuffer.clear();
 
+    logger.logLine("Probing paging information...");
+    {
+        const virt_addresses = comptime [_]u32{
+            0x000B8000,
+        };
+        inline for (virt_addresses) |addr| {
+            const str: osformat.format.StringFromInt(u32, 16) = .init(addr);
+            logger.log("Virt address (0x");
+            logger.log(str.getStr());
+            logger.log(") maps to: ");
+            logger.logLine("TODO");
+        }
+    }
+
     logger.logLine("Probing MultibootInfo...");
     logger.log("MultibootInfo Struct Address: 0x");
     const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
@@ -147,14 +161,14 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
         );
         logger.logLine(fb_higher_str.getStr());
 
-        logger.log("    Framebuffer Height: 0x");
-        const fb_height: osformat.format.StringFromInt(u32, 16) = .init(
+        logger.log("    Framebuffer Height: ");
+        const fb_height: osformat.format.StringFromInt(u32, 10) = .init(
             mbInfo.framebuffer_height,
         );
         logger.logLine(fb_height.getStr());
 
-        logger.log("    Framebuffer Width: 0x");
-        const fb_width: osformat.format.StringFromInt(u32, 16) = .init(
+        logger.log("    Framebuffer Width: ");
+        const fb_width: osformat.format.StringFromInt(u32, 10) = .init(
             mbInfo.framebuffer_width,
         );
         logger.logLine(fb_width.getStr());

@@ -15,6 +15,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const as = @import("x86asm");
+
 pub const PAGE_SIZE: comptime_int = 4096;
 pub const ENTRY_COUNT = 1024;
 
@@ -72,6 +74,9 @@ pub const PageTable = [ENTRY_COUNT]PageTableEntry;
 
 /// Must be aligned to 4KiB, or 4096 bytes.
 pub const PageTableEntry = packed struct(u32) {
+    const Error = error{
+        not_paged,
+    };
     in_physical_memory: bool,
     writeable: bool,
     userland_accesible: bool,
@@ -107,44 +112,49 @@ pub inline fn offsetFromVirtual(address: u32) u32 {
     return (address & 0b0000000000_0000000000_111111111111);
 }
 
-/// Sets up the higher half kernel by enabling paging and mapping
-/// the first 4MB starting at 0xC0_00_00_00 ()
-pub fn initHigherHalfPages(
-    pd: *align(PAGE_SIZE) PageDirectory,
-    pt_to_use: *align(PAGE_SIZE) PageTable,
-    desired_virtual_kernel_base: u32,
-) void {
-    comptime {
-        // gives a clearer error code rather than cryptic u64 vs usize error
-        if (@sizeOf(usize) > 4) {
-            var err: []const u8 = "Only valid on 32 bit architectures. Here, ";
-            err = err ++ "paging makes assumptions around sizeof(usize) being ";
-            err = err ++ "equal to sizeof(u32)";
-            @compileError(err);
+pub const Info = struct {
+    page_directory: *align(PAGE_SIZE) PageDirectory,
+    virtual_kernel_base: u32,
+
+    /// Sets up the higher half kernel by enabling paging and mapping
+    /// the first 4MB starting at 0xC0_00_00_00 ()
+    pub fn initHigherHalfPages(self: Info, pt_to_use: *align(PAGE_SIZE) PageTable) void {
+        comptime {
+            // gives a clearer error code rather than cryptic u64 vs usize error
+            if (@sizeOf(usize) > 4) {
+                var err: []const u8 = "Only valid on 32 bit architectures. Here, ";
+                err = err ++ "paging makes assumptions around sizeof(usize) being ";
+                err = err ++ "equal to sizeof(u32)";
+                @compileError(err);
+            }
         }
+
+        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
+            self.virtual_kernel_base,
+        );
+        const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
+        pde.basicInit(pt_to_use);
+
+        // Will map starting physical addresses 0x0 through
+        // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
+        // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
+        for (pt_to_use, 0..) |*entry, idx| {
+            const scale: u32 = (idx);
+            entry.*.writeable = true;
+            entry.*.in_physical_memory = true;
+            entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
+        }
+
+        // We also have to identity map the first 4mb to make the kernel not crash
+        // when paging is turned on.
+        const first_pde: *PageDirectoryEntry = &self.page_directory[0];
+        first_pde.basicInit(pt_to_use);
     }
 
-    const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
-        desired_virtual_kernel_base,
-    );
-    const pde: *PageDirectoryEntry = &pd[pd_index];
-    pde.basicInit(pt_to_use);
-
-    // Will map starting physical addresses 0x0 through
-    // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
-    // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
-    for (pt_to_use, 0..) |*entry, idx| {
-        const scale: u32 = (idx);
-        entry.*.writeable = true;
-        entry.*.in_physical_memory = true;
-        entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
+    pub fn enablePaging(self: Info) void {
+        as.assembly_wrappers.enablePaging(self.page_directory);
     }
-
-    // We also have to identity map the first 4mb to make the kernel not crash
-    // when paging is turned on.
-    const first_pde: *PageDirectoryEntry = &pd[0];
-    first_pde.basicInit(pt_to_use);
-}
+};
 
 /// Virtual to Physical Transation does the following (largely ripped from
 /// the OSDev Wiki). A Virtual Address is 32 bits and is translated by extracting
@@ -168,7 +178,7 @@ pub fn initHigherHalfPages(
 pub fn virtualToPhysical(
     pd: *align(PAGE_SIZE) const PageDirectory,
     virtualAddress: u32,
-) u32 {
+) ?u32 {
     const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
     const pde: *const PageDirectoryEntry = &pd[pd_index];
 
@@ -176,8 +186,12 @@ pub fn virtualToPhysical(
     const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
     const pte: *const PageTableEntry = &pt[pt_index];
 
-    const offset: u32 = offsetFromVirtual(virtualAddress);
-    return (@as(u32, pte.page_frame_address) << 12) + offset;
+    if (pte.in_physical_memory) {
+        const offset: u32 = offsetFromVirtual(virtualAddress);
+        return (@as(u32, pte.page_frame_address) << 12) + offset;
+    } else {
+        return null;
+    }
 }
 
 /// Extracting a virtualAddress from a physical one is not as straight forward
@@ -193,27 +207,28 @@ pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
 test virtualToPhysical {
     const std = @import("std");
 
+    const virtual_kernel_base: u32 = 0xC0_00_00_00;
+    const physical_framebuffer_start = 0x00_0B_80_00;
+    const virtual_framebuffer_start = 0xC0_0B_80_00;
+
     var page_directory: PageDirectory align(PAGE_SIZE) = .{
         PageDirectoryEntry.default,
     } ** ENTRY_COUNT;
     var kernel_page_table: PageTable align(PAGE_SIZE) = .{
         PageTableEntry.default,
     } ** ENTRY_COUNT;
-    const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
-    const physical_framebuffer_start = 0x00_0B_80_00;
-    const virtual_framebuffer_start = 0xC0_0B_80_00;
+    const page_info: Info = .{
+        .page_directory = &page_directory,
+        .virtual_kernel_base = virtual_kernel_base,
+    };
 
-    initHigherHalfPages(
-        &page_directory,
-        &kernel_page_table,
-        virtual_kernel_base,
-    );
+    page_info.initHigherHalfPages(&kernel_page_table);
 
-    var translated = virtualToPhysical(
+    var translated = if (virtualToPhysical(
         &page_directory,
         virtual_kernel_base,
-    );
+    )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == 0,
     ) catch |err| {
@@ -224,10 +239,10 @@ test virtualToPhysical {
         return err;
     };
 
-    translated = virtualToPhysical(
+    translated = if (virtualToPhysical(
         &page_directory,
         virtual_framebuffer_start,
-    );
+    )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == physical_framebuffer_start,
     ) catch |err| {
@@ -239,4 +254,4 @@ test virtualToPhysical {
     };
 }
 
-test initHigherHalfPages {}
+test Info {}
