@@ -118,7 +118,7 @@ pub const Info = struct {
 
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
-    pub fn initHigherHalfPages(self: Info, pt_to_use: *align(PAGE_SIZE) PageTable) void {
+    pub fn initHigherHalfPages(self: *const Info, pt_to_use: *align(PAGE_SIZE) PageTable) void {
         comptime {
             // gives a clearer error code rather than cryptic u64 vs usize error
             if (@sizeOf(usize) > 4) {
@@ -151,7 +151,7 @@ pub const Info = struct {
         first_pde.basicInit(pt_to_use);
     }
 
-    pub fn enablePaging(self: Info) void {
+    pub fn enablePaging(self: *const Info) void {
         as.assembly_wrappers.enablePaging(self.page_directory);
     }
 };

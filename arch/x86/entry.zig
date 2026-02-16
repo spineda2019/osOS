@@ -24,6 +24,8 @@ const bootoptions = @import("bootoptions");
 const memory = @import("x86memory");
 const as = @import("x86asm");
 
+const osformat = @import("osformat");
+
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
 /// of bytes defining how the kernel will be booted.
@@ -64,19 +66,20 @@ pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
         \\    movl %[stack_top], %ESP
-        \\    jmp *%[trampoline]
+        \\    movl %esp, %ebp
+        \\    pushl %ebx
+        \\    pushl %eax
+        \\    call *%[trampoline]
         : // No outputs
         : [stack_top] "i" (stack_top),
-          [trampoline] "r" (&trampoline),
+          [trampoline] "{ecx}" (&trampoline),
     );
 }
 
-fn trampoline() linksection(".trampoline") callconv(.c) noreturn {
-    const mbInfo: *const bootutils.MultiBoot.V1.Info = asm volatile (
-        \\ mov %ebx, %[info]
-        : [info] "=r" (-> *const bootutils.MultiBoot.V1.Info),
-    );
-
+fn trampoline(
+    boot_magic: u32,
+    mb_info: *bootutils.MultiBoot.V1.Info,
+) linksection(".trampoline") callconv(.c) noreturn {
     const page_info: memory.paging.Info = .{
         .virtual_kernel_base = 0xC0_00_00_00,
         .page_directory = &kernel_page_directory,
@@ -84,8 +87,74 @@ fn trampoline() linksection(".trampoline") callconv(.c) noreturn {
     page_info.initHigherHalfPages(&kernel_page_table);
     page_info.enablePaging();
 
+    const magic_match: bool = boot_magic == 0x2badb002;
+
     const setup = @import("setup.zig");
-    setup.setup(mbInfo);
+    setup.setup(.{
+        .bootinfo = .{
+            .name = @ptrFromInt(mb_info.boot_loader_name),
+            .cmdline = @ptrFromInt(mb_info.cmdline),
+            .valid = magic_match,
+            .diagnostic = fill: {
+                var buf: [80]u8 = .{0} ** 80;
+
+                var idx: usize = 0;
+
+                if (magic_match) {
+                    const msg = "Received expected magic number 0x2badb002";
+
+                    for (msg) |letter| {
+                        if (idx < buf.len) {
+                            buf[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                } else {
+                    const StringFromHex = osformat.format.StringFromInt(u32, 16);
+                    const received: StringFromHex = .init(boot_magic);
+                    const msg = "expected 0xbadb002. Got 0x";
+
+                    for (msg) |letter| {
+                        if (idx < buf.len) {
+                            buf[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    for (received.getStr()) |letter| {
+                        if (idx < buf.len) {
+                            buf[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                }
+
+                break :fill buf;
+            },
+        },
+        .framebuffer = blk: {
+            if (mb_info.flags.framebuffer) {
+                break :blk .{
+                    .addr = mb_info.framebuffer_addr_lower,
+                    .height = mb_info.framebuffer_height,
+                    .width = mb_info.framebuffer_width,
+                };
+            } else {
+                break :blk .{
+                    .addr = null,
+                    .height = null,
+                    .width = null,
+                };
+            }
+        },
+        .memory = .{
+            .interface = mb_info.prober(),
+            .len = if (mb_info.flags.mmap) mb_info.mmap_length else 0,
+        },
+        .pd_address = @ptrCast(&page_info),
+    });
 }
 
 test {

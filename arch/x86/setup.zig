@@ -21,7 +21,9 @@ const interrupts = @import("x86interrupts");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
-const bootutils = @import("osboot");
+const BootInfo = @import("BootInfo");
+const StringFromHex = osformat.format.StringFromInt(usize, 16);
+const StringFromDecimal = osformat.format.StringFromInt(usize, 10);
 
 const physical_kernel_base = @extern(
     *anyopaque,
@@ -41,7 +43,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
-    const return_addr_str: osformat.format.StringFromInt(usize, 16) = .init(return_addr);
+    const return_addr_str: StringFromHex = .init(return_addr);
     framebuffer.write("Suspected caller address: 0x");
     framebuffer.writeLine(return_addr_str.getStr());
 
@@ -49,7 +51,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
         framebuffer.writeLine("Received first_address info:");
         var iterator: StackIterator = .init(addr, @frameAddress());
         while (iterator.next()) |next| {
-            const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
+            const start_addr_str: StringFromHex = .init(
                 next,
             );
             framebuffer.write("    Frame address: 0x");
@@ -65,7 +67,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 }
 
 /// Hardware setup; jumped to from the boot routine
-pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
+pub fn setup(boot_info: BootInfo) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
@@ -91,113 +93,73 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
     }
     framebuffer.clear();
 
-    logger.logLine("Probing paging information...");
     {
+        logger.logLine("Probing paging information...");
+        const pd_address: StringFromHex = .init(@intFromPtr(boot_info.pd_address));
+        logger.log("    PD Address: 0x");
+        logger.logLine(pd_address.getStr());
+
         const virt_addresses = comptime [_]u32{
             0x000B8000,
         };
         inline for (virt_addresses) |addr| {
-            const str: osformat.format.StringFromInt(u32, 16) = .init(addr);
-            logger.log("Virt address (0x");
+            const str: StringFromHex = .init(addr);
+            logger.log("    Virt address (0x");
             logger.log(str.getStr());
             logger.log(") maps to: ");
             logger.logLine("TODO");
         }
     }
 
-    logger.logLine("Probing MultibootInfo...");
-    logger.log("MultibootInfo Struct Address: 0x");
-    const mbInfoAddrStr: osformat.format.StringFromInt(u32, 16) = .init(
-        @intFromPtr(mbInfo),
-    );
-    logger.logLine(mbInfoAddrStr.getStr());
-
-    const bootLoaderName: [*:0]const u8 = @ptrFromInt(mbInfo.boot_loader_name);
-    logger.log("Bootloader name: ");
-    logger.logLineCStr(bootLoaderName);
-
-    const command_line: [*:0]const u8 = @ptrFromInt(mbInfo.cmdline);
-    logger.log("Command Line: ");
-    logger.logLineCStr(command_line);
-
-    {
-        // const std = @import("std");
-        // inline for (comptime std.meta.fieldNames(bootutils.MultiBoot.V1.Info)) |field| {
-        // io.log(&serial_port, &framebuffer, "    " ++ field ++ ": ");
-        // const field_val = @field(mbInfo.*, field);
-        // const T = @TypeOf(field_val);
-        //
-        // switch (@typeInfo(T)) {
-        // .int => {
-        // const base = comptime if (@bitSizeOf(T) > 16) 16 else 10;
-        // if (base > 10) {
-        // io.log(&serial_port, &framebuffer, "0x");
-        // }
-        // var str: osformat.format.StringFromInt(u32, base) = .init(field_val);
-        // io.logLine(&serial_port, &framebuffer, str.getStr());
-        // },
-        // .@"union" => {
-        // io.logLine(&serial_port, &framebuffer, "TODO (Union)");
-        // },
-        // inline else => {
-        // io.logLine(&serial_port, &framebuffer, "TODO (else)");
-        // },
-        // }
-        // }
+    if (!boot_info.bootinfo.valid) {
+        @panic(&boot_info.bootinfo.diagnostic);
+    } else {
+        logger.logLine(&boot_info.bootinfo.diagnostic);
     }
 
-    if (mbInfo.flags.framebuffer) {
-        logger.logLine("FB Info found!");
+    logger.log("Bootloader name: ");
+    logger.logLineCStr(boot_info.bootinfo.name);
 
-        logger.log("    Lower Addr: 0x");
-        const fb_lower_str: osformat.format.StringFromInt(u32, 16) = .init(
-            mbInfo.framebuffer_addr_lower,
-        );
+    logger.log("Command Line: ");
+    logger.logLineCStr(boot_info.bootinfo.cmdline);
+
+    logger.logLine("Probing Framebuffer info...");
+
+    logger.log("    Address: ");
+    if (boot_info.framebuffer.addr) |address| {
+        logger.log("0x");
+        const fb_lower_str: StringFromHex = .init(address);
         logger.logLine(fb_lower_str.getStr());
+    } else {
+        logger.logLine("Not found...");
+    }
 
-        logger.log("    Higher Addr: 0x");
-        const fb_higher_str: osformat.format.StringFromInt(u32, 16) = .init(
-            mbInfo.framebuffer_addr_higher,
-        );
-        logger.logLine(fb_higher_str.getStr());
-
-        logger.log("    Framebuffer Height: ");
-        const fb_height: osformat.format.StringFromInt(u32, 10) = .init(
-            mbInfo.framebuffer_height,
-        );
+    logger.log("    Framebuffer Height: ");
+    if (boot_info.framebuffer.height) |height| {
+        const fb_height: StringFromDecimal = .init(height);
         logger.logLine(fb_height.getStr());
+    } else {
+        logger.logLine("Not found...");
+    }
 
-        logger.log("    Framebuffer Width: ");
-        const fb_width: osformat.format.StringFromInt(u32, 10) = .init(
-            mbInfo.framebuffer_width,
-        );
+    logger.log("    Framebuffer Width: ");
+    if (boot_info.framebuffer.width) |width| {
+        const fb_width: StringFromDecimal = .init(width);
         logger.logLine(fb_width.getStr());
     } else {
-        logger.logLine("No FB info...");
+        logger.logLine("Not found...");
     }
 
-    if (mbInfo.flags.mmap) {
-        logger.logLine("MMap info found!");
-        logger.log("    Length: ");
-        const lenStr: osformat.format.StringFromInt(u32, 10) = .init(
-            mbInfo.mmap_length,
-        );
-        logger.logLine(lenStr.getStr());
-
-        // Something below is causing an incorrect alignment panic...
-        //
-        const EntryType = bootutils.MultiBoot.V1.Info.MemMapEntry;
-        const StringFormatType = osformat.format.StringFromInt(u32, 10);
-        const AddressFormatType = osformat.format.StringFromInt(u32, 16);
-
-        const entry: [*]const EntryType = @ptrFromInt(mbInfo.mmap_addr);
-
-        for (0..mbInfo.mmap_length / @sizeOf(EntryType)) |idx| {
-            const size_str: StringFormatType = .init(entry[idx].size);
-            const addr_str: AddressFormatType = .init(entry[idx].addr_low);
-            const len_str: StringFormatType = .init(entry[idx].len_low);
-
-            logger.logLine("    Entry: ");
+    logger.logLine("Probing Available Memory...");
+    logger.log("    Total Chunk Count: ");
+    const chunkStr: StringFromDecimal = .init(boot_info.memory.len);
+    logger.logLine(chunkStr.getStr());
+    logger.logLine("    Available Chunks: ");
+    for (0..boot_info.memory.len) |idx| {
+        if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
+            const size_str: StringFromDecimal = .init(chunk.size);
+            const addr_str: StringFromHex = .init(chunk.address);
+            const len_str: StringFromDecimal = .init(chunk.length);
 
             logger.log("        Size: ");
             logger.logLine(size_str.getStr());
@@ -208,11 +170,8 @@ pub fn setup(mbInfo: *const bootutils.MultiBoot.V1.Info) noreturn {
             logger.log("        Len: ");
             logger.logLine(len_str.getStr());
 
-            logger.log("        Type: ");
-            logger.logLine(@tagName(entry[idx].entry_type));
+            logger.logLine("");
         }
-    } else {
-        logger.logLine("MMap info not available");
     }
 
     logger.logLine("COM1 succesfully written to! Testing cursor movement...");

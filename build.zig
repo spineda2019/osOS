@@ -321,13 +321,20 @@ pub fn build(b: *std.Build) Err!void {
         io_module: CommonModule,
         memory_module: CommonModule,
         interrupts_module: CommonModule,
+        boot_info: CommonModule,
     };
     const x86_modules: X86Modules = .{
         .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig", test_target),
         .io_module = .create(b, "x86io", "arch/x86/io/root.zig", test_target),
         .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig", test_target),
         .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig", test_target),
+        .boot_info = .create(b, "BootInfo", "arch/x86/BootInfo.zig", test_target),
     };
+
+    shared_modules.osboot.module.addImport(
+        x86_modules.boot_info.name,
+        x86_modules.boot_info.module,
+    );
 
     x86_modules.io_module.module.addImport(
         x86_modules.asm_module.name,
@@ -366,6 +373,10 @@ pub fn build(b: *std.Build) Err!void {
         .optimize = optimize,
         .strip = false,
     });
+    x86_module.addImport(
+        x86_modules.boot_info.name,
+        x86_modules.boot_info.module,
+    );
     x86_module.addImport(
         x86_modules.asm_module.name,
         x86_modules.asm_module.module,

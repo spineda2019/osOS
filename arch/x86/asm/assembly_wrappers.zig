@@ -88,13 +88,17 @@ pub inline fn x86_lidt(table_address: u32) void {
 pub inline fn disable_x86_interrupts() void {
     asm volatile (
         \\cli
-    );
+        : // no outputs
+        : // no inputs
+        : .{ .memory = true });
 }
 
 pub inline fn enable_x86_interrupts() void {
     asm volatile (
         \\sti
-    );
+        : // no outputs
+        : // no inputs
+        : .{ .memory = true });
 }
 
 /// Enable SSE instructions on the CPU, including use of the xmm# registers
@@ -121,7 +125,9 @@ pub noinline fn enableSSE() void {
         \\or $0b0000000000000001000000000, %ax      # set CR4.OSFXSR (bit 9)
         \\or $0b0000000000000010000000000, %ax      # set CR4.OSXMMEXCPT (bit 10)
         \\mov %eax, %cr4  # Store back CR4
-    );
+        : // no outs
+        : // no inputs
+        : .{ .eax = true });
 }
 
 pub inline fn illegal_instruction() void {}
@@ -134,5 +140,5 @@ pub inline fn enablePaging(pd: *anyopaque) void {
         \\mov %eax, %cr0
         : // no outputs
         : [pd_address] "r" (pd),
-    );
+        : .{ .cc = true, .eax = true });
 }

@@ -14,6 +14,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const BootInfo = @import("BootInfo");
+
 /// Multiboot header to be placed at the beginning of a kernel binary. Must be
 /// marked extern to make it exportable. Will follow the C ABI of the target
 /// architecture.
@@ -197,6 +199,38 @@ pub const V1 = extern struct {
         framebuffer_bpp: u8,
         framebuffer_type: u8,
         framebuffer_color_info: FrameBufferColorInfo,
+
+        pub fn availableMemChunkAt(
+            self: *Self.Info,
+            idx: usize,
+        ) ?BootInfo.MemoryInfo.FreeChunk {
+            if (self.flags.mmap) {
+                if (idx >= self.mmap_length) {
+                    return null;
+                } else {
+                    const entries: [*]const MemMapEntry = @ptrFromInt(self.mmap_addr);
+                    const entry = entries[idx];
+                    if (entry.entry_type == .available) {
+                        return .{
+                            .size = entry.size,
+                            .address = entry.addr_low,
+                            .length = entry.len_low,
+                        };
+                    } else {
+                        return null;
+                    }
+                }
+            } else {
+                return null;
+            }
+        }
+
+        pub fn prober(self: *@This()) BootInfo.MemoryInfo.IMemoryProber {
+            return .{
+                .instance = self,
+                .vtable = BootInfo.MemoryInfo.IMemoryProber.VTable.init(Self.Info),
+            };
+        }
 
         const InfoFlags = packed struct(u32) {
             valid_mem: bool,
