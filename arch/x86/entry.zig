@@ -93,7 +93,7 @@ fn trampoline(
     setup.setup(.{
         .bootinfo = .{
             .name = @ptrFromInt(mb_info.boot_loader_name),
-            .cmdline = @ptrFromInt(mb_info.cmdline),
+            .cmdline = if (mb_info.flags.cmdline) @ptrFromInt(mb_info.cmdline) else null,
             .valid = magic_match,
             .diagnostic = fill: {
                 var buf: [80]u8 = .{0} ** 80;

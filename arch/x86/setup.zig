@@ -121,7 +121,11 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.logLineCStr(boot_info.bootinfo.name);
 
     logger.log("Command Line: ");
-    logger.logLineCStr(boot_info.bootinfo.cmdline);
+    if (boot_info.bootinfo.cmdline) |cmd| {
+        logger.logLineCStr(cmd);
+    } else {
+        logger.logLineCStr("Not found...");
+    }
 
     logger.logLine("Probing Framebuffer info...");
 
