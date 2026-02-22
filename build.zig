@@ -336,6 +336,15 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.boot_info.module,
     );
 
+    x86_modules.boot_info.module.addImport(
+        x86_modules.memory_module.name,
+        x86_modules.memory_module.module,
+    );
+    x86_modules.boot_info.test_artifact.root_module.addImport(
+        x86_modules.memory_module.name,
+        x86_modules.memory_module.module,
+    );
+
     x86_modules.io_module.module.addImport(
         x86_modules.asm_module.name,
         x86_modules.asm_module.module,
