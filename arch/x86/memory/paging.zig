@@ -154,57 +154,57 @@ pub const Info = struct {
     pub fn enablePaging(self: *const Info) void {
         as.assembly_wrappers.enablePaging(self.page_directory);
     }
-};
 
-/// Virtual to Physical Transation does the following (largely ripped from
-/// the OSDev Wiki). A Virtual Address is 32 bits and is translated by extracting
-/// three parts from the virtual address.
-///
-/// 1) The most significant 10 bits (22-31) specify the index into the page
-/// directory. A u10 can represent numbers in the range [0, 1023], meaning it
-/// can index the whole array of PageDirectoryEntry's (see PageDirectory and
-/// PageDirectoryEntry)
-///
-/// 2) The next 10 bits (12-21) specify the index into the page table indexed
-/// from part 1. For the same reason from part 1, this u10 can index into every
-/// PageTableEntry (see PageTable and PageTableEntry).
-///
-/// 3) The remaining bits, which are the least significant 12 bits (0-11),
-/// specify an offset. Remeber, each page frame is aligned to 4096 bytes, so
-/// once (1) and (2) get us a page table entry, we use the offset from these
-/// 12 bits and add it to the frame address specified in the table entry. A u12
-/// can represent numbers in the range [0, 4095], so this offset will NEVER
-/// result in an address residing in another frame.
-pub fn virtualToPhysical(
-    pd: *align(PAGE_SIZE) const PageDirectory,
-    virtualAddress: u32,
-) ?u32 {
-    const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
-    const pde: *const PageDirectoryEntry = &pd[pd_index];
+    /// Virtual to Physical Transation does the following (largely ripped from
+    /// the OSDev Wiki). A Virtual Address is 32 bits and is translated by extracting
+    /// three parts from the virtual address.
+    ///
+    /// 1) The most significant 10 bits (22-31) specify the index into the page
+    /// directory. A u10 can represent numbers in the range [0, 1023], meaning it
+    /// can index the whole array of PageDirectoryEntry's (see PageDirectory and
+    /// PageDirectoryEntry)
+    ///
+    /// 2) The next 10 bits (12-21) specify the index into the page table indexed
+    /// from part 1. For the same reason from part 1, this u10 can index into every
+    /// PageTableEntry (see PageTable and PageTableEntry).
+    ///
+    /// 3) The remaining bits, which are the least significant 12 bits (0-11),
+    /// specify an offset. Remeber, each page frame is aligned to 4096 bytes, so
+    /// once (1) and (2) get us a page table entry, we use the offset from these
+    /// 12 bits and add it to the frame address specified in the table entry. A u12
+    /// can represent numbers in the range [0, 4095], so this offset will NEVER
+    /// result in an address residing in another frame.
+    pub fn virtualToPhysical(
+        self: *const Info,
+        virtualAddress: u32,
+    ) ?u32 {
+        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
+        const pde: *const PageDirectoryEntry = &self.page_directory[pd_index];
 
-    const pt: *align(PAGE_SIZE) const PageTable = @ptrFromInt(@as(u32, pde.page_table_address) << 12);
-    const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
-    const pte: *const PageTableEntry = &pt[pt_index];
+        const pt: *align(PAGE_SIZE) const PageTable = @ptrFromInt(@as(u32, pde.page_table_address) << 12);
+        const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
+        const pte: *const PageTableEntry = &pt[pt_index];
 
-    if (pte.in_physical_memory) {
-        const offset: u32 = offsetFromVirtual(virtualAddress);
-        return (@as(u32, pte.page_frame_address) << 12) + offset;
-    } else {
+        if (pte.in_physical_memory) {
+            const offset: u32 = offsetFromVirtual(virtualAddress);
+            return (@as(u32, pte.page_frame_address) << 12) + offset;
+        } else {
+            return null;
+        }
+    }
+
+    /// Extracting a virtualAddress from a physical one is not as straight forward
+    /// as the other way around. We pretty much have to do the reverse of virtual
+    /// Address translation:
+    ///
+    /// 1) Strip off the offset to find which index into the PageTable you are
+    ///
+    pub fn physicalToVirtual(_: *const Info, _: u32) ?u32 {
         return null;
     }
-}
+};
 
-/// Extracting a virtualAddress from a physical one is not as straight forward
-/// as the other way around. We pretty much have to do the reverse of virtual
-/// Address translation:
-///
-/// 1) Strip off the offset to find which index into the PageTable you are
-///
-pub fn physicalToVirtual(_: u32, _: *const PageDirectory) u32 {
-    return 0;
-}
-
-test virtualToPhysical {
+test Info {
     const std = @import("std");
 
     const virtual_kernel_base: u32 = 0xC0_00_00_00;
@@ -225,8 +225,7 @@ test virtualToPhysical {
 
     page_info.initHigherHalfPages(&kernel_page_table);
 
-    var translated = if (virtualToPhysical(
-        &page_directory,
+    var translated = if (page_info.virtualToPhysical(
         virtual_kernel_base,
     )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
@@ -239,8 +238,7 @@ test virtualToPhysical {
         return err;
     };
 
-    translated = if (virtualToPhysical(
-        &page_directory,
+    translated = if (page_info.virtualToPhysical(
         virtual_framebuffer_start,
     )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
@@ -253,5 +251,3 @@ test virtualToPhysical {
         return err;
     };
 }
-
-test Info {}

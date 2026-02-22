@@ -17,6 +17,8 @@
 //! from the bootloader and whichever protocol it used.
 
 const std = @import("std");
+const PagingInfo = @import("x86memory").paging.Info;
+
 const BootInfo = @This();
 
 bootinfo: BootloaderInfo,
@@ -25,7 +27,7 @@ framebuffer: FramebufferInfo,
 
 memory: MemoryInfo,
 
-pd_address: *const anyopaque,
+paging: PagingInfo,
 
 pub const BootloaderInfo = struct {
     name: [*:0]const u8,
@@ -85,4 +87,11 @@ pub const MemoryInfo = struct {
             idx,
         );
     }
+};
+
+/// Strong assumption that we are using elf, since I don't support building
+/// any other file format yet.
+pub const DebugInfo = struct {
+    symbol_count: u32,
+    header_size: u32,
 };

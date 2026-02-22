@@ -95,19 +95,26 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     {
         logger.logLine("Probing paging information...");
-        const pd_address: StringFromHex = .init(@intFromPtr(boot_info.pd_address));
+        const pd_address: StringFromHex = .init(@intFromPtr(boot_info.paging.page_directory));
         logger.log("    PD Address: 0x");
         logger.logLine(pd_address.getStr());
 
         const virt_addresses = comptime [_]u32{
-            0x000B8000,
+            0xC00B8000,
+            0xC0000000,
         };
+        logger.logLine("    Checking VirtToPhy mappings...");
         inline for (virt_addresses) |addr| {
-            const str: StringFromHex = .init(addr);
-            logger.log("    Virt address (0x");
-            logger.log(str.getStr());
-            logger.log(") maps to: ");
-            logger.logLine("TODO");
+            const str: []const u8 = comptime StringFromHex.init(addr).getStr();
+            logger.log("    Virt address (0x" ++ str);
+            logger.log(") maps to physical address: (");
+            if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
+                logger.log("0x");
+                logger.log(StringFromHex.init(mapped).getStr());
+            } else {
+                logger.log("Unmapped");
+            }
+            logger.logLine(")");
         }
     }
 

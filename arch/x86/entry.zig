@@ -153,7 +153,7 @@ fn trampoline(
             .interface = mb_info.prober(),
             .len = if (mb_info.flags.mmap) mb_info.mmap_length else 0,
         },
-        .pd_address = @ptrCast(&page_info),
+        .paging = page_info,
     });
 }
 
