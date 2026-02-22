@@ -14,6 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const control_registers = @import("control_registers.zig");
+
+pub inline fn getCR0() control_registers.CR0 {
+    return @bitCast(asm volatile (
+        \\mov %cr0, %[out]
+        : [out] "=r" (-> u32),
+    ));
+}
+
 /// Zig wrapper for the x86 "out" instruction
 ///
 /// In x86, the "out" instruction send a byte to an IO port at a specific

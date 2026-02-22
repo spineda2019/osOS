@@ -16,3 +16,5 @@
 
 /// Module in charge of wrapping (small) x86 instructions
 pub const assembly_wrappers = @import("assembly_wrappers.zig");
+
+pub const control_registers = @import("control_registers.zig");

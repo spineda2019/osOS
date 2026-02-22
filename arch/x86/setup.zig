@@ -118,6 +118,18 @@ pub fn setup(boot_info: BootInfo) noreturn {
         }
     }
 
+    {
+        const std = @import("std");
+        logger.logLine("Dumping special register info...");
+        const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
+        inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
+            const field = @field(cr0, name);
+            if (@TypeOf(field) == bool) {
+                logger.logLine("    " ++ name ++ ": " ++ if (field) "1" else "0");
+            }
+        }
+    }
+
     if (!boot_info.bootinfo.valid) {
         @panic(&boot_info.bootinfo.diagnostic);
     } else {
