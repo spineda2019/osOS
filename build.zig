@@ -102,6 +102,8 @@ const CommonModule = struct {
     // Some tests are not yet supported to run on my OS just yet, and need
     // to happen on the native target.
     test_artifact: *std.Build.Step.Compile,
+
+    doc_artifact: *std.Build.Step.Compile,
     emitted_doc_directory: std.Build.LazyPath,
 
     pub fn create(
@@ -114,7 +116,7 @@ const CommonModule = struct {
         const actual_module = b.createModule(.{
             .root_source_file = root,
         });
-        const doc_directory, const test_artifact = doc: {
+        const doc_directory, const doc_artifact, const test_artifact = doc: {
             const native_target = builtin.target;
             const native_target_query = std.Target.Query.fromTarget(
                 &native_target,
@@ -140,6 +142,7 @@ const CommonModule = struct {
 
             break :doc .{
                 doc_lib.getEmittedDocs(),
+                doc_lib,
                 b.addTest(.{
                     .root_module = test_mod,
                 }),
@@ -149,6 +152,7 @@ const CommonModule = struct {
         return .{
             .name = name,
             .module = actual_module,
+            .doc_artifact = doc_artifact,
             .emitted_doc_directory = doc_directory,
             .test_artifact = test_artifact,
         };
@@ -341,6 +345,10 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.memory_module.module,
     );
     x86_modules.boot_info.test_artifact.root_module.addImport(
+        x86_modules.memory_module.name,
+        x86_modules.memory_module.module,
+    );
+    x86_modules.boot_info.doc_artifact.root_module.addImport(
         x86_modules.memory_module.name,
         x86_modules.memory_module.module,
     );
