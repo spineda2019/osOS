@@ -81,7 +81,6 @@ fn trampoline(
     mb_info: *bootutils.MultiBoot.V1.Info,
 ) linksection(".trampoline") callconv(.c) noreturn {
     const page_info: memory.paging.Info = .{
-        .virtual_kernel_base = 0xC0_00_00_00,
         .page_directory = &kernel_page_directory,
     };
     page_info.initHigherHalfPages(&kernel_page_table);

@@ -114,7 +114,7 @@ pub inline fn offsetFromVirtual(address: u32) u32 {
 
 pub const Info = struct {
     page_directory: *align(PAGE_SIZE) PageDirectory,
-    virtual_kernel_base: u32,
+    pub const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
@@ -129,9 +129,7 @@ pub const Info = struct {
             }
         }
 
-        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(
-            self.virtual_kernel_base,
-        );
+        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtual_kernel_base);
         const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
         pde.basicInit(pt_to_use);
 
@@ -207,7 +205,6 @@ pub const Info = struct {
 test Info {
     const std = @import("std");
 
-    const virtual_kernel_base: u32 = 0xC0_00_00_00;
     const physical_framebuffer_start = 0x00_0B_80_00;
     const virtual_framebuffer_start = 0xC0_0B_80_00;
 
@@ -220,20 +217,19 @@ test Info {
 
     const page_info: Info = .{
         .page_directory = &page_directory,
-        .virtual_kernel_base = virtual_kernel_base,
     };
 
     page_info.initHigherHalfPages(&kernel_page_table);
 
     var translated = if (page_info.virtualToPhysical(
-        virtual_kernel_base,
+        Info.virtual_kernel_base,
     )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == 0,
     ) catch |err| {
         std.debug.print(
             "Expected virt address {x} to be translated to {x} but was instead {x}\n",
-            .{ virtual_kernel_base, 0, translated },
+            .{ Info.virtual_kernel_base, 0, translated },
         );
         return err;
     };

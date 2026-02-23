@@ -29,7 +29,6 @@ const physical_kernel_base = @extern(
     *anyopaque,
     .{ .name = "__physical_kernel_base" },
 );
-const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
@@ -85,7 +84,13 @@ pub fn setup(boot_info: BootInfo) noreturn {
     var framebuffer: io.FrameBuffer = .init(
         .LightBrown,
         .DarkGray,
-        if (boot_info.framebuffer.addr) |addr| addr + virtual_kernel_base else 0xC00B8000,
+        fb_start: {
+            if (boot_info.framebuffer.addr) |addr| {
+                break :fb_start addr + memory.paging.Info.virtual_kernel_base;
+            } else {
+                break :fb_start 0xC00B8000;
+            }
+        },
     );
     var serial_port = io.SerialPort.defaultInit();
     const logger: io.Logger = .{ .fp = &framebuffer, .sp = &serial_port };
