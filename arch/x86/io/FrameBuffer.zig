@@ -62,12 +62,6 @@ pub const FrameBufferCellColor: type = enum(u8) {
 // Light Brown   | 14
 // White         | 15
 
-/// Corresponds to top left. Other important locations:
-/// 0x000B80A0: Top-Right
-/// 0x000B8F00: Bottom-Left
-/// 0x000B8F9E: Bottom-Right
-const frame_buffer_start: u32 = 0x000B8000;
-
 const command_port_address: u16 = 0x3D4;
 const data_port_address: u16 = 0x3D5;
 const high_byte_command: u8 = 14;
@@ -84,19 +78,27 @@ background_color: FrameBufferCellColor,
 current_row: u8,
 current_column: u8,
 
+/// Corresponds to top left. Other important locations (assuming no
+/// paging/using identity mapping):
+/// 0x000B80A0: Top-Right
+/// 0x000B8F00: Bottom-Left
+/// 0x000B8F9E: Bottom-Right
+frame_buffer_start: u32,
+
 /// calculate the address to write in terms of an x,y coordinate.
 ///
 /// Return type is a bare u32 for sake of math, which will be converted
 /// into a volatile pointer for the actual memory mapped IO
-fn calculatedAddress(row: u8, column: u8) u32 {
+fn calculatedAddress(self: *const FrameBuffer, row: u8, column: u8) u32 {
     const row_offset: u32 = @intCast(row);
     const column_offset: u32 = @intCast(column);
-    return frame_buffer_start + (row_offset * 160) + (column_offset * 2);
+    return self.frame_buffer_start + (row_offset * 160) + (column_offset * 2);
 }
 
 pub fn init(
     comptime letter_color: FrameBufferCellColor,
     comptime background_color: FrameBufferCellColor,
+    virtual_fb_start: u32,
 ) FrameBuffer {
     return .{
         .current_row = 0,
@@ -104,6 +106,7 @@ pub fn init(
         .buffer = .{.{0} ** 80} ** 25,
         .letter_color = letter_color,
         .background_color = background_color,
+        .frame_buffer_start = virtual_fb_start,
     };
 }
 
@@ -199,7 +202,7 @@ fn flushBuffer(self: *FrameBuffer) void {
     // Need to leave the last line empty, .. is non-right-inclusive
     for (0..24) |row| {
         for (self.buffer[row], 0..) |scrolled_letter, column| {
-            writeCell(
+            self.writeCell(
                 @truncate(row),
                 @truncate(column),
                 scrolled_letter,
@@ -210,7 +213,7 @@ fn flushBuffer(self: *FrameBuffer) void {
     }
 
     for (0..80) |column| {
-        writeCell(
+        self.writeCell(
             24,
             @truncate(column),
             ' ',
@@ -232,7 +235,7 @@ pub fn scrollBuffer(self: *FrameBuffer) void {
 /// Small wrapper API around internal writeCell. Sets terminal defaults
 /// and does internal bookkeeping.
 pub fn putCharacter(self: *FrameBuffer, letter: u8) void {
-    writeCell(
+    self.writeCell(
         self.current_row,
         self.current_column,
         letter,
@@ -249,6 +252,7 @@ pub fn putCharacter(self: *FrameBuffer, letter: u8) void {
 
 /// API to write directly to the framebuffer.
 fn writeCell(
+    self: *const FrameBuffer,
     row: u8,
     column: u8,
     character: u8,
@@ -262,7 +266,7 @@ fn writeCell(
     // Cell layout
     // Bit:     | 15 14 13 12 11 10 9 8 | 7 6 5 4 | 3 2 1 0 |
     // Content: | ASCII                 | Cell    | Letter  |
-    const address_int: u32 = calculatedAddress(row, column);
+    const address_int: u32 = self.calculatedAddress(row, column);
     const ascii_address: *volatile u8 = @ptrFromInt(address_int);
     const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
     metadata_address.* = (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
@@ -286,7 +290,7 @@ pub fn clear(self: *FrameBuffer) void {
 
     for (0..80) |column| {
         for (0..25) |row| {
-            writeCell(
+            self.writeCell(
                 @intCast(row),
                 @intCast(column),
                 ' ',
@@ -366,22 +370,23 @@ const interface_impls = struct {
     }
 };
 
-test "FrameBufferAddressTranslation" {
+test FrameBuffer {
     const std = @import("std");
+    var fb: FrameBuffer = .init(.Black, .White, 0x000B8000);
     try std.testing.expectEqual(
-        FrameBuffer.calculatedAddress(0, 0),
-        FrameBuffer.frame_buffer_start,
+        fb.calculatedAddress(0, 0),
+        fb.frame_buffer_start,
     );
     try std.testing.expectEqual(
-        FrameBuffer.calculatedAddress(0, 79),
+        fb.calculatedAddress(0, 79),
         0x000B809E,
     );
     try std.testing.expectEqual(
-        FrameBuffer.calculatedAddress(24, 0),
+        fb.calculatedAddress(24, 0),
         0x000B8F00,
     );
     try std.testing.expectEqual(
-        FrameBuffer.calculatedAddress(24, 79),
+        fb.calculatedAddress(24, 79),
         0x000B8F9E,
     );
 }

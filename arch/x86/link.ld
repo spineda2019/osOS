@@ -41,65 +41,41 @@ SECTIONS {
         KEEP(*(.trampoline))
     }
 
-    .text ALIGN(0x1000) :
-    {
-        *(.text)           /* All text sections from all files */
-    }
-
-    /* read-only data sections */
-    .rodata ALIGN(0x1000) :
-    {
-        *(.rodata)
-    } 
-
-    /* data sections */
-    .data ALIGN(0x1000) :
-    {
-        *(.data)
-    }
-
-    /* uninitialized data sections */
-    .bss ALIGN(0x1000) :
-    {
-        *(.bss)
-    }
-
     __stack_bottom = .;     /* Stack will be 1 MiB */
     . += 1024 * 1024;       /* 1 MiB */
     __stack_top = .;        /* Stack will be 1 MiB */
-
 
     /* --------------------------------------------------------------------- */
     /* TODO(SEP): Below is proper linker script logic once we figure out     */
     /* kinks with jumping to higher half.                                    */
     
     /* Place post-trampoline in higher half virt memory */
-    /* . += 0xC0000000;                                                      */
+    . += 0xC0000000;
     
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
-    /* .text ALIGN(0x1000) : AT (ADDR (.text) - 0xC0000000)                  */
-    /* {                                                                     */
+    .text ALIGN(0x1000) : AT (ADDR (.text) - 0xC0000000)
+    {
            /* All text sections from all files                               */
-    /*     *(.text)                                                          */
-    /* }                                                                     */
+        *(.text)
+    }
 
     /* read-only data sections */
-    /* .rodata ALIGN(0x1000) : AT (ADDR (.rodata) - 0xC0000000)              */
-    /* {                                                                     */
-    /*     *(.rodata*)                                                       */
-    /* }                                                                     */
+    .rodata ALIGN(0x1000) : AT (ADDR (.rodata) - 0xC0000000)
+    {
+        *(.rodata*)
+    }
 
     /* data sections */
-    /* .data ALIGN(0x1000) : AT (ADDR (.data) - 0xC0000000)                  */
-    /* {                                                                     */
-    /*     *(.data)                                                          */
-    /* }                                                                     */
+    .data ALIGN(0x1000) : AT (ADDR (.data) - 0xC0000000)
+    {
+        *(.data)
+    }
 
     /* uninitialized data sections */
-    /* .bss ALIGN(0x1000) : AT (ADDR (.bss) - 0xC0000000)                    */
-    /* {                                                                     */
-    /*     *(.bss)                                                           */
-    /* }                                                                     */
+    .bss ALIGN(0x1000) : AT (ADDR (.bss) - 0xC0000000)
+    {
+        *(.bss)
+    }
     /* --------------------------------------------------------------------- */
 
     /DISCARD/ : {

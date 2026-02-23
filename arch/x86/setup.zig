@@ -33,10 +33,11 @@ const virtual_kernel_base: u32 = 0xC0_00_00_00;
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
+    as.assembly_wrappers.disable_x86_interrupts();
+
     const StackIterator = @import("std").debug.StackIterator;
 
-    as.assembly_wrappers.disable_x86_interrupts();
-    var framebuffer: io.FrameBuffer = .init(.Black, .White);
+    var framebuffer: io.FrameBuffer = .init(.Black, .White, 0xC00B8000);
     framebuffer.clear();
     framebuffer.write("Kernel Panic! Message: ");
     framebuffer.writeLine(msg);
@@ -67,6 +68,8 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 }
 
 /// Hardware setup; jumped to from the boot routine
+/// At this point, paging should be enabled, and we should be in the higher
+/// half.
 pub fn setup(boot_info: BootInfo) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
@@ -79,7 +82,11 @@ pub fn setup(boot_info: BootInfo) noreturn {
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
-    var framebuffer: io.FrameBuffer = .init(.LightBrown, .DarkGray);
+    var framebuffer: io.FrameBuffer = .init(
+        .LightBrown,
+        .DarkGray,
+        if (boot_info.framebuffer.addr) |addr| addr + virtual_kernel_base else 0xC00B8000,
+    );
     var serial_port = io.SerialPort.defaultInit();
     const logger: io.Logger = .{ .fp = &framebuffer, .sp = &serial_port };
     const message = "Trying to write out of COM port 1...\r\n";
