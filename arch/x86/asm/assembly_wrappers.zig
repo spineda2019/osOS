@@ -23,6 +23,30 @@ pub inline fn getCR0() control_registers.CR0 {
     ));
 }
 
+pub inline fn setCR0(cr0: control_registers.CR0) void {
+    asm volatile (
+        \\mov %[input], %cr0
+        : // no outputs
+        : [input] "r" (cr0),
+    );
+}
+
+pub inline fn enablePaging(pd: *anyopaque) void {
+    // bootloader may have had identity paging, disable it.
+    var old_cr0: control_registers.CR0 = getCR0();
+    old_cr0.paging_enabled = false;
+    setCR0(old_cr0);
+
+    asm volatile (
+        \\mov %[pd_address], %cr3
+        : // no outputs
+        : [pd_address] "r" (pd),
+    );
+
+    old_cr0.paging_enabled = true;
+    setCR0(old_cr0);
+}
+
 /// Zig wrapper for the x86 "out" instruction
 ///
 /// In x86, the "out" instruction send a byte to an IO port at a specific
@@ -140,14 +164,3 @@ pub noinline fn enableSSE() void {
 }
 
 pub inline fn illegal_instruction() void {}
-
-pub inline fn enablePaging(pd: *anyopaque) void {
-    asm volatile (
-        \\mov %[pd_address], %cr3
-        \\mov %cr0, %eax
-        \\or 0x80000001, %eax
-        \\mov %eax, %cr0
-        : // no outputs
-        : [pd_address] "r" (pd),
-        : .{ .cc = true, .eax = true });
-}
