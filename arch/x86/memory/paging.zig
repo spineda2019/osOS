@@ -55,8 +55,12 @@ pub const PageDirectoryEntry = packed struct(u32) {
         .page_table_address = 0,
     };
 
-    pub inline fn IndexFromVirtual(address: u32) u32 {
+    pub inline fn indexFromVirtual(address: u32) u32 {
         return (address & 0b1111111111_0000000000000000000000) >> 22;
+    }
+
+    pub inline fn bitsFromIndex(index: u32) u32 {
+        return (index << 22) & 0b1111111111_0000000000000000000000;
     }
 
     pub fn basicInit(
@@ -103,8 +107,12 @@ pub const PageTableEntry = packed struct(u32) {
         .page_frame_address = 0,
     };
 
-    pub inline fn IndexFromVirtual(address: u32) u32 {
+    pub inline fn indexFromVirtual(address: u32) u32 {
         return (address & 0b0000000000_1111111111_000000000000) >> 12;
+    }
+
+    pub inline fn bitsFromIndex(index: u32) u32 {
+        return (index << 12) & 0b0000000000_1111111111_000000000000;
     }
 };
 
@@ -114,7 +122,26 @@ pub inline fn offsetFromVirtual(address: u32) u32 {
 
 pub const Info = struct {
     page_directory: *align(PAGE_SIZE) PageDirectory,
-    pub const virtual_kernel_base: u32 = 0xC0_00_00_00;
+    /// This default comptime value should be defined in the linker script.
+    /// Unit tests can inject their own value here to no rely on any linker
+    /// script.
+    comptime virtual_kernel_base: u32 = 0xC0_00_00_00,
+
+    /// Helper function to find the virtual address of the "this" pointer. That
+    /// way users of this struct can get a virtual handle to an Info object that
+    /// exists already in physical memory.
+    pub fn virtualPD(self: *const Info) Error!*align(PAGE_SIZE) PageDirectory {
+        const as_num: u32 = @intFromPtr(self.page_directory);
+        const virt: MappingInfo = try self.physicalToVirtual(as_num);
+        if (virt.map_count == 0) {
+            return Error.VirtualSelfNotFound;
+        } else {
+            // get the "deepest" virtual address to avoid picking up the
+            // identity mapping.
+            // NOTE(SEP): Maybe don't assume?
+            return @ptrFromInt(virt.virtual_mappings[virt.map_count - 1]);
+        }
+    }
 
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
@@ -129,10 +156,6 @@ pub const Info = struct {
             }
         }
 
-        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtual_kernel_base);
-        const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
-        pde.basicInit(pt_to_use);
-
         // Will map starting physical addresses 0x0 through
         // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
         // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
@@ -143,10 +166,20 @@ pub const Info = struct {
             entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
         }
 
+        const pd_index: u32 = PageDirectoryEntry.indexFromVirtual(self.virtual_kernel_base);
+        const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
+        pde.basicInit(pt_to_use);
+
         // We also have to identity map the first 4mb to make the kernel not crash
         // when paging is turned on.
         const first_pde: *PageDirectoryEntry = &self.page_directory[0];
         first_pde.basicInit(pt_to_use);
+    }
+
+    pub fn unmap(self: *const Info, at: u32) void {
+        if (at < self.page_directory.len) {
+            self.page_directory[at].in_physical_memory = false;
+        }
     }
 
     pub fn enablePaging(self: *const Info) void {
@@ -176,11 +209,11 @@ pub const Info = struct {
         self: *const Info,
         virtualAddress: u32,
     ) ?u32 {
-        const pd_index: u32 = PageDirectoryEntry.IndexFromVirtual(virtualAddress);
+        const pd_index: u32 = PageDirectoryEntry.indexFromVirtual(virtualAddress);
         const pde: *const PageDirectoryEntry = &self.page_directory[pd_index];
 
         const pt: *align(PAGE_SIZE) const PageTable = @ptrFromInt(@as(u32, pde.page_table_address) << 12);
-        const pt_index: u32 = PageTableEntry.IndexFromVirtual(virtualAddress);
+        const pt_index: u32 = PageTableEntry.indexFromVirtual(virtualAddress);
         const pte: *const PageTableEntry = &pt[pt_index];
 
         if (pte.in_physical_memory) {
@@ -191,15 +224,60 @@ pub const Info = struct {
         }
     }
 
+    pub const MappingInfo = struct {
+        physical_address: u32,
+        virtual_mappings: [16]u32,
+        map_count: u8,
+
+        pub const empty: MappingInfo = .{
+            .physical_address = 0,
+            .virtual_mappings = .{0} ** 16,
+            .map_count = 0,
+        };
+    };
+
     /// Extracting a virtualAddress from a physical one is not as straight forward
     /// as the other way around. We pretty much have to do the reverse of virtual
     /// Address translation:
-    ///
-    /// 1) Strip off the offset to find which index into the PageTable you are
-    ///
-    pub fn physicalToVirtual(_: *const Info, _: u32) ?u32 {
-        return null;
+    pub fn physicalToVirtual(self: *const Info, physical_address: u32) Error!MappingInfo {
+        var mapped: [16]u32 = undefined;
+        var count: u8 = 0;
+
+        for (self.page_directory, 0..) |*pde, pd_index| {
+            if (!pde.in_physical_memory) {
+                continue;
+            }
+            const top_10 = PageDirectoryEntry.bitsFromIndex(pd_index);
+
+            const pt: *align(PAGE_SIZE) const PageTable = @ptrFromInt(@as(u32, pde.page_table_address) << 12);
+            for (pt, 0..) |*pte, pt_index| {
+                if (!pte.in_physical_memory) {
+                    continue;
+                }
+                const next_10 = PageTableEntry.bitsFromIndex(pt_index);
+                const candidate_virt = top_10 | next_10 | (@as(u32, pte.page_frame_address) >> 12);
+                if (self.virtualToPhysical(candidate_virt) == physical_address) {
+                    if (count < mapped.len) {
+                        mapped[count] = candidate_virt;
+                        count += 1;
+                    } else {
+                        return Error.MappedCountExceeded;
+                    }
+                }
+            }
+        }
+
+        return .{
+            .physical_address = physical_address,
+            .virtual_mappings = mapped,
+            .map_count = count,
+        };
     }
+
+    const Error = error{
+        MappedCountExceeded,
+        VirtualSelfNotFound,
+    };
 };
 
 test Info {
@@ -222,14 +300,14 @@ test Info {
     page_info.initHigherHalfPages(&kernel_page_table);
 
     var translated = if (page_info.virtualToPhysical(
-        Info.virtual_kernel_base,
+        page_info.virtual_kernel_base,
     )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == 0,
     ) catch |err| {
         std.debug.print(
             "Expected virt address {x} to be translated to {x} but was instead {x}\n",
-            .{ Info.virtual_kernel_base, 0, translated },
+            .{ page_info.virtual_kernel_base, 0, translated },
         );
         return err;
     };
@@ -246,4 +324,21 @@ test Info {
         );
         return err;
     };
+
+    const phys_map_list = try page_info.physicalToVirtual(0);
+    for (phys_map_list.virtual_mappings, 0..) |mapped, idx| {
+        if (idx >= phys_map_list.map_count) {
+            std.testing.expect(false) catch |err| {
+                std.debug.print(
+                    "Expected phys address {x} to be mapped to {x} but was instead {}\n",
+                    .{ 0, page_info.virtual_kernel_base, phys_map_list },
+                );
+                return err;
+            };
+        } else if (mapped == 0) {}
+        {
+            try std.testing.expect(true);
+            break;
+        }
+    }
 }

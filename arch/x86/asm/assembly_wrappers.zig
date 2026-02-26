@@ -16,6 +16,10 @@
 
 const control_registers = @import("control_registers.zig");
 
+pub fn cpuidAvailable() bool {
+    @compileError("TODO");
+}
+
 pub inline fn getCR0() control_registers.CR0 {
     return @bitCast(asm volatile (
         \\mov %cr0, %[out]

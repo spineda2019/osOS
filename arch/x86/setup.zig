@@ -25,9 +25,9 @@ const BootInfo = @import("BootInfo");
 const StringFromHex = osformat.format.StringFromInt(usize, 16);
 const StringFromDecimal = osformat.format.StringFromInt(usize, 10);
 
-const physical_kernel_base = @extern(
-    *anyopaque,
-    .{ .name = "__physical_kernel_base" },
+const virtual_stack_top: [*]u8 = @extern(
+    [*]u8,
+    .{ .name = "__virtual_stack_top" },
 );
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
@@ -70,6 +70,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
 /// At this point, paging should be enabled, and we should be in the higher
 /// half.
 pub fn setup(boot_info: BootInfo) noreturn {
+    // Switch to the virtual stack
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
     const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
@@ -86,7 +87,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .DarkGray,
         fb_start: {
             if (boot_info.framebuffer.addr) |addr| {
-                break :fb_start addr + memory.paging.Info.virtual_kernel_base;
+                break :fb_start addr + boot_info.paging.virtual_kernel_base;
             } else {
                 break :fb_start 0xC00B8000;
             }
@@ -105,11 +106,21 @@ pub fn setup(boot_info: BootInfo) noreturn {
     }
     framebuffer.clear();
 
+    const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
+        @panic(@errorName(err));
+    };
+
     {
-        logger.logLine("Probing paging information...");
         const pd_address: StringFromHex = .init(@intFromPtr(boot_info.paging.page_directory));
+        const virt_address: StringFromHex = .init(@intFromPtr(virtual_pd_address));
+
+        logger.logLine("Probing paging information...");
         logger.log("    PD Address: 0x");
         logger.logLine(pd_address.getStr());
+        logger.log("    Virt Equivalent: 0x");
+        logger.logLine(virt_address.getStr());
+
+        logger.log("");
 
         const virt_addresses = comptime [_]u32{
             0xC00B8000,
@@ -118,8 +129,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
         logger.logLine("    Checking VirtToPhy mappings...");
         inline for (virt_addresses) |addr| {
             const str: []const u8 = comptime StringFromHex.init(addr).getStr();
-            logger.log("    Virt address (0x" ++ str);
-            logger.log(") maps to physical address: (");
+            logger.log("    Virt address (0x" ++ str ++ ") maps to physical address: (");
             if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
                 logger.log("0x");
                 logger.log(StringFromHex.init(mapped).getStr());
@@ -127,6 +137,31 @@ pub fn setup(boot_info: BootInfo) noreturn {
                 logger.log("Unmapped");
             }
             logger.logLine(")");
+        }
+
+        const phy_addresses = comptime [_]u32{
+            0x000B8000,
+            0x00000000,
+        };
+        logger.logLine("    Checking PhyToVirt mappings...");
+        inline for (phy_addresses) |addr| {
+            const str: []const u8 = comptime StringFromHex.init(addr).getStr();
+            logger.logLine("    Phy address (0x" ++ str ++ ") maps to virtual address(es):");
+            const MappingInfo = memory.paging.Info.MappingInfo;
+            const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
+            if (mappings.map_count == 0) {
+                logger.logLine("        None");
+            } else {
+                for (mappings.virtual_mappings, 0..) |mapped, idx| {
+                    if (idx >= mappings.map_count) {
+                        break;
+                    } else {
+                        const mapped_str: StringFromHex = .init(mapped);
+                        logger.log("        0x");
+                        logger.logLine(mapped_str.getStr());
+                    }
+                }
+            }
         }
     }
 
@@ -213,6 +248,13 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.logLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
+    // undo first 4MB identity mapping to finish higher half jump.
+    boot_info.paging.unmap(0);
+    asm volatile (
+        \\    movl %[virtual_stack_top], %ESP
+        : // no outputs
+        : [virtual_stack_top] "i" (virtual_stack_top),
+    );
     as.assembly_wrappers.enable_x86_interrupts();
 
     const hal_layout: oshal.HalLayout = comptime .{

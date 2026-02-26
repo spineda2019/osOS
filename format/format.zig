@@ -111,6 +111,12 @@ pub fn StringFromInt(comptime T: type, comptime base: comptime_int) type {
     };
 }
 
+pub fn StringFromDecimal(comptime T: type) type {
+    return StringFromInt(T, 10);
+}
+
+pub const AddressString = StringFromInt(u32, 16);
+
 test numberBufSize {
     const expect = @import("std").testing.expect;
     const print = @import("std").debug.print;

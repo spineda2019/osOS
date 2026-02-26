@@ -302,10 +302,12 @@ const InterruptNumber = union(enum) {
     withErrorCode: u32,
     withoutErrorCode: u32,
     picInterrupt: pic.irq,
+    pageFault: u32,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
-            8, 10, 11, 12, 13, 14, 17 => .{ .withErrorCode = number },
+            14 => .{ .pageFault = number },
+            8, 10, 11, 12, 13, 17 => .{ .withErrorCode = number },
             @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
                 .picInterrupt = @enumFromInt(number),
             },
@@ -316,6 +318,7 @@ const InterruptNumber = union(enum) {
     pub fn get(this: InterruptNumber) u32 {
         return switch (this) {
             .picInterrupt => |enumerator| @intFromEnum(enumerator),
+            .pageFault => |pf| pf,
             .withErrorCode => |with| with,
             .withoutErrorCode => |without| without,
         };
@@ -369,16 +372,55 @@ fn generateHandler(
                 );
             }
         }.handler,
-        .picInterrupt => |irq| &struct {
-            extern fn handleGenericPicIrq(irq_with_offset: u8) callconv(.c) void;
+        .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
+        .pageFault => |_| &struct {
+            export fn pageFaultHandler(error_code: u32) callconv(.c) noreturn {
+                const meta = @import("std").meta;
+                const PageFault = @import("error_codes.zig").PageFault;
+                const err: PageFault = @bitCast(error_code);
+
+                // limit to 4 lines
+                var message: [80 * 4]u8 = .{0} ** (80 * 4);
+                const offending_address: osformat.format.AddressString = .init(asm volatile (
+                    \\mov %cr2, %[out]
+                    : [out] "=r" (-> u32),
+                ));
+                const str = offending_address.getStr();
+                var idx: usize = 0;
+
+                for ("Page Fault! Offending address: 0x") |letter| {
+                    if (idx < message.len) {
+                        message[idx] = letter;
+                    }
+
+                    idx += 1;
+                }
+                for (str) |letter| {
+                    if (idx < message.len) {
+                        message[idx] = letter;
+                    }
+
+                    idx += 1;
+                }
+                inline for (comptime meta.fieldNames(PageFault)) |name| {
+                    const field = @field(err, name);
+                    if (@TypeOf(field) == bool) {
+                        for (" " ++ name ++ " bit: " ++ if (err.present) "1" else "0") |letter| {
+                            if (idx < message.len) {
+                                message[idx] = letter;
+                            }
+
+                            idx += 1;
+                        }
+                    }
+                }
+
+                @panic(message[0..idx]);
+            }
             fn handler() callconv(.naked) void {
                 asm volatile (
-                    \\pushl %[interrupt_number]
-                    \\call handleGenericPicIrq
-                    \\addl $0x4, %esp            # cleanup pushed interrupt
-                    \\iret
-                    : // no outputs
-                    : [interrupt_number] "i" (@intFromEnum(irq)),
+                    \\call pageFaultHandler
+                    \\addl $0x4, %esp
                 );
             }
         }.handler,

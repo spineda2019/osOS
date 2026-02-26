@@ -79,3 +79,35 @@ pub const CR0 = packed struct(u32) {
     /// Bit 31. Commonly labeled 'PG'
     paging_enabled: bool,
 };
+
+pub const EFlags = packed struct(u32) {
+    const IOPrivilege = enum(u2) {
+        kernel = 0,
+        level_one = 1,
+        level_two = 2,
+        user = 3,
+    };
+
+    carry: bool,
+    _reserved_1: u1,
+    parity: bool,
+    _reserved_3: u1,
+    auxillary: bool,
+    _reserved_5: bool,
+    zero: bool,
+    sign: bool,
+    trap: bool,
+    interrupt_enable: bool,
+    direction: bool,
+    overflow: bool,
+    io_priviledge: IOPrivilege,
+    nested: bool,
+    _reserved_15: u1,
+    resume_flag: bool,
+    virtual_8086_mode: bool,
+    alignment_check: bool,
+    virtual_interrupt: bool,
+    virtual_interrupt_pending: bool,
+    cpuid_available: bool,
+    _reserved_rest: u20,
+};

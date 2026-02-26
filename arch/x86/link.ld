@@ -41,17 +41,15 @@ SECTIONS {
         KEEP(*(.trampoline))
     }
 
-    __stack_bottom = .;     /* Stack will be 1 MiB */
-    . += 1024 * 1024;       /* 1 MiB */
-    __stack_top = .;        /* Stack will be 1 MiB */
+    __stack_bottom = .;
+    . += 1024 * 4;       /* 4 KiB Trampoline Stack */
+    __stack_top = .;
 
     /* --------------------------------------------------------------------- */
-    /* TODO(SEP): Below is proper linker script logic once we figure out     */
-    /* kinks with jumping to higher half.                                    */
     
     /* Place post-trampoline in higher half virt memory */
-    . += 0xC0000000;
-    
+    . = 0xC0000000;
+
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
     .text ALIGN(0x1000) : AT (ADDR (.text) - 0xC0000000)
     {
@@ -78,6 +76,11 @@ SECTIONS {
     }
     /* --------------------------------------------------------------------- */
 
+    __virtual_stack_bottom = .;
+    . += 1024 * 1024;    /* 1 MiB Virtual Stack */
+    __virtual_stack_top = .;
+
+    
     /DISCARD/ : {
         *(.eh_frame)
         *(.eh_frame_hdr)

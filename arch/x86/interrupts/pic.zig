@@ -162,6 +162,21 @@ fn handleTimerIRQ() void {
     clock_tics += 1;
 }
 
+pub fn IrqHandler(comptime request_type: irq) type {
+    return struct {
+        pub fn handler() callconv(.naked) void {
+            asm volatile (
+                \\pushl %[interrupt_number]
+                \\call handleGenericPicIrq
+                \\addl $0x4, %esp            # cleanup pushed interrupt
+                \\iret
+                : // no outputs
+                : [interrupt_number] "i" (@intFromEnum(request_type)),
+            );
+        }
+    };
+}
+
 /// Jumped to from a handler stub
 export fn handleGenericPicIrq(irq_with_offset: irq) callconv(.c) void {
     switch (irq_with_offset) {
@@ -175,6 +190,7 @@ pub fn keyboardISR() callconv(.naked) void {
     asm volatile (
         \\push %[keyboard_irq]
         \\call handleGenericPicIrq
+        \\addl $0x4, %esp            # cleanup pushed interrupt
         \\iret
         : // no outputs
         : [keyboard_irq] "i" (irq.keyboard),
@@ -185,6 +201,7 @@ pub fn timerISR() callconv(.naked) void {
     asm volatile (
         \\push %[timer_irq]
         \\call handleGenericPicIrq
+        \\addl $0x4, %esp            # cleanup pushed interrupt
         \\iret
         : // no outputs
         : [timer_irq] "i" (irq.timer),

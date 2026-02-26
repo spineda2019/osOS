@@ -20,6 +20,8 @@ pub const pic = @import("pic.zig");
 
 const syscall = @import("syscall.zig");
 
+pub const error_code = @import("error_codes.zig");
+
 pub const Interrupt = union(enum) {
     intelException: IntelException,
     picInterrupt: *const fn () callconv(.naked) void,
