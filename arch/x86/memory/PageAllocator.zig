@@ -23,10 +23,11 @@ head: std.SinglyLinkedList,
 
 pub const Error = error{
     no_system_memory_after_kernel,
+    oom,
 };
 
 pub const Chunk = struct {
-    base_address: *align(4096) anyopaque,
+    base_address: *anyopaque,
     node: std.SinglyLinkedList.Node,
     /// The amount of free bytes starting at `base_address`
     free_bytes: u32,
@@ -134,7 +135,187 @@ pub fn init(mem_info: MemoryInfo) Error!PageAllocator {
     };
 }
 
-pub fn allocFrame() !void {}
+const interface_impl = struct {
+    fn alloc(
+        self: *PageAllocator,
+        len: usize,
+        alignment: std.mem.Alignment,
+        ret_addr: usize,
+    ) ?[*]u8 {
+        if (ret_addr == 0) {
+            // TODO
+            return null;
+        }
+
+        // TODO
+        _ = self;
+        _ = len;
+        _ = alignment;
+        return null;
+    }
+
+    fn resize(
+        self: *PageAllocator,
+        memory: []u8,
+        alignment: std.mem.Alignment,
+        new_len: usize,
+        ret_addr: usize,
+    ) bool {
+        if (ret_addr == 0) {
+            // TODO
+            return false;
+        }
+
+        // TODO
+        _ = self;
+        _ = memory;
+        _ = alignment;
+        _ = new_len;
+        return false;
+    }
+
+    fn remap(
+        self: *PageAllocator,
+        memory: []u8,
+        alignment: std.mem.Alignment,
+        new_len: usize,
+        ret_addr: usize,
+    ) ?[*]u8 {
+        if (ret_addr == 0) {
+            // TODO
+            return null;
+        }
+
+        // TODO
+        _ = self;
+        _ = memory;
+        _ = alignment;
+        _ = new_len;
+        return null;
+    }
+
+    fn free(
+        self: *PageAllocator,
+        memory: []u8,
+        alignment: std.mem.Alignment,
+        ret_addr: usize,
+    ) void {
+        // TODO
+        _ = ret_addr;
+        _ = self;
+        _ = memory;
+        _ = alignment;
+    }
+};
+
+pub fn allocator(self: *PageAllocator) std.mem.Allocator {
+    return .{
+        .ptr = self,
+        .vtable = &.{
+            .alloc = &struct {
+                fn impl(
+                    opaque_self: *anyopaque,
+                    len: usize,
+                    alignment: std.mem.Alignment,
+                    ret_addr: usize,
+                ) ?[*]u8 {
+                    const this: *PageAllocator = @ptrCast(@alignCast(opaque_self));
+                    return interface_impl.alloc(this, len, alignment, ret_addr);
+                }
+            }.impl,
+            .resize = &struct {
+                fn impl(
+                    opaque_self: *anyopaque,
+                    memory: []u8,
+                    alignment: std.mem.Alignment,
+                    new_len: usize,
+                    ret_addr: usize,
+                ) bool {
+                    const this: *PageAllocator = @ptrCast(@alignCast(opaque_self));
+                    return interface_impl.resize(
+                        this,
+                        memory,
+                        alignment,
+                        new_len,
+                        ret_addr,
+                    );
+                }
+            }.impl,
+            .remap = &struct {
+                fn impl(
+                    opaque_self: *anyopaque,
+                    memory: []u8,
+                    alignment: std.mem.Alignment,
+                    new_len: usize,
+                    ret_addr: usize,
+                ) ?[*]u8 {
+                    const this: *PageAllocator = @ptrCast(@alignCast(opaque_self));
+                    return interface_impl.remap(
+                        this,
+                        memory,
+                        alignment,
+                        new_len,
+                        ret_addr,
+                    );
+                }
+            }.impl,
+            .free = &struct {
+                fn impl(
+                    opaque_self: *anyopaque,
+                    memory: []u8,
+                    alignment: std.mem.Alignment,
+                    ret_addr: usize,
+                ) void {
+                    const this: *PageAllocator = @ptrCast(@alignCast(opaque_self));
+                    interface_impl.free(this, memory, alignment, ret_addr);
+                }
+            }.impl,
+        },
+    };
+}
+
+test allocator {
+    const FakeMemoryProber = struct {
+        const Self = @This();
+
+        fake_kernel_end: [8][4096 * 2]u8 = undefined,
+
+        pub fn init() @This() {
+            var self: Self = .{};
+            @memset(&self.fake_kernel_end, .{0} ** (4096 * 2));
+            return self;
+        }
+
+        pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
+            return .{
+                .instance = self,
+                .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
+            };
+        }
+
+        pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
+            if (idx > self.fake_kernel_end.len) {
+                return null;
+            } else {
+                return .{
+                    .address = @intFromPtr(&(self.fake_kernel_end[idx])),
+                    .length = self.fake_kernel_end[idx].len,
+                };
+            }
+        }
+    };
+
+    var fake_mem_prober: FakeMemoryProber = .init();
+
+    var page_allocator: PageAllocator = try PageAllocator.init(.{
+        .interface = fake_mem_prober.prober(),
+        .len = 1,
+        .kernel_end = &fake_mem_prober.fake_kernel_end,
+    });
+
+    var zig_allocator: std.mem.Allocator = page_allocator.allocator();
+    _ = &zig_allocator;
+}
 
 test PageAllocator {
     // in the actual kernel, this buffer is unneeded (and would defeat the
