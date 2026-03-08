@@ -383,6 +383,10 @@ pub fn build(b: *std.Build) Err!void {
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
+    x86_modules.interrupts_module.module.addImport(
+        x86_modules.boot_info.name,
+        x86_modules.boot_info.module,
+    );
 
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),

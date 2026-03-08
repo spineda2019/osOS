@@ -77,8 +77,9 @@ SECTIONS {
     /* --------------------------------------------------------------------- */
 
     __virtual_stack_bottom = .;
-    . += 1024 * 1024;    /* 1 MiB Virtual Stack */
+    . += 1024 * 1024;            /* 1 MiB Virtual Stack */
     __virtual_stack_top = .;
+    __physical_kernel_end = . - 0xC0000000;
 
     
     /DISCARD/ : {

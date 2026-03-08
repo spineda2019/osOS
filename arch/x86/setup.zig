@@ -78,6 +78,8 @@ pub fn setup(boot_info: BootInfo) noreturn {
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
+    interrupts.idt.mem_info = &boot_info.memory;
+
     const idt = interrupts.idt.createDefaultIDT();
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
@@ -109,6 +111,12 @@ pub fn setup(boot_info: BootInfo) noreturn {
     const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
         @panic(@errorName(err));
     };
+
+    {
+        const str: osformat.format.AddressString = .init(boot_info.memory.kernel_end);
+        logger.log("Physical kernel end at 0x");
+        logger.logLine(str.getStr());
+    }
 
     {
         const pd_address: StringFromHex = .init(@intFromPtr(boot_info.paging.page_directory));
@@ -227,12 +235,8 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.logLine("    Available Chunks: ");
     for (0..boot_info.memory.len) |idx| {
         if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
-            const size_str: StringFromDecimal = .init(chunk.size);
             const addr_str: StringFromHex = .init(chunk.address);
             const len_str: StringFromDecimal = .init(chunk.length);
-
-            logger.log("        Size: ");
-            logger.logLine(size_str.getStr());
 
             logger.log("        Addr: 0x");
             logger.logLine(addr_str.getStr());

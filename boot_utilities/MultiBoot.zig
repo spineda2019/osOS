@@ -212,7 +212,6 @@ pub const V1 = extern struct {
                     const entry = entries[idx];
                     if (entry.entry_type == .available) {
                         return .{
-                            .size = entry.size,
                             .address = entry.addr_low,
                             .length = entry.len_low,
                         };

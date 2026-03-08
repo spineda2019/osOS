@@ -17,6 +17,7 @@
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 const osformat = @import("osformat");
+const BootInfo = @import("BootInfo");
 
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
@@ -30,6 +31,8 @@ pub const InterruptHandlerFnPtr = *const fn () callconv(.naked) void;
 pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
 
 const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
+
+pub var mem_info: ?*const BootInfo.MemoryInfo = null;
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
@@ -379,33 +382,63 @@ fn generateHandler(
                 const PageFault = @import("error_codes.zig").PageFault;
                 const err: PageFault = @bitCast(error_code);
 
-                // limit to 4 lines
-                var message: [80 * 4]u8 = .{0} ** (80 * 4);
-                const offending_address: osformat.format.AddressString = .init(asm volatile (
-                    \\mov %cr2, %[out]
-                    : [out] "=r" (-> u32),
-                ));
-                const str = offending_address.getStr();
-                var idx: usize = 0;
+                if (mem_info) |mem| {
+                    // limit to 4 lines
+                    var message: [80 * 4]u8 = .{0} ** (80 * 4);
+                    const offending_address: osformat.format.AddressString = .init(asm volatile (
+                        \\mov %cr2, %[out]
+                        : [out] "=r" (-> u32),
+                    ));
+                    const str = offending_address.getStr();
+                    var idx: usize = 0;
 
-                for ("Page Fault! Offending address: 0x") |letter| {
-                    if (idx < message.len) {
-                        message[idx] = letter;
+                    for ("Page Fault! Offending address: 0x") |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    for (str) |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    inline for (comptime meta.fieldNames(PageFault)) |name| {
+                        const field = @field(err, name);
+                        if (@TypeOf(field) == bool) {
+                            for (" " ++ name ++ " bit: " ++ if (err.present) "1" else "0") |letter| {
+                                if (idx < message.len) {
+                                    message[idx] = letter;
+                                }
+
+                                idx += 1;
+                            }
+                        }
                     }
 
-                    idx += 1;
-                }
-                for (str) |letter| {
-                    if (idx < message.len) {
-                        message[idx] = letter;
-                    }
+                    if (mem.findFreeAbove1MB()) |chunk| {
+                        const msg = " Could map in free physical chunk at 0x";
+                        const addr: osformat.format.AddressString = .init(chunk.address);
 
-                    idx += 1;
-                }
-                inline for (comptime meta.fieldNames(PageFault)) |name| {
-                    const field = @field(err, name);
-                    if (@TypeOf(field) == bool) {
-                        for (" " ++ name ++ " bit: " ++ if (err.present) "1" else "0") |letter| {
+                        for (msg) |letter| {
+                            if (idx < message.len) {
+                                message[idx] = letter;
+                            }
+
+                            idx += 1;
+                        }
+                        for (addr.getStr()) |letter| {
+                            if (idx < message.len) {
+                                message[idx] = letter;
+                            }
+
+                            idx += 1;
+                        }
+                    } else {
+                        for (" No free addr found...") |letter| {
                             if (idx < message.len) {
                                 message[idx] = letter;
                             }
@@ -413,9 +446,11 @@ fn generateHandler(
                             idx += 1;
                         }
                     }
-                }
 
-                @panic(message[0..idx]);
+                    @panic(message[0..idx]);
+                } else {
+                    @panic("Could not find System Memory Info");
+                }
             }
             fn handler() callconv(.naked) void {
                 asm volatile (

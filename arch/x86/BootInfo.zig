@@ -50,7 +50,6 @@ pub const FramebufferInfo = struct {
 
 pub const MemoryInfo = struct {
     pub const FreeChunk = struct {
-        size: u32,
         address: u32,
         length: u32,
     };
@@ -80,12 +79,25 @@ pub const MemoryInfo = struct {
 
     interface: IMemoryProber,
     len: usize,
+    kernel_end: u32,
 
-    pub fn availableMemChunkAt(self: MemoryInfo, idx: usize) ?FreeChunk {
+    pub fn availableMemChunkAt(self: *const MemoryInfo, idx: usize) ?FreeChunk {
         return self.interface.vtable.availableMemChunkAt(
             self.interface.instance,
             idx,
         );
+    }
+
+    pub fn findFreeAbove1MB(self: *const MemoryInfo) ?FreeChunk {
+        for (0..self.len) |idx| {
+            if (self.availableMemChunkAt(idx)) |chunk| {
+                if (chunk.address >= 0x10_00_00) {
+                    return chunk;
+                }
+            }
+        }
+
+        return null;
     }
 };
 

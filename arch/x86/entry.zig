@@ -14,16 +14,17 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const physical_kernel_end: *anyopaque = @extern(
+    *anyopaque,
+    .{ .name = "__physical_kernel_end" },
+);
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("osboot");
-
 /// Defined in the build script
 const bootoptions = @import("bootoptions");
-
 const memory = @import("x86memory");
 const as = @import("x86asm");
-
 const osformat = @import("osformat");
 
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
@@ -151,6 +152,7 @@ fn trampoline(
         .memory = .{
             .interface = mb_info.prober(),
             .len = if (mb_info.flags.mmap) mb_info.mmap_length else 0,
+            .kernel_end = @intFromPtr(physical_kernel_end),
         },
         .paging = page_info,
     });
