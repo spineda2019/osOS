@@ -17,7 +17,7 @@
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 const osformat = @import("osformat");
-const BootInfo = @import("BootInfo");
+const PageAllocator = @import("x86memory").PageAllocator;
 
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
 /// a handler for each one. The information each handler will need will be
@@ -32,7 +32,8 @@ pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
 
 const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
 
-pub var mem_info: ?*const BootInfo.MemoryInfo = null;
+/// TODO(SEP): Make this the head of a free list?
+pub var mem_info: ?*const PageAllocator = null;
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
@@ -382,7 +383,7 @@ fn generateHandler(
                 const PageFault = @import("error_codes.zig").PageFault;
                 const err: PageFault = @bitCast(error_code);
 
-                if (mem_info) |mem| {
+                if (mem_info) |allocator| {
                     // limit to 4 lines
                     var message: [80 * 4]u8 = .{0} ** (80 * 4);
                     const offending_address: osformat.format.AddressString = .init(asm volatile (
@@ -419,9 +420,12 @@ fn generateHandler(
                         }
                     }
 
-                    if (mem.findFreeAbove1MB()) |chunk| {
+                    if (allocator.head.first) |chunk_head| {
+                        const chunk: *PageAllocator.Chunk = @fieldParentPtr("node", chunk_head);
                         const msg = " Could map in free physical chunk at 0x";
-                        const addr: osformat.format.AddressString = .init(chunk.address);
+                        const addr: osformat.format.AddressString = .init(
+                            @intFromPtr(chunk.base_address),
+                        );
 
                         for (msg) |letter| {
                             if (idx < message.len) {

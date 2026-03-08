@@ -25,11 +25,6 @@ const BootInfo = @import("BootInfo");
 const StringFromHex = osformat.format.StringFromInt(usize, 16);
 const StringFromDecimal = osformat.format.StringFromInt(usize, 10);
 
-const virtual_stack_top: [*]u8 = @extern(
-    [*]u8,
-    .{ .name = "__virtual_stack_top" },
-);
-
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
     as.assembly_wrappers.disable_x86_interrupts();
@@ -78,8 +73,6 @@ pub fn setup(boot_info: BootInfo) noreturn {
     const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    interrupts.idt.mem_info = &boot_info.memory;
-
     const idt = interrupts.idt.createDefaultIDT();
     const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
     idt_descriptor.loadIDT();
@@ -113,7 +106,10 @@ pub fn setup(boot_info: BootInfo) noreturn {
     };
 
     {
-        const str: osformat.format.AddressString = .init(boot_info.memory.kernel_end);
+        const str: osformat.format.AddressString = .init(
+            @intFromPtr(boot_info.memory.kernel_end),
+        );
+
         logger.log("Physical kernel end at 0x");
         logger.logLine(str.getStr());
     }
@@ -248,17 +244,44 @@ pub fn setup(boot_info: BootInfo) noreturn {
         }
     }
 
+    const page_allocator = memory.PageAllocator.init(boot_info.memory) catch |err| {
+        @panic(@errorName(err));
+    };
+    interrupts.idt.mem_info = &page_allocator;
+    {
+        const allocator_address: osformat.format.AddressString = .init(
+            @intFromPtr(&page_allocator),
+        );
+
+        logger.log("allocator address: 0x");
+        logger.logLine(allocator_address.getStr());
+
+        var maybe_node = page_allocator.head.first;
+        while (maybe_node) |node| {
+            const chunk: *const memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
+            defer maybe_node = chunk.node.next;
+            const chunk_head_address: osformat.format.AddressString = .init(
+                @intFromPtr(chunk),
+            );
+            logger.log("chunk object address: 0x");
+            logger.logLine(chunk_head_address.getStr());
+
+            const base_address: osformat.format.AddressString = .init(
+                @intFromPtr(chunk.base_address),
+            );
+            logger.log("chunk head stored base address: 0x");
+            logger.logLine(base_address.getStr());
+
+            logger.logLine("Chunk in use: " ++ if (chunk.used) "T" else "F");
+        }
+    }
+
     logger.logLine("COM1 succesfully written to! Testing cursor movement...");
     logger.logLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmap(0);
-    asm volatile (
-        \\    movl %[virtual_stack_top], %ESP
-        : // no outputs
-        : [virtual_stack_top] "i" (virtual_stack_top),
-    );
     as.assembly_wrappers.enable_x86_interrupts();
 
     const hal_layout: oshal.HalLayout = comptime .{

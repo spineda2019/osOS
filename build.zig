@@ -370,6 +370,14 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.asm_module.name,
         x86_modules.asm_module.module,
     );
+    x86_modules.memory_module.module.addImport(
+        x86_modules.boot_info.name,
+        x86_modules.boot_info.module,
+    );
+    x86_modules.memory_module.test_artifact.root_module.addImport(
+        x86_modules.boot_info.name,
+        x86_modules.boot_info.module,
+    );
 
     x86_modules.interrupts_module.module.addImport(
         x86_modules.asm_module.name,
@@ -384,8 +392,8 @@ pub fn build(b: *std.Build) Err!void {
         shared_modules.osformat.module,
     );
     x86_modules.interrupts_module.module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.module,
+        x86_modules.memory_module.name,
+        x86_modules.memory_module.module,
     );
 
     const x86_module = b.createModule(.{

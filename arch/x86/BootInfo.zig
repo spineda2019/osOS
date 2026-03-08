@@ -79,7 +79,7 @@ pub const MemoryInfo = struct {
 
     interface: IMemoryProber,
     len: usize,
-    kernel_end: u32,
+    kernel_end: *anyopaque,
 
     pub fn availableMemChunkAt(self: *const MemoryInfo, idx: usize) ?FreeChunk {
         return self.interface.vtable.availableMemChunkAt(

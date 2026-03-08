@@ -18,6 +18,12 @@ const physical_kernel_end: *anyopaque = @extern(
     *anyopaque,
     .{ .name = "__physical_kernel_end" },
 );
+
+const virtual_stack_top: [*]u8 = @extern(
+    [*]u8,
+    .{ .name = "__virtual_stack_top" },
+);
+
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("osboot");
@@ -89,8 +95,13 @@ fn trampoline(
 
     const magic_match: bool = boot_magic == 0x2badb002;
 
-    const setup = @import("setup.zig");
-    setup.setup(.{
+    asm volatile (
+        \\    movl %[virtual_stack_top], %ESP
+        : // no outputs
+        : [virtual_stack_top] "i" (virtual_stack_top),
+        : .{ .esp = true });
+
+    @import("setup.zig").setup(.{
         .bootinfo = .{
             .name = @ptrFromInt(mb_info.boot_loader_name),
             .cmdline = if (mb_info.flags.cmdline) @ptrFromInt(mb_info.cmdline) else null,
@@ -152,7 +163,7 @@ fn trampoline(
         .memory = .{
             .interface = mb_info.prober(),
             .len = if (mb_info.flags.mmap) mb_info.mmap_length else 0,
-            .kernel_end = @intFromPtr(physical_kernel_end),
+            .kernel_end = physical_kernel_end,
         },
         .paging = page_info,
     });
