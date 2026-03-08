@@ -141,22 +141,60 @@ test PageAllocator {
     // point of implementing an allocator). This is for testing in a hosted
     // environment to prevent segfaults.
 
-    var fake_kernel_end: [4096 * 2]u8 = undefined;
+    const FakeMemoryProber = struct {
+        const Self = @This();
 
-    var page_allocator: PageAllocator = .init(&fake_kernel_end);
+        fake_kernel_end: [8][4096 * 2]u8 = undefined,
+
+        pub fn init() @This() {
+            var self: Self = .{};
+            @memset(&self.fake_kernel_end, .{0} ** (4096 * 2));
+            return self;
+        }
+
+        pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
+            return .{
+                .instance = self,
+                .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
+            };
+        }
+
+        pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
+            if (idx > self.fake_kernel_end.len) {
+                return null;
+            } else {
+                return .{
+                    .address = @intFromPtr(&(self.fake_kernel_end[idx])),
+                    .length = self.fake_kernel_end[idx].len,
+                };
+            }
+        }
+    };
+
+    var fake_mem_prober: FakeMemoryProber = .init();
+
+    var page_allocator: PageAllocator = try PageAllocator.init(.{
+        .interface = fake_mem_prober.prober(),
+        .len = 1,
+        .kernel_end = &fake_mem_prober.fake_kernel_end,
+    });
     _ = &page_allocator;
 
     if (page_allocator.head.first) |head| {
-        const chunk: *const Chunk = @fieldParentPtr("node", head);
-        std.debug.print("Chunk Object side: {}\n", .{@sizeOf(Chunk)});
-        std.debug.print("Chunk Object Address: {*}\n", .{chunk});
-        std.debug.print("chunk.base_address: {}\n", .{chunk.base_address});
+        var maybe_node: ?*std.SinglyLinkedList.Node = head;
+        while (maybe_node) |node| {
+            defer maybe_node = node.next;
+            const chunk: *const Chunk = @fieldParentPtr("node", head);
+            std.debug.print("Chunk Object size: {}\n", .{@sizeOf(Chunk)});
+            std.debug.print("Chunk Object Address: {*}\n", .{chunk});
+            std.debug.print("chunk.base_address: {}\n", .{chunk.base_address});
 
-        var remainder = @mod(@intFromPtr(chunk), @alignOf(Chunk));
-        try std.testing.expect(remainder == 0);
+            var remainder = @mod(@intFromPtr(chunk), @alignOf(Chunk));
+            try std.testing.expect(remainder == 0);
 
-        remainder = @mod(@intFromPtr(chunk.base_address), 4096);
-        try std.testing.expect(remainder == 0);
+            remainder = @mod(@intFromPtr(chunk.base_address), 4096);
+            try std.testing.expect(remainder == 0);
+        }
     } else {
         std.debug.print("Init failed!\n", .{});
     }
