@@ -14,6 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const std = @import("std");
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 const osformat = @import("osformat");
@@ -33,7 +34,7 @@ pub const InterruptHandlerTable = [256]InterruptHandlerFnPtr;
 const interrupt_handler_table: [256]InterruptHandlerFnPtr = generateInterruptHandlers();
 
 /// TODO(SEP): Make this the head of a free list?
-pub var mem_info: ?*const PageAllocator = null;
+pub var free_page_list: ?*std.SinglyLinkedList.Node = null;
 
 /// Given a table of the 256 interrupt function pointers needed to handle every
 /// possible interrupt, initialize the IDT.
@@ -383,7 +384,7 @@ fn generateHandler(
                 const PageFault = @import("error_codes.zig").PageFault;
                 const err: PageFault = @bitCast(error_code);
 
-                if (mem_info) |allocator| {
+                if (free_page_list) |free_list_head| {
                     // limit to 4 lines
                     var message: [80 * 4]u8 = .{0} ** (80 * 4);
                     const offending_address: osformat.format.AddressString = .init(asm volatile (
@@ -420,40 +421,29 @@ fn generateHandler(
                         }
                     }
 
-                    if (allocator.head.first) |chunk_head| {
-                        const chunk: *PageAllocator.Chunk = @fieldParentPtr("node", chunk_head);
-                        const msg = " Could map in free physical chunk at 0x";
-                        const addr: osformat.format.AddressString = .init(
-                            @intFromPtr(chunk.base_address),
-                        );
+                    const msg = " Could map in free physical chunk at 0x";
+                    const addr: osformat.format.AddressString = .init(
+                        @intFromPtr(free_list_head),
+                    );
 
-                        for (msg) |letter| {
-                            if (idx < message.len) {
-                                message[idx] = letter;
-                            }
-
-                            idx += 1;
+                    for (msg) |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
                         }
-                        for (addr.getStr()) |letter| {
-                            if (idx < message.len) {
-                                message[idx] = letter;
-                            }
 
-                            idx += 1;
+                        idx += 1;
+                    }
+                    for (addr.getStr()) |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
                         }
-                    } else {
-                        for (" No free addr found...") |letter| {
-                            if (idx < message.len) {
-                                message[idx] = letter;
-                            }
 
-                            idx += 1;
-                        }
+                        idx += 1;
                     }
 
                     @panic(message[0..idx]);
                 } else {
-                    @panic("Could not find System Memory Info");
+                    @panic("Free list was empty");
                 }
             }
             fn handler() callconv(.naked) void {

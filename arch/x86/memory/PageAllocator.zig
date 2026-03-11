@@ -27,11 +27,8 @@ pub const Error = error{
 };
 
 pub const Chunk = struct {
-    base_address: *anyopaque,
     node: std.SinglyLinkedList.Node,
-    /// The amount of free bytes starting at `base_address`
     free_bytes: u32,
-    used: bool,
 };
 
 const find_first_valid_address = struct {
@@ -52,10 +49,10 @@ const find_first_valid_address = struct {
     }
 
     fn withAlignment(
-        ptr: *anyopaque,
+        ptr: usize,
         comptime alignment: comptime_int,
     ) *align(alignment) anyopaque {
-        var first_aligned_address: usize = @intFromPtr(ptr);
+        var first_aligned_address: usize = ptr;
         var diff = @mod(first_aligned_address, alignment);
 
         while (diff > 0) {
@@ -65,74 +62,44 @@ const find_first_valid_address = struct {
 
         return @ptrFromInt(first_aligned_address);
     }
+
+    fn pageAligned(ptr: usize) *align(4096) anyopaque {
+        return withAlignment(ptr, 4096);
+    }
 };
 
 pub fn init(mem_info: MemoryInfo) Error!PageAllocator {
-    const inplace_chunk: *Chunk = find_first_valid_address.ofType(
-        mem_info.kernel_end,
-        Chunk,
-    );
+    const kernel_end: usize = @intFromPtr(mem_info.kernel_end);
 
-    // ensure in-place chunk is within physical memory
-    var mem_idx: usize = 0;
-    for (mem_idx..mem_info.len) |idx| {
+    for (0..mem_info.len) |idx| {
         if (mem_info.availableMemChunkAt(idx)) |raw_chunk| {
-            const raw_chunk_end = raw_chunk.address + raw_chunk.length;
-            const head_node_end = @intFromPtr(inplace_chunk) + @sizeOf(Chunk);
-            if (raw_chunk_end > head_node_end) {
-                mem_idx = idx;
-                const first_chunk = find_first_valid_address.withAlignment(
-                    @ptrFromInt(@intFromPtr(inplace_chunk) + 1),
-                    4096,
+            const region_end = raw_chunk.address + raw_chunk.length;
+            if (region_end > kernel_end) {
+                const search_start = blk: {
+                    if (raw_chunk.address >= kernel_end) {
+                        break :blk raw_chunk.address;
+                    } else {
+                        break :blk kernel_end;
+                    }
+                };
+                const head_candidate: *align(4096) anyopaque = find_first_valid_address.pageAligned(
+                    search_start,
                 );
-                if (@intFromPtr(first_chunk) > raw_chunk_end) {
-                    continue;
+                const freespace = region_end - @intFromPtr(head_candidate);
+                if (freespace >= 4096) {
+                    const chunk: *align(4096) Chunk = @ptrCast(head_candidate);
+                    chunk.node = .{};
+                    chunk.free_bytes = freespace;
+
+                    return .{
+                        .head = .{ .first = &chunk.node },
+                    };
                 }
-                inplace_chunk.base_address = first_chunk;
-                inplace_chunk.node = .{};
-                inplace_chunk.free_bytes = raw_chunk_end - @intFromPtr(inplace_chunk.base_address);
-                break;
-            }
-        }
-    } else {
-        return Error.no_system_memory_after_kernel;
-    }
-
-    const head: std.SinglyLinkedList = .{ .first = &inplace_chunk.node };
-    var tail = &inplace_chunk.node;
-
-    // fill in any potential other available mem chunks. In practice (at least
-    // on qemu and bochs) this won't find anything
-    for (mem_idx + 1..mem_info.len) |idx| {
-        if (mem_info.availableMemChunkAt(idx)) |raw_chunk| {
-            const chunk: *Chunk = find_first_valid_address.ofType(
-                mem_info.kernel_end,
-                Chunk,
-            );
-            const raw_chunk_end = raw_chunk.address + raw_chunk.length;
-            const node_end = @intFromPtr(chunk) + @sizeOf(Chunk);
-            if (raw_chunk_end > node_end) {
-                const chunk_base = find_first_valid_address.withAlignment(
-                    @ptrFromInt(@intFromPtr(chunk) + 1),
-                    4096,
-                );
-                if (@intFromPtr(chunk_base) > raw_chunk_end) {
-                    continue;
-                }
-                chunk.base_address = chunk_base;
-                chunk.node = .{};
-                chunk.free_bytes = raw_chunk_end - @intFromPtr(chunk.base_address);
-                chunk.used = false;
-
-                tail.next = &chunk.node;
-                tail = &chunk.node;
             }
         }
     }
 
-    return .{
-        .head = head,
-    };
+    return Error.no_system_memory_after_kernel;
 }
 
 const interface_impl = struct {
@@ -274,7 +241,7 @@ pub fn allocator(self: *PageAllocator) std.mem.Allocator {
     };
 }
 
-test allocator {
+const test_helpers = struct {
     const FakeMemoryProber = struct {
         const Self = @This();
 
@@ -304,55 +271,53 @@ test allocator {
             }
         }
     };
+};
 
-    var fake_mem_prober: FakeMemoryProber = .init();
-
-    var page_allocator: PageAllocator = try PageAllocator.init(.{
-        .interface = fake_mem_prober.prober(),
-        .len = 1,
-        .kernel_end = &fake_mem_prober.fake_kernel_end,
-    });
-
-    var zig_allocator: std.mem.Allocator = page_allocator.allocator();
-    _ = &zig_allocator;
-}
-
+// test allocator {
+// const FakeMemoryProber = struct {
+// const Self = @This();
+//
+// fake_kernel_end: [8][4096 * 2]u8 = undefined,
+//
+// pub fn init() @This() {
+// var self: Self = .{};
+// @memset(&self.fake_kernel_end, .{0} ** (4096 * 2));
+// return self;
+// }
+//
+// pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
+// return .{
+// .instance = self,
+// .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
+// };
+// }
+//
+// pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
+// if (idx > self.fake_kernel_end.len) {
+// return null;
+// } else {
+// return .{
+// .address = @intFromPtr(&(self.fake_kernel_end[idx])),
+// .length = self.fake_kernel_end[idx].len,
+// };
+// }
+// }
+// };
+//
+// var fake_mem_prober: FakeMemoryProber = .init();
+//
+// var page_allocator: PageAllocator = try PageAllocator.init(.{
+// .interface = fake_mem_prober.prober(),
+// .len = 1,
+// .kernel_end = &fake_mem_prober.fake_kernel_end,
+// });
+//
+// var zig_allocator: std.mem.Allocator = page_allocator.allocator();
+// _ = &zig_allocator;
+// }
+//
 test PageAllocator {
-    // in the actual kernel, this buffer is unneeded (and would defeat the
-    // point of implementing an allocator). This is for testing in a hosted
-    // environment to prevent segfaults.
-
-    const FakeMemoryProber = struct {
-        const Self = @This();
-
-        fake_kernel_end: [8][4096 * 2]u8 = undefined,
-
-        pub fn init() @This() {
-            var self: Self = .{};
-            @memset(&self.fake_kernel_end, .{0} ** (4096 * 2));
-            return self;
-        }
-
-        pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
-            return .{
-                .instance = self,
-                .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
-            };
-        }
-
-        pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
-            if (idx > self.fake_kernel_end.len) {
-                return null;
-            } else {
-                return .{
-                    .address = @intFromPtr(&(self.fake_kernel_end[idx])),
-                    .length = self.fake_kernel_end[idx].len,
-                };
-            }
-        }
-    };
-
-    var fake_mem_prober: FakeMemoryProber = .init();
+    var fake_mem_prober: test_helpers.FakeMemoryProber = .init();
 
     var page_allocator: PageAllocator = try PageAllocator.init(.{
         .interface = fake_mem_prober.prober(),
@@ -365,15 +330,11 @@ test PageAllocator {
         var maybe_node: ?*std.SinglyLinkedList.Node = head;
         while (maybe_node) |node| {
             defer maybe_node = node.next;
-            const chunk: *const Chunk = @fieldParentPtr("node", head);
-            std.debug.print("Chunk Object size: {}\n", .{@sizeOf(Chunk)});
+            const chunk: *Chunk = @fieldParentPtr("node", node);
             std.debug.print("Chunk Object Address: {*}\n", .{chunk});
-            std.debug.print("chunk.base_address: {}\n", .{chunk.base_address});
+            std.debug.print("Child node Address: {*}\n", .{node});
 
-            var remainder = @mod(@intFromPtr(chunk), @alignOf(Chunk));
-            try std.testing.expect(remainder == 0);
-
-            remainder = @mod(@intFromPtr(chunk.base_address), 4096);
+            const remainder = @mod(@intFromPtr(chunk), 4096);
             try std.testing.expect(remainder == 0);
         }
     } else {

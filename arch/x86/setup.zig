@@ -244,10 +244,10 @@ pub fn setup(boot_info: BootInfo) noreturn {
         }
     }
 
-    const page_allocator = memory.PageAllocator.init(boot_info.memory) catch |err| {
+    var page_allocator = memory.PageAllocator.init(boot_info.memory) catch |err| {
         @panic(@errorName(err));
     };
-    interrupts.idt.mem_info = &page_allocator;
+    interrupts.idt.free_page_list = page_allocator.head.first;
     {
         const allocator_address: osformat.format.AddressString = .init(
             @intFromPtr(&page_allocator),
@@ -258,21 +258,15 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
         var maybe_node = page_allocator.head.first;
         while (maybe_node) |node| {
-            const chunk: *const memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
-            defer maybe_node = chunk.node.next;
-            const chunk_head_address: osformat.format.AddressString = .init(
-                @intFromPtr(chunk),
-            );
-            logger.log("chunk object address: 0x");
-            logger.logLine(chunk_head_address.getStr());
-
-            const base_address: osformat.format.AddressString = .init(
-                @intFromPtr(chunk.base_address),
-            );
-            logger.log("chunk head stored base address: 0x");
-            logger.logLine(base_address.getStr());
-
-            logger.logLine("Chunk in use: " ++ if (chunk.used) "T" else "F");
+            const chunk: *memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
+            const page_aligned_node = @intFromPtr(chunk);
+            const addr: osformat.format.AddressString = .init(page_aligned_node);
+            const free_byte_count: osformat.format.DecimalString = .init(chunk.free_bytes);
+            logger.log("Free Chunk at: 0x");
+            logger.logLine(addr.getStr());
+            logger.log("Free byte count: ");
+            logger.logLine(free_byte_count.getStr());
+            maybe_node = node.next;
         }
     }
 
