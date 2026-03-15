@@ -22,8 +22,6 @@ const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const BootInfo = @import("BootInfo");
-const StringFromHex = osformat.format.StringFromInt(usize, 16);
-const StringFromDecimal = osformat.format.StringFromInt(usize, 10);
 
 pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
@@ -38,7 +36,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
-    const return_addr_str: StringFromHex = .init(return_addr);
+    const return_addr_str: osformat.format.AddressString = .init(return_addr);
     framebuffer.write("Suspected caller address: 0x");
     framebuffer.writeLine(return_addr_str.getStr());
 
@@ -46,9 +44,7 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
         framebuffer.writeLine("Received first_address info:");
         var iterator: StackIterator = .init(addr, @frameAddress());
         while (iterator.next()) |next| {
-            const start_addr_str: StringFromHex = .init(
-                next,
-            );
+            const start_addr_str: osformat.format.AddressString = .init(next);
             framebuffer.write("    Frame address: 0x");
             framebuffer.writeLine(start_addr_str.getStr());
         }
@@ -115,8 +111,8 @@ pub fn setup(boot_info: BootInfo) noreturn {
     }
 
     {
-        const pd_address: StringFromHex = .init(@intFromPtr(boot_info.paging.page_directory));
-        const virt_address: StringFromHex = .init(@intFromPtr(virtual_pd_address));
+        const pd_address: osformat.format.AddressString = .init(@intFromPtr(boot_info.paging.page_directory));
+        const virt_address: osformat.format.AddressString = .init(@intFromPtr(virtual_pd_address));
 
         logger.logLine("Probing paging information...");
         logger.log("    PD Address: 0x");
@@ -132,11 +128,11 @@ pub fn setup(boot_info: BootInfo) noreturn {
         };
         logger.logLine("    Checking VirtToPhy mappings...");
         inline for (virt_addresses) |addr| {
-            const str: []const u8 = comptime StringFromHex.init(addr).getStr();
+            const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
             logger.log("    Virt address (0x" ++ str ++ ") maps to physical address: (");
             if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
                 logger.log("0x");
-                logger.log(StringFromHex.init(mapped).getStr());
+                logger.log(osformat.format.AddressString.init(mapped).getStr());
             } else {
                 logger.log("Unmapped");
             }
@@ -149,7 +145,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
         };
         logger.logLine("    Checking PhyToVirt mappings...");
         inline for (phy_addresses) |addr| {
-            const str: []const u8 = comptime StringFromHex.init(addr).getStr();
+            const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
             logger.logLine("    Phy address (0x" ++ str ++ ") maps to virtual address(es):");
             const MappingInfo = memory.paging.Info.MappingInfo;
             const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
@@ -160,7 +156,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
                     if (idx >= mappings.map_count) {
                         break;
                     } else {
-                        const mapped_str: StringFromHex = .init(mapped);
+                        const mapped_str: osformat.format.AddressString = .init(mapped);
                         logger.log("        0x");
                         logger.logLine(mapped_str.getStr());
                     }
@@ -202,7 +198,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.log("    Address: ");
     if (boot_info.framebuffer.addr) |address| {
         logger.log("0x");
-        const fb_lower_str: StringFromHex = .init(address);
+        const fb_lower_str: osformat.format.AddressString = .init(address);
         logger.logLine(fb_lower_str.getStr());
     } else {
         logger.logLine("Not found...");
@@ -210,7 +206,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     logger.log("    Framebuffer Height: ");
     if (boot_info.framebuffer.height) |height| {
-        const fb_height: StringFromDecimal = .init(height);
+        const fb_height: osformat.format.DecimalString = .init(height);
         logger.logLine(fb_height.getStr());
     } else {
         logger.logLine("Not found...");
@@ -218,7 +214,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     logger.log("    Framebuffer Width: ");
     if (boot_info.framebuffer.width) |width| {
-        const fb_width: StringFromDecimal = .init(width);
+        const fb_width: osformat.format.DecimalString = .init(width);
         logger.logLine(fb_width.getStr());
     } else {
         logger.logLine("Not found...");
@@ -226,13 +222,13 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     logger.logLine("Probing Available Memory...");
     logger.log("    Total Chunk Count: ");
-    const chunkStr: StringFromDecimal = .init(boot_info.memory.len);
+    const chunkStr: osformat.format.DecimalString = .init(boot_info.memory.len);
     logger.logLine(chunkStr.getStr());
     logger.logLine("    Available Chunks: ");
     for (0..boot_info.memory.len) |idx| {
         if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
-            const addr_str: StringFromHex = .init(chunk.address);
-            const len_str: StringFromDecimal = .init(chunk.length);
+            const addr_str: osformat.format.AddressString = .init(chunk.address);
+            const len_str: osformat.format.DecimalString = .init(chunk.length);
 
             logger.log("        Addr: 0x");
             logger.logLine(addr_str.getStr());
