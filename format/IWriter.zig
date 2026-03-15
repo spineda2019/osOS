@@ -158,6 +158,7 @@ fn writeValue(
                 const addr: osformat.format.AddressString = .init(
                     @intFromPtr(arg),
                 );
+                self.fillBuf("0x");
                 self.fillBuf(addr.getStr());
             } else {
                 @compileError(errors.bad_arg_type);
@@ -339,6 +340,27 @@ test IWriter {
         const random_number: usize = 42;
         try fake_interface.writef("I want a number: {d}", .{random_number});
         const expected_result = comptime "I want a number: 42";
+
+        std.testing.expect(std.mem.eql(
+            u8,
+            expected_result,
+            buffer[0..fake_interface.sentinel],
+        )) catch |err| {
+            std.debug.print(
+                "Expected buffer to be \"{s}\", but was \"{s}\"\n",
+                .{ expected_result, buffer[0..fake_interface.sentinel] },
+            );
+            return err;
+        };
+    }
+
+    {
+        var buffer: [1024]u8 = .{0} ** 1024;
+        var fake_interface: IWriter = fake_writer.writer(&buffer);
+
+        const random_number: *anyopaque = comptime @ptrFromInt(0xff_ff_ff_ff);
+        try fake_interface.writef("I want an address: {*}", .{random_number});
+        const expected_result = comptime "I want an address: 0xffffffff";
 
         std.testing.expect(std.mem.eql(
             u8,
