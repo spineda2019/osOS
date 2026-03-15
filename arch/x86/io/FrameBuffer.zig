@@ -179,7 +179,19 @@ pub fn writeLineCStr(self: *FrameBuffer, c_buf: [*:0]const u8) void {
 /// write thing
 pub fn write(self: *FrameBuffer, buffer: []const u8) void {
     for (buffer) |letter| {
-        self.putCharacter(letter);
+        switch (letter) {
+            '\n' => {
+                for (self.current_column..80) |_| {
+                    self.putCharacter(' ');
+                }
+            },
+            '\r' => {
+                continue;
+            },
+            else => {
+                self.putCharacter(letter);
+            },
+        }
     }
 }
 
