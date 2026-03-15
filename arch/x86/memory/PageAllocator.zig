@@ -102,6 +102,47 @@ pub fn init(mem_info: MemoryInfo) Error!PageAllocator {
     return Error.no_system_memory_after_kernel;
 }
 
+pub fn allocFrame(self: *PageAllocator) Error!*align(4096) anyopaque {
+    var previous: ?*std.SinglyLinkedList.Node = self.head.first;
+    var maybe_node: ?*std.SinglyLinkedList.Node = self.head.first;
+
+    while (maybe_node) |node| {
+        // if a chunk isn't page aligned we hella messed up and should panic
+        // anyway
+        const chunk: *align(4096) Chunk = @alignCast(@fieldParentPtr("node", node));
+
+        if (chunk.free_bytes >= 4096) {
+            self.head.remove(node);
+
+            if (chunk.free_bytes >= 4096 + @sizeOf(Chunk)) {
+                @branchHint(.likely);
+
+                const next_chunk: *Chunk = @ptrFromInt(@intFromPtr(chunk) + 4096);
+                next_chunk.free_bytes = chunk.free_bytes - 4096;
+                next_chunk.node = .{};
+
+                self.head.prepend(&next_chunk.node);
+            }
+
+            return @ptrCast(chunk);
+        }
+
+        previous = node;
+        maybe_node = node.next;
+    }
+
+    return Error.oom;
+}
+
+pub fn freeFrame(self: *PageAllocator, ptr: *align(4096) anyopaque) void {
+    const chunk: *align(4096) Chunk = @ptrCast(ptr);
+    // TODO(SEP): Somehow zero the page out
+    chunk.node = .{};
+    chunk.free_bytes = 4096;
+
+    self.head.prepend(&chunk.node);
+}
+
 const interface_impl = struct {
     fn alloc(
         self: *PageAllocator,
@@ -242,36 +283,105 @@ pub fn allocator(self: *PageAllocator) std.mem.Allocator {
 }
 
 const test_helpers = struct {
-    const FakeMemoryProber = struct {
-        const Self = @This();
+    fn FakeMemoryProber(
+        comptime chunk_count: comptime_int,
+        comptime chunk_width: comptime_int,
+    ) type {
+        return struct {
+            const Self = @This();
 
-        fake_kernel_end: [8][4096 * 2]u8 = undefined,
+            fake_kernel_end: [chunk_count][4096 * chunk_width]u8 = undefined,
 
-        pub fn init() @This() {
-            var self: Self = .{};
-            @memset(&self.fake_kernel_end, .{0} ** (4096 * 2));
-            return self;
-        }
+            pub fn init() @This() {
+                var self: Self = .{};
+                @memset(&self.fake_kernel_end, .{0} ** (4096 * chunk_width));
+                return self;
+            }
 
-        pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
-            return .{
-                .instance = self,
-                .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
-            };
-        }
-
-        pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
-            if (idx > self.fake_kernel_end.len) {
-                return null;
-            } else {
+            pub fn prober(self: *Self) MemoryInfo.IMemoryProber {
                 return .{
-                    .address = @intFromPtr(&(self.fake_kernel_end[idx])),
-                    .length = self.fake_kernel_end[idx].len,
+                    .instance = self,
+                    .vtable = MemoryInfo.IMemoryProber.VTable.init(@This()),
                 };
             }
-        }
-    };
+
+            pub fn availableMemChunkAt(self: *Self, idx: usize) ?MemoryInfo.FreeChunk {
+                if (idx > self.fake_kernel_end.len) {
+                    return null;
+                } else {
+                    return .{
+                        .address = @intFromPtr(&(self.fake_kernel_end[idx])),
+                        .length = self.fake_kernel_end[idx].len,
+                    };
+                }
+            }
+        };
+    }
 };
+
+test allocFrame {
+    var fake_mem_prober: test_helpers.FakeMemoryProber(8, 2) = .init();
+
+    var page_allocator: PageAllocator = try PageAllocator.init(.{
+        .interface = fake_mem_prober.prober(),
+        .len = 1,
+        .kernel_end = &fake_mem_prober.fake_kernel_end,
+    });
+
+    try std.testing.expect(page_allocator.head.first != null);
+
+    const initial_byte_count, const initial_chunk_address = blk: {
+        const head_chunk: *Chunk = @fieldParentPtr(
+            "node",
+            page_allocator.head.first.?,
+        );
+        break :blk .{ head_chunk.free_bytes, @intFromPtr(head_chunk) };
+    };
+
+    const allocated_page: *align(4096) anyopaque = try page_allocator.allocFrame();
+    try std.testing.expect(@intFromPtr(allocated_page) == initial_chunk_address);
+
+    if (page_allocator.head.first) |head| {
+        const new_chunk: *Chunk = @fieldParentPtr("node", head);
+        const diff = initial_byte_count - 4096;
+        std.testing.expect(new_chunk.free_bytes == diff) catch |err| {
+            std.debug.print(
+                "Initial Free Byte Count: {}\nFinal Free Byte Count: {}\nExpected {}\n",
+                .{ initial_byte_count, new_chunk.free_bytes, diff },
+            );
+            return err;
+        };
+    }
+
+    try std.testing.expect(page_allocator.head.len() == 1);
+    page_allocator.freeFrame(allocated_page);
+    try std.testing.expect(page_allocator.head.len() == 2);
+}
+
+test PageAllocator {
+    var fake_mem_prober: test_helpers.FakeMemoryProber(8, 2) = .init();
+
+    const page_allocator: PageAllocator = try PageAllocator.init(.{
+        .interface = fake_mem_prober.prober(),
+        .len = 1,
+        .kernel_end = &fake_mem_prober.fake_kernel_end,
+    });
+
+    if (page_allocator.head.first) |head| {
+        var maybe_node: ?*std.SinglyLinkedList.Node = head;
+        while (maybe_node) |node| {
+            defer maybe_node = node.next;
+            const chunk: *Chunk = @fieldParentPtr("node", node);
+            std.debug.print("Chunk Object Address: {*}\n", .{chunk});
+            std.debug.print("Child node Address: {*}\n", .{node});
+
+            const remainder = @mod(@intFromPtr(chunk), 4096);
+            try std.testing.expect(remainder == 0);
+        }
+    } else {
+        std.debug.print("Init failed!\n", .{});
+    }
+}
 
 // test allocator {
 // const FakeMemoryProber = struct {
@@ -316,28 +426,3 @@ const test_helpers = struct {
 // _ = &zig_allocator;
 // }
 //
-test PageAllocator {
-    var fake_mem_prober: test_helpers.FakeMemoryProber = .init();
-
-    var page_allocator: PageAllocator = try PageAllocator.init(.{
-        .interface = fake_mem_prober.prober(),
-        .len = 1,
-        .kernel_end = &fake_mem_prober.fake_kernel_end,
-    });
-    _ = &page_allocator;
-
-    if (page_allocator.head.first) |head| {
-        var maybe_node: ?*std.SinglyLinkedList.Node = head;
-        while (maybe_node) |node| {
-            defer maybe_node = node.next;
-            const chunk: *Chunk = @fieldParentPtr("node", node);
-            std.debug.print("Chunk Object Address: {*}\n", .{chunk});
-            std.debug.print("Child node Address: {*}\n", .{node});
-
-            const remainder = @mod(@intFromPtr(chunk), 4096);
-            try std.testing.expect(remainder == 0);
-        }
-    } else {
-        std.debug.print("Init failed!\n", .{});
-    }
-}

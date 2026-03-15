@@ -18,6 +18,8 @@
 /// The import containing code for formatting, such as converting ints to strs
 pub const format = @import("format.zig");
 
+pub const IWriter = @import("IWriter.zig");
+
 test {
     @import("std").testing.refAllDeclsRecursive(@This());
 }
