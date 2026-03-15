@@ -15,6 +15,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const as = @import("x86asm");
+const osformat = @import("osformat");
 const SerialPort = @This();
 
 port: u16,
@@ -181,4 +182,27 @@ fn configureBaudRate(port: u16, divisor: u16) void {
 fn configureLine(port: u16) void {
     // Length of 8 bits, disable everything else and use no parity or stop bits
     as.assembly_wrappers.x86_out(port + 3, @as(u8, 0b0000_0011));
+}
+
+pub fn writer(self: *SerialPort, buffer: []u8) osformat.IWriter {
+    return .{
+        .instance = self,
+        .vtable = &.{
+            .write = &struct {
+                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
+                    const concrete_self: *SerialPort = @ptrCast(@alignCast(opaque_self));
+                    concrete_self.write(buf);
+                }
+            }.impl,
+            .writeLine = &struct {
+                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
+                    const concrete_self: *SerialPort = @ptrCast(@alignCast(opaque_self));
+                    concrete_self.write(buf);
+                    concrete_self.write("\r\n");
+                }
+            }.impl,
+        },
+        .buffer = buffer,
+        .sentinel = 0,
+    };
 }

@@ -15,6 +15,8 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const as = @import("x86asm");
+const osformat = @import("osformat");
+
 const FrameBuffer = @This();
 
 pub const FrameBufferCellColor: type = enum(u8) {
@@ -349,6 +351,28 @@ fn moveCursor(self: *FrameBuffer, row: u8, column: u8) void {
     as.assembly_wrappers.x86_out(data_port_address, low_byte);
     as.assembly_wrappers.x86_out(command_port_address, high_byte_command);
     as.assembly_wrappers.x86_out(data_port_address, high_byte);
+}
+
+pub fn writer(self: *FrameBuffer, buffer: []u8) osformat.IWriter {
+    return .{
+        .instance = self,
+        .vtable = &.{
+            .write = &struct {
+                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
+                    const concrete_self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+                    concrete_self.write(buf);
+                }
+            }.impl,
+            .writeLine = &struct {
+                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
+                    const concrete_self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
+                    concrete_self.writeLine(buf);
+                }
+            }.impl,
+        },
+        .buffer = buffer,
+        .sentinel = 0,
+    };
 }
 
 const interface_impls = struct {
