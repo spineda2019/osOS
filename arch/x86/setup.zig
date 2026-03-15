@@ -86,6 +86,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
     );
     var serial_port = io.SerialPort.defaultInit();
     const logger: io.Logger = .{ .fp = &framebuffer, .sp = &serial_port };
+
     const message = "Trying to write out of COM port 1...\r\n";
     serial_port.write(message);
 
@@ -269,6 +270,16 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.logLine("COM1 succesfully written to! Testing cursor movement...");
     logger.logLine("x86: Activating PIC...");
     interrupts.pic.init(&framebuffer);
+
+    var fb_buffer: [64]u8 = undefined;
+    var fb_writer: osformat.IWriter = framebuffer.writer(&fb_buffer);
+    fb_writer.writef("IWriter TEST!!!", .{});
+    fb_writer.flush();
+
+    var sp_buffer: [64]u8 = undefined;
+    var sp_writer: osformat.IWriter = serial_port.writer(&sp_buffer);
+    sp_writer.writef("IWriter TEST!!!", .{});
+    sp_writer.flush();
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmap(0);

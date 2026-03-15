@@ -43,7 +43,7 @@ const FormatSpecifier = union(enum) {
     number_with_base: comptime_int,
 };
 
-pub fn writef(self: *IWriter, comptime format: []const u8, args: anytype) !void {
+pub fn writef(self: *IWriter, comptime format: []const u8, args: anytype) void {
     const State = enum {
         start,
         open_brace,
