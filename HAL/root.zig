@@ -13,27 +13,19 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const IWriter = @import("osformat").IWriter;
+
 pub const HalLayout = struct {
     /// namespace where architecture specific (duh?) functions are defined.
     assembly_wrappers: type,
-
-    /// Provides low level services such as putting characters on the screen
-    /// and scrolling
-    Terminal: type,
-
-    /// Provides means to do basic IO, whether via direct instrucions (like
-    /// 'out' on x86, or other means)
-    SerialPortIo: type,
 };
 
 pub fn HAL(comptime layout: HalLayout) type {
     return struct {
         comptime assembly_wrappers: type = layout.assembly_wrappers,
 
-        serial_io: *layout.SerialPortIo,
+        serial_io: *IWriter,
 
-        /// Must be implemented. Pointer to an architecture's implemetation
-        /// of a terminal for reading and writing
-        terminal: *layout.Terminal,
+        terminal: *IWriter,
     };
 }

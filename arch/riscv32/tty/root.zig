@@ -159,6 +159,22 @@ pub const Terminal = struct {
         self.write(self.buffer[0..self.internal_sentinel]);
         self.internal_sentinel = 0;
     }
+
+    pub fn writer(self: *Terminal, buffer: []u8) osformat.IWriter {
+        return .{
+            .sentinel = 0,
+            .buffer = buffer,
+            .instance = self,
+            .vtable = &.{
+                .write = &struct {
+                    fn impl(opaque_self: *anyopaque, buf: []const u8) void {
+                        const concrete_self: *Terminal = @ptrCast(@alignCast(opaque_self));
+                        concrete_self.write(buf);
+                    }
+                }.impl,
+            },
+        };
+    }
 };
 
 pub const SbiWriter = struct {

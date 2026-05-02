@@ -62,37 +62,36 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
     );
 
     var terminal = tty.Terminal.init();
-
-    terminal.writeLine("Hello RISC-V32 osOS!");
     terminal.writeSplashLogo();
 
-    terminal.write("Hart ID: ");
-    const hart_id_string: osformat.format.StringFromInt(u32, 10) = .init(hart_id);
-    terminal.writeLine(hart_id_string.getStr());
+    var buffer: [1024]u8 = undefined;
+    var terminal_writer: osformat.IWriter = terminal.writer(&buffer);
 
-    terminal.write("DTB Address: 0x");
-    const dtb_address_string: osformat.format.StringFromInt(u32, 16) = .init(dtb_address);
-    terminal.writeLine(dtb_address_string.getStr());
+    terminal_writer.writef("Hello RISC-V32 osOS!\n", .{});
+    terminal_writer.writef("Hart ID: {d}\n", .{hart_id});
+    terminal_writer.writef("DTB Address: 0x{d}\n", .{dtb_address});
 
     const sbi_spec_version = sbi.getSpecVersion();
-    terminal.write("SBI Specification version: ");
-    terminal.write(sbi_spec_version.major.getStr());
-    terminal.write(".");
-    terminal.writeLine(sbi_spec_version.minor.getStr());
+    terminal_writer.writef(
+        "SBI Specification version: {s}.{s}\n",
+        .{
+            sbi_spec_version.major.getStr(),
+            sbi_spec_version.minor.getStr(),
+        },
+    );
     const sbi_impl: []const u8 = sbi.getImplId();
-    terminal.write("SBI Implementation: ");
-    terminal.writeLine(sbi_impl);
+    terminal_writer.writef("SBI Implementation: {s}\n", .{sbi_impl});
 
     var serial_stub: serial.SerialPort = .{};
+    var serial_buffer: [1024]u8 = undefined;
+    var serial_writer = serial_stub.writer(&serial_buffer);
 
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = riscv32asm.assembly_wrappers,
-        .Terminal = tty.Terminal,
-        .SerialPortIo = serial.SerialPort,
     };
 
     kmain.kmain(hal_layout, oshal.HAL(hal_layout){
-        .terminal = &terminal,
-        .serial_io = &serial_stub,
+        .terminal = &terminal_writer,
+        .serial_io = &serial_writer,
     });
 }

@@ -74,6 +74,11 @@ pub fn write(self: *SerialPort, buffer: []const u8) void {
     }
 }
 
+pub fn writeLine(self: *SerialPort, buffer: []const u8) void {
+    self.write(buffer);
+    self.write("\r\n");
+}
+
 pub fn writeCStr(self: *SerialPort, c_buf: [*:0]const u8) void {
     while (!self.isFIFOClear()) {
         asm volatile (
@@ -192,13 +197,6 @@ pub fn writer(self: *SerialPort, buffer: []u8) osformat.IWriter {
                 fn impl(opaque_self: *anyopaque, buf: []const u8) void {
                     const concrete_self: *SerialPort = @ptrCast(@alignCast(opaque_self));
                     concrete_self.write(buf);
-                }
-            }.impl,
-            .writeLine = &struct {
-                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
-                    const concrete_self: *SerialPort = @ptrCast(@alignCast(opaque_self));
-                    concrete_self.write(buf);
-                    concrete_self.write("\r\n");
                 }
             }.impl,
         },

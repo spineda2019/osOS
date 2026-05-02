@@ -263,6 +263,11 @@ pub fn build(b: *std.Build) Err!void {
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
     };
 
+    shared_modules.oshal.module.addImport(
+        shared_modules.osformat.name,
+        shared_modules.osformat.module,
+    );
+
     const modbochs = bochs: {
         if (!build_options.build_bochs) {
             break :bochs null;

@@ -23,7 +23,7 @@ const osformat = @import("osformat");
 
 const Self: type = @This();
 
-var framebuffer_handle: *io.FrameBuffer = undefined;
+var framebuffer_handle: ?*io.FrameBuffer = null;
 const irq_offset: u8 = 0x20;
 var clock_tics: usize = 0;
 
@@ -154,8 +154,10 @@ fn sendAcknowledgement(interrupt_request: u8) void {
 fn handleKeyboardIRQ() void {
     const scan_code: u8 = as.assembly_wrappers.x86_inb(0x60);
     const scan_code_str: osformat.format.StringFromInt(u8, 10) = .init(scan_code);
-    framebuffer_handle.write("Keyboard input detected. Scancode: ");
-    framebuffer_handle.writeLine(scan_code_str.getStr());
+    if (framebuffer_handle) |handle| {
+        handle.write("Keyboard input detected. Scancode: ");
+        handle.writeLine(scan_code_str.getStr());
+    }
 }
 
 fn handleTimerIRQ() void {

@@ -14,6 +14,7 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const std = @import("std");
 const io = @import("x86io");
 const memory = @import("x86memory");
 const as = @import("x86asm");
@@ -85,10 +86,12 @@ pub fn setup(boot_info: BootInfo) noreturn {
         },
     );
     var serial_port = io.SerialPort.defaultInit();
-    const logger: io.Logger = .{ .fp = &framebuffer, .sp = &serial_port };
 
-    const message = "Trying to write out of COM port 1...\r\n";
-    serial_port.write(message);
+    var fb_buffer: [64]u8 = undefined;
+    var fb_writer: osformat.IWriter = framebuffer.writer(&fb_buffer);
+
+    var sp_buffer: [64]u8 = undefined;
+    var sp_writer: osformat.IWriter = serial_port.writer(&sp_buffer);
 
     framebuffer.printWelcomeScreen();
     for (0..16384) |_| {
@@ -98,146 +101,120 @@ pub fn setup(boot_info: BootInfo) noreturn {
     }
     framebuffer.clear();
 
+    var logger: io.Logger = .{
+        .framebuffer_writer = &fb_writer,
+        .serial_port_writer = &sp_writer,
+    };
+
+    logger.log("Trying to write out of COM port 1...\r\n", .{});
+
     const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
         @panic(@errorName(err));
     };
 
-    {
-        const str: osformat.format.AddressString = .init(
-            @intFromPtr(boot_info.memory.kernel_end),
-        );
+    logger.log("Physical kernel end at {*}\r\n", .{boot_info.memory.kernel_end});
+    logger.log("Probing paging information...\r\n", .{});
+    logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
+    logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
+    logger.log("    Checking VirtToPhy mappings...\r\n", .{});
 
-        logger.log("Physical kernel end at 0x");
-        logger.logLine(str.getStr());
+    const virt_addresses = comptime [_]u32{
+        0xC00B8000,
+        0xC0000000,
+    };
+    inline for (virt_addresses) |addr| {
+        const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
+        if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
+            logger.log(
+                "    Virt address (0x" ++ str ++ ") maps to physical address: (0x{x})\r\n",
+                .{mapped},
+            );
+        } else {
+            logger.log("    Virt address (0x" ++ str ++ ") is unmapped\r\n", .{});
+        }
     }
 
-    {
-        const pd_address: osformat.format.AddressString = .init(@intFromPtr(boot_info.paging.page_directory));
-        const virt_address: osformat.format.AddressString = .init(@intFromPtr(virtual_pd_address));
+    logger.log("    Checking PhyToVirt mappings...\r\n", .{});
 
-        logger.logLine("Probing paging information...");
-        logger.log("    PD Address: 0x");
-        logger.logLine(pd_address.getStr());
-        logger.log("    Virt Equivalent: 0x");
-        logger.logLine(virt_address.getStr());
+    const phy_addresses = comptime [_]u32{
+        0x000B8000,
+        0x00000000,
+    };
+    inline for (phy_addresses) |addr| {
+        const MappingInfo = memory.paging.Info.MappingInfo;
+        const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
 
-        logger.log("");
-
-        const virt_addresses = comptime [_]u32{
-            0xC00B8000,
-            0xC0000000,
-        };
-        logger.logLine("    Checking VirtToPhy mappings...");
-        inline for (virt_addresses) |addr| {
+        if (mappings.map_count == 0) {
+            logger.log("    Phy address (0x{d}) maps to nothing...\r\n", .{addr});
+        } else {
             const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
-            logger.log("    Virt address (0x" ++ str ++ ") maps to physical address: (");
-            if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
-                logger.log("0x");
-                logger.log(osformat.format.AddressString.init(mapped).getStr());
-            } else {
-                logger.log("Unmapped");
-            }
-            logger.logLine(")");
-        }
-
-        const phy_addresses = comptime [_]u32{
-            0x000B8000,
-            0x00000000,
-        };
-        logger.logLine("    Checking PhyToVirt mappings...");
-        inline for (phy_addresses) |addr| {
-            const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
-            logger.logLine("    Phy address (0x" ++ str ++ ") maps to virtual address(es):");
-            const MappingInfo = memory.paging.Info.MappingInfo;
-            const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
-            if (mappings.map_count == 0) {
-                logger.logLine("        None");
-            } else {
-                for (mappings.virtual_mappings, 0..) |mapped, idx| {
-                    if (idx >= mappings.map_count) {
-                        break;
-                    } else {
-                        const mapped_str: osformat.format.AddressString = .init(mapped);
-                        logger.log("        0x");
-                        logger.logLine(mapped_str.getStr());
-                    }
+            logger.log(
+                "    Phy address (0x" ++ str ++ ") maps to virtual address(es):\r\n",
+                .{},
+            );
+            for (mappings.virtual_mappings, 0..) |mapped, idx| {
+                if (idx >= mappings.map_count) {
+                    break;
+                } else {
+                    logger.log("        0x{d}\r\n", .{mapped});
                 }
             }
         }
     }
 
-    {
-        const std = @import("std");
-        logger.logLine("Dumping special register info...");
-        const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
-        inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
-            const field = @field(cr0, name);
-            if (@TypeOf(field) == bool) {
-                logger.logLine("    " ++ name ++ ": " ++ if (field) "1" else "0");
-            }
+    logger.log("Dumping special register info...\r\n", .{});
+    const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
+    inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
+        const field = @field(cr0, name);
+        if (@TypeOf(field) == bool) {
+            const bit: []const u8 = if (field) "1" else "0";
+            logger.log("    " ++ name ++ ": {s}\r\n", .{bit});
         }
     }
 
     if (!boot_info.bootinfo.valid) {
         @panic(&boot_info.bootinfo.diagnostic);
     } else {
-        logger.logLine(&boot_info.bootinfo.diagnostic);
+        const slice: []const u8 = &boot_info.bootinfo.diagnostic;
+        logger.log("{s}\r\n", .{slice});
     }
 
-    logger.log("Bootloader name: ");
-    logger.logLineCStr(boot_info.bootinfo.name);
+    logger.log("Bootloader name: {s}\r\n", .{boot_info.bootinfo.name});
 
-    logger.log("Command Line: ");
+    logger.log("Command Line: ", .{});
     if (boot_info.bootinfo.cmdline) |cmd| {
-        logger.logLineCStr(cmd);
+        logger.log("{s}\r\n", .{cmd});
     } else {
-        logger.logLineCStr("Not found...");
+        logger.log("Not found...", .{});
     }
 
-    logger.logLine("Probing Framebuffer info...");
+    logger.log("Probing Framebuffer info...\r\n", .{});
 
-    logger.log("    Address: ");
     if (boot_info.framebuffer.addr) |address| {
-        logger.log("0x");
-        const fb_lower_str: osformat.format.AddressString = .init(address);
-        logger.logLine(fb_lower_str.getStr());
+        logger.log("    Address: 0x{d}\r\n", .{address});
     } else {
-        logger.logLine("Not found...");
+        logger.log("    Address not found...\r\n", .{});
     }
 
-    logger.log("    Framebuffer Height: ");
     if (boot_info.framebuffer.height) |height| {
-        const fb_height: osformat.format.DecimalString = .init(height);
-        logger.logLine(fb_height.getStr());
+        logger.log("    Framebuffer Height: {d}\r\n", .{height});
     } else {
-        logger.logLine("Not found...");
+        logger.log("    Framebuffer Height not found...\r\n", .{});
     }
 
-    logger.log("    Framebuffer Width: ");
     if (boot_info.framebuffer.width) |width| {
-        const fb_width: osformat.format.DecimalString = .init(width);
-        logger.logLine(fb_width.getStr());
+        logger.log("    Framebuffer Width: {d}\r\n", .{width});
     } else {
-        logger.logLine("Not found...");
+        logger.log("    Framebuffer Width not found...\r\n", .{});
     }
 
-    logger.logLine("Probing Available Memory...");
-    logger.log("    Total Chunk Count: ");
-    const chunkStr: osformat.format.DecimalString = .init(boot_info.memory.len);
-    logger.logLine(chunkStr.getStr());
-    logger.logLine("    Available Chunks: ");
+    logger.log("Probing Available Memory...\r\n", .{});
+    logger.log("    Total Chunk Count: {d}\r\n", .{boot_info.memory.len});
+    logger.log("    Available Chunks: \r\n", .{});
     for (0..boot_info.memory.len) |idx| {
         if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
-            const addr_str: osformat.format.AddressString = .init(chunk.address);
-            const len_str: osformat.format.DecimalString = .init(chunk.length);
-
-            logger.log("        Addr: 0x");
-            logger.logLine(addr_str.getStr());
-
-            logger.log("        Len: ");
-            logger.logLine(len_str.getStr());
-
-            logger.logLine("");
+            logger.log("        Addr: 0x{d}\r\n", .{chunk.address});
+            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.length});
         }
     }
 
@@ -245,41 +222,21 @@ pub fn setup(boot_info: BootInfo) noreturn {
         @panic(@errorName(err));
     };
     interrupts.idt.free_page_list = page_allocator.head.first;
-    {
-        const allocator_address: osformat.format.AddressString = .init(
-            @intFromPtr(&page_allocator),
-        );
 
-        logger.log("allocator address: 0x");
-        logger.logLine(allocator_address.getStr());
+    logger.log("allocator address: {*}\r\n", .{&page_allocator});
 
-        var maybe_node = page_allocator.head.first;
-        while (maybe_node) |node| {
-            const chunk: *memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
-            const page_aligned_node = @intFromPtr(chunk);
-            const addr: osformat.format.AddressString = .init(page_aligned_node);
-            const free_byte_count: osformat.format.DecimalString = .init(chunk.free_bytes);
-            logger.log("Free Chunk at: 0x");
-            logger.logLine(addr.getStr());
-            logger.log("Free byte count: ");
-            logger.logLine(free_byte_count.getStr());
-            maybe_node = node.next;
-        }
+    var maybe_node = page_allocator.head.first;
+    while (maybe_node) |node| {
+        const chunk: *memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
+
+        logger.log("Free Chunk at: {*}\r\n", .{chunk});
+        logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
+        maybe_node = node.next;
     }
 
-    logger.logLine("COM1 succesfully written to! Testing cursor movement...");
-    logger.logLine("x86: Activating PIC...");
+    logger.log("COM1 succesfully written to! Testing cursor movement...\r\n", .{});
+    logger.log("x86: Activating PIC...\r\n", .{});
     interrupts.pic.init(&framebuffer);
-
-    var fb_buffer: [64]u8 = undefined;
-    var fb_writer: osformat.IWriter = framebuffer.writer(&fb_buffer);
-    fb_writer.writef("IWriter TEST!!!", .{});
-    fb_writer.flush();
-
-    var sp_buffer: [64]u8 = undefined;
-    var sp_writer: osformat.IWriter = serial_port.writer(&sp_buffer);
-    sp_writer.writef("IWriter TEST!!!", .{});
-    sp_writer.flush();
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmap(0);
@@ -287,14 +244,12 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = as.assembly_wrappers,
-        .Terminal = io.FrameBuffer,
-        .SerialPortIo = io.SerialPort,
     };
     kmain.kmain(
         hal_layout,
         oshal.HAL(hal_layout){
-            .terminal = &framebuffer,
-            .serial_io = &serial_port,
+            .terminal = &fb_writer,
+            .serial_io = &sp_writer,
         },
     );
 }

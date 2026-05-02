@@ -113,7 +113,7 @@ pub fn writef(self: *IWriter, comptime format: []const u8, args: anytype) void {
 
 fn writeValue(
     self: *IWriter,
-    comptime arg: anytype,
+    arg: anytype,
     comptime spec: FormatSpecifier,
 ) void {
     const T = comptime @TypeOf(arg);
@@ -143,8 +143,18 @@ fn writeValue(
                         .one => {
                             @compileError(errors.slice_ptr);
                         },
-                        else => |ptr_type| {
-                            @compileError("TODO for ptr: " ++ @tagName(ptr_type));
+                        .many => {
+                            var sentinel: usize = 0;
+                            const sentinel_value = ptr_info.sentinel();
+                            if (sentinel_value) |value| {
+                                while (arg[sentinel] != value) {
+                                    sentinel += 1;
+                                }
+                            }
+                            self.fillBuf(arg[0..sentinel]);
+                        },
+                        .c => |c| {
+                            @compileError("TODO for ptr: " ++ @tagName(c));
                         },
                     }
                 },
@@ -206,8 +216,6 @@ pub fn flush(self: *IWriter) void {
 /// newline.
 pub const VTable = struct {
     write: *const fn (opaque_self: *anyopaque, buffer: []const u8) void,
-
-    writeLine: *const fn (opaque_self: *anyopaque, buffer: []const u8) void,
 };
 
 const test_helpers = struct {

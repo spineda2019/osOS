@@ -375,36 +375,11 @@ pub fn writer(self: *FrameBuffer, buffer: []u8) osformat.IWriter {
                     concrete_self.write(buf);
                 }
             }.impl,
-            .writeLine = &struct {
-                fn impl(opaque_self: *anyopaque, buf: []const u8) void {
-                    const concrete_self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-                    concrete_self.writeLine(buf);
-                }
-            }.impl,
         },
         .buffer = buffer,
         .sentinel = 0,
     };
 }
-
-const interface_impls = struct {
-    /// Indirect function for use when creating the kernel Writer interface.
-    /// Simply redirects to the proper framebuffer implementation
-    fn opaqueWrite(opaque_self: *anyopaque, buffer: []const u8) void {
-        const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-        self.write(buffer);
-    }
-
-    fn opaquePutChar(opaque_self: *anyopaque, char: u8) void {
-        const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-        self.putCharacter(char);
-    }
-
-    fn opaqueWriteLine(opaque_self: *anyopaque, buffer: []const u8) void {
-        const self: *FrameBuffer = @ptrCast(@alignCast(opaque_self));
-        self.writeLine(buffer);
-    }
-};
 
 test FrameBuffer {
     const std = @import("std");

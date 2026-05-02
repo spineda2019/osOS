@@ -31,37 +31,34 @@ pub fn kmain(
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
 
     for (0..12) |_| {
-        arch_agnostic_hal.serial_io.delay(200_000);
-        arch_agnostic_hal.terminal.write("Foo " ** 20);
-        arch_agnostic_hal.serial_io.delay(200_000);
-        arch_agnostic_hal.terminal.write("Bar " ** 20);
-        arch_agnostic_hal.serial_io.delay(200_000);
-        arch_agnostic_hal.terminal.write("Baz " ** 20);
+        arch_agnostic_hal.terminal.writef("Foo " ** 20, .{});
+        arch_agnostic_hal.terminal.writef("Bar " ** 20, .{});
+        arch_agnostic_hal.terminal.writef("Baz " ** 20, .{});
     }
 
-    arch_agnostic_hal.terminal.write("Hey there! We succesfully passed the HAL to kmain!");
-    arch_agnostic_hal.terminal.writeLine("");
-    arch_agnostic_hal.terminal.writeLine("Testing writeLine...");
-    arch_agnostic_hal.terminal.writeLine("Hi there from a new line!");
-    arch_agnostic_hal.terminal.writeLine("Hi there from a new line again!");
+    arch_agnostic_hal.terminal.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});
+    arch_agnostic_hal.terminal.writef("Testing writeLine...\r\n", .{});
+    arch_agnostic_hal.terminal.writef("Hi there from a new line!\r\n", .{});
+    arch_agnostic_hal.terminal.writef("Hi there from a new line again!\r\n", .{});
 
     if (testoptions.test_panic) {
-        arch_agnostic_hal.terminal.writeLine("Testing Panic");
-        arch_agnostic_hal.serial_io.delay(200_000);
+        arch_agnostic_hal.terminal.writef("Testing Panic\r\n", .{});
         @panic("Testing Panic");
     }
 
     if (builtin.target.cpu.arch == .riscv32) {
-        arch_agnostic_hal.terminal.writeLine(
-            "Purposefully performing an illegal instruction...",
+        arch_agnostic_hal.terminal.writef(
+            "Purposefully performing an illegal instruction...\r\n",
+            .{},
         );
         arch_agnostic_hal.assembly_wrappers.illegal_instruction();
     }
 
     const col_width: u32 = 80;
-    const col_width_str: osformat.format.StringFromInt(u32, 10) = .init(col_width);
-    arch_agnostic_hal.terminal.write("Terminal Column Width: ");
-    arch_agnostic_hal.terminal.writeLine(col_width_str.getStr());
+    arch_agnostic_hal.terminal.writef("Terminal Column Width: {d}\r\n", .{col_width});
+
+    arch_agnostic_hal.terminal.flush();
+    arch_agnostic_hal.serial_io.flush();
 
     const process_pool: process.ProcessTable = .init();
     _ = process_pool;
