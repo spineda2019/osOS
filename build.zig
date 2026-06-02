@@ -159,7 +159,7 @@ const CommonModule = struct {
     }
 };
 
-const FileErrors = std.fs.File.OpenError || std.fs.File.Writer.EndError;
+const FileErrors = std.Io.File.OpenError || std.Io.File.Writer.EndError;
 const IoErrors = std.Io.Writer.Error || FileErrors;
 const Err = std.mem.Allocator.Error || IoErrors;
 
@@ -175,6 +175,9 @@ const autogen_lines = [_][]const u8{
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) Err!void {
+    var threaded_io: std.Io.Threaded = .init(b.allocator, .{});
+    const io: std.Io = threaded_io.io();
+
     const zigver = builtin.zig_version;
     std.debug.print(
         "building with zig version: {}.{}.{}\n",
@@ -545,12 +548,13 @@ pub fn build(b: *std.Build) Err!void {
 
     {
         var buf: [4096]u8 = undefined;
-        var dir: std.fs.Dir = std.fs.cwd();
-        var output: std.fs.File = try dir.createFile(
+        var dir: std.Io.Dir = std.Io.Dir.cwd();
+        var output: std.Io.File = try dir.createFile(
+            io,
             b.pathResolve(&.{ "docs", "zon", "config.zon" }),
             .{},
         );
-        var file_writer = output.writer(&buf);
+        var file_writer = output.writer(io, &buf);
         defer file_writer.end() catch {};
 
         for (autogen_lines) |line| {
@@ -749,12 +753,13 @@ pub fn build(b: *std.Build) Err!void {
     //* *************************** x86 Specific ***************************** *
     const isooptions = b.addOptions();
     var buf: [4096]u8 = undefined;
-    var dir: std.fs.Dir = std.fs.cwd();
-    var output: std.fs.File = try dir.createFile(
+    var dir: std.Io.Dir = std.Io.Dir.cwd();
+    var output: std.Io.File = try dir.createFile(
+        io,
         b.pathResolve(&.{ "build_iso", "zon", "limine.zon" }),
         .{},
     );
-    var file_writer = output.writer(&buf);
+    var file_writer = output.writer(io, &buf);
     defer file_writer.end() catch {};
 
     for (autogen_lines) |line| {
@@ -834,6 +839,7 @@ pub fn build(b: *std.Build) Err!void {
     runiso.addArtifactArg(x86_exe);
     runiso.step.dependOn(b.getInstallStep());
 
+    // const genisoimage: []const u8 = try b.findProgram(&.{}, &.{});
     const create_x86_iso = b.addSystemCommand(&.{
         "genisoimage",
         "-R",
