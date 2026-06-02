@@ -6,6 +6,7 @@ Oso's Os, or BearOS
 - [The Main Goal](#the-main-goal)
 - [Common Tools I've Used](#common-tools-ive-used)
 - [Zig Version Used](#zig-version-used)
+- [Build Requirements](#build-requirements)
 - [Building](#building)
 - [Running](#running)
 - [License](#license)
@@ -56,6 +57,15 @@ quite important as this project uses modules in it's build system, which I
 believe (I could be wrong) don't exist in zig 0.13 and earlier. I have also
 encountered buggy code generation from some versions of 0.14 causing some triple
 faults. If you want to build this, please use the zig-master.
+
+## Build Requirements
+The build itself should be dependency free, and is a high priority goal of the
+project. If you would like to _boot_ into the OS, then you need some tools:
+
+* cdrtools
+    * For "genisoimage". Needed to build the iso
+* QEMU or Bochs
+    * The emulator used to boot into the kernel. Qemu is the default
 
 ## Building
 The kernel currently uses the zig build system (and only the zig build system)
