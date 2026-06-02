@@ -9,15 +9,15 @@ const ArgError = error{
     bad_arg_count,
 };
 
-fn createDirectories(root: [:0]const u8) !void {
-    var root_dir: std.fs.Dir = try std.fs.openDirAbsolute(root, .{});
-    defer root_dir.close();
+fn createDirectories(root: [:0]const u8, io: std.Io) !void {
+    var root_dir: std.Io.Dir = try std.Io.Dir.openDirAbsolute(io, root, .{});
+    defer root_dir.close(io);
 
     inline for (config.to_create) |dir| {
-        var it = try std.fs.path.componentIterator(dir);
+        var it = std.fs.path.componentIterator(dir);
         while (it.next()) |child| {
             std.debug.print("Creating {s} ...\n", .{child.path});
-            root_dir.makeDir(child.path) catch |e| {
+            root_dir.createDirPath(io, child.path) catch |e| {
                 switch (e) {
                     error.PathAlreadyExists => {
                         std.debug.print("{s} already exists!\n", .{child.path});
@@ -29,7 +29,7 @@ fn createDirectories(root: [:0]const u8) !void {
     }
 }
 
-fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator) !void {
+fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator, io: std.Io) !void {
     inline for (config.to_copy) |pair| {
         const source, const should_free = handle_absolute: {
             var result: []const u8 = undefined;
@@ -53,7 +53,7 @@ fn copyFiles(root: [:0]const u8, allocator: std.mem.Allocator) !void {
             }
         }
         std.debug.print("Copying {s} to {s} ...\n", .{ source, destination });
-        try std.fs.copyFileAbsolute(source, destination, .{});
+        try std.Io.Dir.copyFileAbsolute(source, destination, io, .{});
     }
 }
 
@@ -61,6 +61,7 @@ fn copyKernel(
     root: [:0]const u8,
     kernel_path: [:0]const u8,
     allocator: std.mem.Allocator,
+    io: std.Io,
 ) !void {
     std.debug.print(
         "Copying kernel {s} to dir {s} ...\n",
@@ -73,17 +74,12 @@ fn copyKernel(
         std.fs.path.basename(kernel_path),
     });
     defer allocator.free(destination);
-    try std.fs.copyFileAbsolute(kernel_path, destination, .{});
+    try std.Io.Dir.copyFileAbsolute(kernel_path, destination, io, .{});
 }
 
-pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    const allocator: std.mem.Allocator = debug_allocator.allocator();
-    defer _ = debug_allocator.deinit();
-
-    const args: [][:0]u8 = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-
+pub fn main(init: std.process.Init) !void {
+    const allocator: std.mem.Allocator = init.arena.allocator();
+    const args = try init.minimal.args.toSlice(allocator);
     if (args.len != 3) {
         std.debug.print("TODO", .{});
         return ArgError.bad_arg_count;
@@ -91,9 +87,9 @@ pub fn main() !void {
 
     const root = args[1];
 
-    try createDirectories(root);
-    try copyFiles(root, allocator);
+    try createDirectories(root, init.io);
+    try copyFiles(root, allocator, init.io);
 
     const kernel_path = args[2];
-    try copyKernel(root, kernel_path, allocator);
+    try copyKernel(root, kernel_path, allocator, init.io);
 }

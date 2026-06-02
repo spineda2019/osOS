@@ -378,7 +378,7 @@ fn generateHandler(
             }
         }.handler,
         .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
-        .pageFault => |_| &struct {
+        .pageFault => &struct {
             export fn pageFaultHandler(error_code: u32) callconv(.c) noreturn {
                 const meta = @import("std").meta;
                 const PageFault = @import("error_codes.zig").PageFault;
