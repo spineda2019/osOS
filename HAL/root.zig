@@ -24,8 +24,8 @@ pub fn HAL(comptime layout: HalLayout) type {
     return struct {
         comptime assembly_wrappers: type = layout.assembly_wrappers,
 
-        serial_io: *IWriter,
+        serial_io: IWriter,
 
-        terminal: *IWriter,
+        terminal: IWriter,
     };
 }

@@ -248,8 +248,8 @@ pub fn setup(boot_info: BootInfo) noreturn {
     kmain.kmain(
         hal_layout,
         oshal.HAL(hal_layout){
-            .terminal = &fb_writer,
-            .serial_io = &sp_writer,
+            .terminal = fb_writer,
+            .serial_io = sp_writer,
         },
     );
 }

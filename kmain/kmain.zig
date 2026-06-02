@@ -30,24 +30,27 @@ pub fn kmain(
 ) noreturn {
     comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
 
+    var terminal = arch_agnostic_hal.terminal;
+    var serial = arch_agnostic_hal.serial_io;
+
     for (0..12) |_| {
-        arch_agnostic_hal.terminal.writef("Foo " ** 20, .{});
-        arch_agnostic_hal.terminal.writef("Bar " ** 20, .{});
-        arch_agnostic_hal.terminal.writef("Baz " ** 20, .{});
+        terminal.writef("Foo " ** 20, .{});
+        terminal.writef("Bar " ** 20, .{});
+        terminal.writef("Baz " ** 20, .{});
     }
 
-    arch_agnostic_hal.terminal.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});
-    arch_agnostic_hal.terminal.writef("Testing writeLine...\r\n", .{});
-    arch_agnostic_hal.terminal.writef("Hi there from a new line!\r\n", .{});
-    arch_agnostic_hal.terminal.writef("Hi there from a new line again!\r\n", .{});
+    terminal.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});
+    terminal.writef("Testing writeLine...\r\n", .{});
+    terminal.writef("Hi there from a new line!\r\n", .{});
+    terminal.writef("Hi there from a new line again!\r\n", .{});
 
     if (testoptions.test_panic) {
-        arch_agnostic_hal.terminal.writef("Testing Panic\r\n", .{});
+        terminal.writef("Testing Panic\r\n", .{});
         @panic("Testing Panic");
     }
 
     if (builtin.target.cpu.arch == .riscv32) {
-        arch_agnostic_hal.terminal.writef(
+        terminal.writef(
             "Purposefully performing an illegal instruction...\r\n",
             .{},
         );
@@ -55,10 +58,10 @@ pub fn kmain(
     }
 
     const col_width: u32 = 80;
-    arch_agnostic_hal.terminal.writef("Terminal Column Width: {d}\r\n", .{col_width});
+    terminal.writef("Terminal Column Width: {d}\r\n", .{col_width});
 
-    arch_agnostic_hal.terminal.flush();
-    arch_agnostic_hal.serial_io.flush();
+    terminal.flush();
+    serial.flush();
 
     const process_pool: process.ProcessTable = .init();
     _ = process_pool;
