@@ -66,7 +66,7 @@ pub const IDTDescriptor = packed struct(u48) {
     pub fn init(idt: *const InterruptDescriptorTable) IDTDescriptor {
         return .{
             .size = (@bitSizeOf(InterruptDescriptorTable) / 8) - 1,
-            .offset = @intFromPtr(&idt),
+            .offset = @intFromPtr(idt),
         };
     }
 
