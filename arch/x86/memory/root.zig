@@ -26,5 +26,5 @@ pub const paging = @import("paging.zig");
 pub const PageAllocator = @import("PageAllocator.zig");
 
 test {
-    @import("std").testing.refAllDeclsRecursive(@This());
+    @import("std").testing.refAllDecls(@This());
 }
