@@ -379,7 +379,7 @@ fn generateHandler(
         }.handler,
         .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
         .pageFault => &struct {
-            export fn pageFaultHandler(error_code: u32) callconv(.c) noreturn {
+            export fn pageFaultHandler(error_code: u32, eip: u32) callconv(.c) noreturn {
                 const meta = @import("std").meta;
                 const PageFault = @import("error_codes.zig").PageFault;
                 const err: PageFault = @bitCast(error_code);
@@ -402,6 +402,21 @@ fn generateHandler(
                         idx += 1;
                     }
                     for (str) |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    const faulting_eip: osformat.format.AddressString = .init(eip);
+                    for (" EIP: 0x") |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    for (faulting_eip.getStr()) |letter| {
                         if (idx < message.len) {
                             message[idx] = letter;
                         }
