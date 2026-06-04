@@ -84,14 +84,13 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
 
     var serial_stub: serial.SerialPort = .{};
     var serial_buffer: [1024]u8 = undefined;
-    var serial_writer = serial_stub.writer(&serial_buffer);
 
     const hal_layout: oshal.HalLayout = comptime .{
         .assembly_wrappers = riscv32asm.assembly_wrappers,
     };
 
     kmain.kmain(hal_layout, oshal.HAL(hal_layout){
-        .terminal = &terminal_writer,
-        .serial_io = &serial_writer,
+        .terminal = terminal_writer,
+        .serial_io = serial_stub.writer(&serial_buffer),
     });
 }
