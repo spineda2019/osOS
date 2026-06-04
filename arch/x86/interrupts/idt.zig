@@ -359,7 +359,6 @@ fn generateHandler(
         .withErrorCode => |num| &struct {
             fn handler() callconv(.naked) void {
                 asm volatile (
-                    \\pushl 0                    # push 0 as error code
                     \\pushl %[interrupt_number]  # push interrupt number
                     \\jmp commonInteruptHandlerWithErrorCode
                     : // no outputs

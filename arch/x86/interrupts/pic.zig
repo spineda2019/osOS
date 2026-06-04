@@ -171,6 +171,7 @@ pub fn IrqHandler(comptime request_type: irq) type {
                 \\pushal
                 \\pushl %[interrupt_number]
                 \\call handleGenericPicIrq
+                \\addl $0x4, %esp            // clean pushed interrupt number
                 \\popal
                 \\iret
                 : // no outputs
