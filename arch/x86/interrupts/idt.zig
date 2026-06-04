@@ -308,11 +308,13 @@ const InterruptNumber = union(enum) {
     withoutErrorCode: u32,
     picInterrupt: pic.irq,
     pageFault: u32,
+    generalProtection: u32,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
+            13 => .{ .generalProtection = number },
             14 => .{ .pageFault = number },
-            8, 10, 11, 12, 13, 17 => .{ .withErrorCode = number },
+            8, 10, 11, 12, 17 => .{ .withErrorCode = number },
             @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
                 .picInterrupt = @enumFromInt(number),
             },
@@ -324,6 +326,7 @@ const InterruptNumber = union(enum) {
         return switch (this) {
             .picInterrupt => |enumerator| @intFromEnum(enumerator),
             .pageFault => |pf| pf,
+            .generalProtection => |gpf| gpf,
             .withErrorCode => |with| with,
             .withoutErrorCode => |without| without,
         };
@@ -377,6 +380,19 @@ fn generateHandler(
             }
         }.handler,
         .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
+        .generalProtection => &struct {
+            fn sink() noreturn {
+                @panic("Poop, General Protection Fault occurred...");
+            }
+
+            fn handler() callconv(.naked) noreturn {
+                asm volatile (
+                    \\jmp *%[func]
+                    : // no outputs
+                    : [func] "r" (&sink),
+                );
+            }
+        }.handler,
         .pageFault => &struct {
             export fn pageFaultHandler(error_code: u32, eip: u32) callconv(.c) noreturn {
                 const meta = @import("std").meta;
