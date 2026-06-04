@@ -21,5 +21,5 @@ pub const format = @import("format.zig");
 pub const IWriter = @import("IWriter.zig");
 
 test {
-    @import("std").testing.refAllDeclsRecursive(@This());
+    @import("std").testing.refAllDecls(@This());
 }

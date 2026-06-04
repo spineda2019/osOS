@@ -14,33 +14,23 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub const SerialPort = @import("SerialPort.zig");
-
 pub const FrameBuffer = @import("FrameBuffer.zig");
 
+pub const SerialPort = @import("SerialPort.zig");
+
+const IWriter = @import("osformat").IWriter;
+
 pub const Logger = struct {
-    sp: *SerialPort,
-    fp: *FrameBuffer,
+    serial_port_writer: *IWriter,
+    framebuffer_writer: *IWriter,
 
-    pub fn log(self: Logger, buf: []const u8) void {
-        self.fp.write(buf);
-        self.sp.write(buf);
+    pub fn log(self: *Logger, comptime format: []const u8, args: anytype) void {
+        self.framebuffer_writer.writef(format, args);
+        self.serial_port_writer.writef(format, args);
     }
 
-    pub fn logCStr(self: Logger, c_buf: [*:0]const u8) void {
-        self.fp.writeCStr(c_buf);
-        self.sp.writeCStr(c_buf);
-    }
-
-    pub fn logLine(self: Logger, buf: []const u8) void {
-        self.fp.writeLine(buf);
-        self.sp.write(buf);
-        self.sp.write("\r\n");
-    }
-
-    pub fn logLineCStr(self: Logger, c_buf: [*:0]const u8) void {
-        self.fp.writeLineCStr(c_buf);
-        self.sp.writeCStr(c_buf);
-        self.sp.write("\r\n");
+    pub fn flush(self: *Logger) void {
+        self.framebuffer_writer.flush();
+        self.serial_port_writer.flush();
     }
 };

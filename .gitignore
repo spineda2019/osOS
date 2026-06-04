@@ -5,6 +5,7 @@ build/
 .cache/
 compile_commands.json
 zig-out/
+zig-pkg/
 .zig-cache/
 
 *.elf

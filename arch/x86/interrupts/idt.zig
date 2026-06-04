@@ -66,7 +66,7 @@ pub const IDTDescriptor = packed struct(u48) {
     pub fn init(idt: *const InterruptDescriptorTable) IDTDescriptor {
         return .{
             .size = (@bitSizeOf(InterruptDescriptorTable) / 8) - 1,
-            .offset = @intFromPtr(&idt),
+            .offset = @intFromPtr(idt),
         };
     }
 
@@ -308,11 +308,13 @@ const InterruptNumber = union(enum) {
     withoutErrorCode: u32,
     picInterrupt: pic.irq,
     pageFault: u32,
+    generalProtection: u32,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
+            13 => .{ .generalProtection = number },
             14 => .{ .pageFault = number },
-            8, 10, 11, 12, 13, 17 => .{ .withErrorCode = number },
+            8, 10, 11, 12, 17 => .{ .withErrorCode = number },
             @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
                 .picInterrupt = @enumFromInt(number),
             },
@@ -324,6 +326,7 @@ const InterruptNumber = union(enum) {
         return switch (this) {
             .picInterrupt => |enumerator| @intFromEnum(enumerator),
             .pageFault => |pf| pf,
+            .generalProtection => |gpf| gpf,
             .withErrorCode => |with| with,
             .withoutErrorCode => |without| without,
         };
@@ -359,7 +362,6 @@ fn generateHandler(
         .withErrorCode => |num| &struct {
             fn handler() callconv(.naked) void {
                 asm volatile (
-                    \\pushl 0                    # push 0 as error code
                     \\pushl %[interrupt_number]  # push interrupt number
                     \\jmp commonInteruptHandlerWithErrorCode
                     : // no outputs
@@ -378,8 +380,21 @@ fn generateHandler(
             }
         }.handler,
         .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
-        .pageFault => |_| &struct {
-            export fn pageFaultHandler(error_code: u32) callconv(.c) noreturn {
+        .generalProtection => &struct {
+            fn sink() noreturn {
+                @panic("Poop, General Protection Fault occurred...");
+            }
+
+            fn handler() callconv(.naked) noreturn {
+                asm volatile (
+                    \\jmp *%[func]
+                    : // no outputs
+                    : [func] "r" (&sink),
+                );
+            }
+        }.handler,
+        .pageFault => &struct {
+            export fn pageFaultHandler(error_code: u32, eip: u32) callconv(.c) noreturn {
                 const meta = @import("std").meta;
                 const PageFault = @import("error_codes.zig").PageFault;
                 const err: PageFault = @bitCast(error_code);
@@ -402,6 +417,21 @@ fn generateHandler(
                         idx += 1;
                     }
                     for (str) |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    const faulting_eip: osformat.format.AddressString = .init(eip);
+                    for (" EIP: 0x") |letter| {
+                        if (idx < message.len) {
+                            message[idx] = letter;
+                        }
+
+                        idx += 1;
+                    }
+                    for (faulting_eip.getStr()) |letter| {
                         if (idx < message.len) {
                             message[idx] = letter;
                         }

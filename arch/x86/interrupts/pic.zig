@@ -23,7 +23,7 @@ const osformat = @import("osformat");
 
 const Self: type = @This();
 
-var framebuffer_handle: *io.FrameBuffer = undefined;
+var framebuffer_handle: ?*io.FrameBuffer = null;
 const irq_offset: u8 = 0x20;
 var clock_tics: usize = 0;
 
@@ -154,8 +154,10 @@ fn sendAcknowledgement(interrupt_request: u8) void {
 fn handleKeyboardIRQ() void {
     const scan_code: u8 = as.assembly_wrappers.x86_inb(0x60);
     const scan_code_str: osformat.format.StringFromInt(u8, 10) = .init(scan_code);
-    framebuffer_handle.write("Keyboard input detected. Scancode: ");
-    framebuffer_handle.writeLine(scan_code_str.getStr());
+    if (framebuffer_handle) |handle| {
+        handle.write("Keyboard input detected. Scancode: ");
+        handle.writeLine(scan_code_str.getStr());
+    }
 }
 
 fn handleTimerIRQ() void {
@@ -166,9 +168,11 @@ pub fn IrqHandler(comptime request_type: irq) type {
     return struct {
         pub fn handler() callconv(.naked) void {
             asm volatile (
+                \\pushal
                 \\pushl %[interrupt_number]
                 \\call handleGenericPicIrq
-                \\addl $0x4, %esp            # cleanup pushed interrupt
+                \\addl $0x4, %esp            // clean pushed interrupt number
+                \\popal
                 \\iret
                 : // no outputs
                 : [interrupt_number] "i" (@intFromEnum(request_type)),
@@ -184,26 +188,4 @@ export fn handleGenericPicIrq(irq_with_offset: irq) callconv(.c) void {
         .timer => handleTimerIRQ(),
     }
     sendAcknowledgement(@intFromEnum(irq_with_offset) - irq_offset);
-}
-
-pub fn keyboardISR() callconv(.naked) void {
-    asm volatile (
-        \\push %[keyboard_irq]
-        \\call handleGenericPicIrq
-        \\addl $0x4, %esp            # cleanup pushed interrupt
-        \\iret
-        : // no outputs
-        : [keyboard_irq] "i" (irq.keyboard),
-    );
-}
-
-pub fn timerISR() callconv(.naked) void {
-    asm volatile (
-        \\push %[timer_irq]
-        \\call handleGenericPicIrq
-        \\addl $0x4, %esp            # cleanup pushed interrupt
-        \\iret
-        : // no outputs
-        : [timer_irq] "i" (irq.timer),
-    );
 }
