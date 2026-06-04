@@ -9,13 +9,10 @@ const ArgError = error{
     bad_arg_count,
 };
 
-pub fn main() !void {
-    var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
-    const allocator: std.mem.Allocator = debug_allocator.allocator();
-    defer _ = debug_allocator.deinit();
+pub fn main(init: std.process.Init) !void {
+    const allocator: std.mem.Allocator = init.arena.allocator();
 
-    const args: [][:0]u8 = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(allocator);
 
     if (args.len > 2) {
         std.debug.print("{}\n", .{args.len});
@@ -24,14 +21,14 @@ pub fn main() !void {
     const root = args[1];
     std.debug.print("Root directory {s}\n", .{root});
 
-    var install_dir = try std.fs.openDirAbsolute(root, .{});
-    defer install_dir.close();
-    var doc_dir = try install_dir.openDir("docs", .{});
-    defer doc_dir.close();
+    var install_dir = try std.Io.Dir.openDirAbsolute(init.io, root, .{});
+    defer install_dir.close(init.io);
+    var doc_dir = try install_dir.openDir(init.io, "docs", .{});
+    defer doc_dir.close(init.io);
 
     var index_buf: [4096]u8 = undefined;
-    var index_file = try doc_dir.createFile("index.html", .{});
-    var index_writer = index_file.writer(&index_buf);
+    var index_file = try doc_dir.createFile(init.io, "index.html", .{});
+    var index_writer = index_file.writer(init.io, &index_buf);
     defer index_writer.end() catch @panic("File Writer End");
 
     _ = try index_writer.interface.write(html_begin);
@@ -137,8 +134,8 @@ pub fn main() !void {
     _ = try index_writer.interface.write(html_end);
 
     var css_buf: [4096]u8 = undefined;
-    var css_file = try doc_dir.createFile("styles.css", .{});
-    var css_writer = css_file.writer(&css_buf);
+    var css_file = try doc_dir.createFile(init.io, "styles.css", .{});
+    var css_writer = css_file.writer(init.io, &css_buf);
     defer css_writer.end() catch @panic("File Writer End");
 
     _ = try css_writer.interface.write(css);
