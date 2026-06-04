@@ -246,12 +246,6 @@ const test_helpers = struct {
                             concrete_self.write(buf);
                         }
                     }.impl,
-                    .writeLine = &struct {
-                        fn impl(opaque_self: *anyopaque, buf: []const u8) void {
-                            const concrete_self: *FakeWriter = @ptrCast(@alignCast(opaque_self));
-                            concrete_self.writeLine(buf);
-                        }
-                    }.impl,
                 },
             };
         }
@@ -289,7 +283,7 @@ test IWriter {
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const to_write = comptime "I take no args";
-        try fake_interface.writef(to_write, .{});
+        fake_interface.writef(to_write, .{});
 
         std.testing.expect(std.mem.eql(
             u8,
@@ -325,7 +319,7 @@ test IWriter {
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const foo_slice: []const u8 = "foo";
-        try fake_interface.writef("I take one arg: {s}", .{foo_slice});
+        fake_interface.writef("I take one arg: {s}", .{foo_slice});
         const expected_result = comptime "I take one arg: foo";
 
         std.testing.expect(std.mem.eql(
@@ -346,7 +340,7 @@ test IWriter {
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const random_number: usize = 42;
-        try fake_interface.writef("I want a number: {d}", .{random_number});
+        fake_interface.writef("I want a number: {d}", .{random_number});
         const expected_result = comptime "I want a number: 42";
 
         std.testing.expect(std.mem.eql(
@@ -367,7 +361,7 @@ test IWriter {
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const random_number: *anyopaque = comptime @ptrFromInt(0xff_ff_ff_ff);
-        try fake_interface.writef("I want an address: {*}", .{random_number});
+        fake_interface.writef("I want an address: {*}", .{random_number});
         const expected_result = comptime "I want an address: 0xffffffff";
 
         std.testing.expect(std.mem.eql(
