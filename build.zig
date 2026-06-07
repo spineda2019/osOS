@@ -914,7 +914,7 @@ pub fn build(b: *std.Build) Err!void {
         "-f",
         "zig-out/x86/bochs.config",
         "-q",
-        "-debugger",
+        // "-debugger",
     });
     x86_run_bochs_debugger.step.dependOn(&runiso.step);
     x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
