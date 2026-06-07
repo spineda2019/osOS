@@ -28,31 +28,29 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     @branchHint(.cold);
     as.assembly_wrappers.disable_x86_interrupts();
 
+    // Assuming we have the higherhalf address. Otherwise, we're boned
     var framebuffer: io.FrameBuffer = .init(.Black, .White, 0xC00B8000);
     framebuffer.clear();
-    framebuffer.write("Kernel Panic! Message: ");
-    framebuffer.writeLine(msg);
+
+    var writer_buf: [256]u8 = undefined;
+    var writer = framebuffer.writer(&writer_buf);
+
+    writer.writef("Kernel Panic! Message: {s}\n", .{msg});
+
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
-    const return_addr_str: osformat.format.AddressString = .init(return_addr);
-    framebuffer.write("Suspected caller address: 0x");
-    framebuffer.writeLine(return_addr_str.getStr());
 
-    _ = start_address;
-    // const StackIterator = @import("std").debug.StackIterator;
-    // if (start_address) |addr| {
-    // framebuffer.writeLine("Received first_address info:");
-    // var iterator: StackIterator = .init(addr, @frameAddress());
-    // while (iterator.next()) |next| {
-    // const start_addr_str: osformat.format.AddressString = .init(next);
-    // framebuffer.write("    Frame address: 0x");
-    // framebuffer.writeLine(start_addr_str.getStr());
-    // }
-    // } else {}
+    writer.writef("Suspected panic-caller address: 0x{x}\n", .{return_addr});
 
-    framebuffer.writeLine("TODO: Stack Iteration in 0.16.0");
+    if (start_address) |addr| blk: {
+        writer.writef("TODO: Source info using addr: 0x{x}\n", .{addr});
+        break :blk;
+    } else {
+        writer.writef("Start address unavailable\n", .{});
+    }
 
+    writer.flush();
     while (true) {
         asm volatile ("");
     }
