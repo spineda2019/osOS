@@ -20,6 +20,11 @@ const as = @import("x86asm");
 pub const PAGE_SIZE: comptime_int = 4096;
 pub const ENTRY_COUNT = 1024;
 
+pub const InlineOptions = struct {
+    const std = @import("std");
+    mode: std.builtin.CallModifier = .auto,
+};
+
 pub const PageDirectory = [ENTRY_COUNT]PageDirectoryEntry;
 
 /// Must be aligned to 4KiB, or 4096 bytes.
@@ -145,7 +150,11 @@ pub const Info = struct {
 
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
-    pub fn initHigherHalfPages(self: *const Info, pt_to_use: *align(PAGE_SIZE) PageTable) void {
+    pub fn initHigherHalfPages(
+        self: *const Info,
+        pt_to_use: *align(PAGE_SIZE) PageTable,
+        comptime inline_options: InlineOptions,
+    ) void {
         comptime {
             // gives a clearer error code rather than cryptic u64 vs usize error
             if (@sizeOf(usize) > 4) {
@@ -168,12 +177,14 @@ pub const Info = struct {
 
         const pd_index: u32 = PageDirectoryEntry.indexFromVirtual(self.virtual_kernel_base);
         const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
-        pde.basicInit(pt_to_use);
+        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ pde, pt_to_use });
+        // pde.basicInit(pt_to_use);
 
         // We also have to identity map the first 4mb to make the kernel not crash
         // when paging is turned on.
         const first_pde: *PageDirectoryEntry = &self.page_directory[0];
-        first_pde.basicInit(pt_to_use);
+        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ first_pde, pt_to_use });
+        // first_pde.basicInit(pt_to_use);
     }
 
     pub fn unmap(self: *const Info, at: u32) void {
@@ -297,7 +308,7 @@ test Info {
         .page_directory = &page_directory,
     };
 
-    page_info.initHigherHalfPages(&kernel_page_table);
+    page_info.initHigherHalfPages(&kernel_page_table, .{});
 
     var translated = if (page_info.virtualToPhysical(
         page_info.virtual_kernel_base,

@@ -90,8 +90,19 @@ fn trampoline(
     const page_info: memory.paging.Info = .{
         .page_directory = &kernel_page_directory,
     };
-    page_info.initHigherHalfPages(&kernel_page_table);
-    page_info.enablePaging();
+
+    @call(
+        .always_inline,
+        memory.paging.Info.initHigherHalfPages,
+        .{
+            &page_info,
+            &kernel_page_table,
+            memory.paging.InlineOptions{ .mode = .always_inline },
+        },
+    );
+    @call(.always_inline, memory.paging.Info.enablePaging, .{&page_info});
+    // page_info.initHigherHalfPages(&kernel_page_table);
+    // page_info.enablePaging();
 
     const magic_match: bool = boot_magic == 0x2badb002;
 
