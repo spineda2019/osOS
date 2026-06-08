@@ -15,6 +15,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const osformat = @import("root.zig");
+const std = @import("std");
 
 instance: *anyopaque,
 vtable: *const VTable,
@@ -219,8 +220,6 @@ pub const VTable = struct {
 };
 
 const test_helpers = struct {
-    const std = @import("std");
-
     const FakeWriter = struct {
         /// NOT a buffer. This should simulate a truly written-to IO device.
         /// As a result, the buffer passed in to `writer` that creates an
@@ -270,7 +269,6 @@ const test_helpers = struct {
 };
 
 test IWriter {
-    const std = @import("std");
     var debug_allocator: std.heap.DebugAllocator(.{}) = .init;
     defer _ = debug_allocator.deinit();
     const allocator = debug_allocator.allocator();

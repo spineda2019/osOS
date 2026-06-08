@@ -47,7 +47,7 @@ const BuildOptions = struct {
                 BootLoader,
                 "bootloader",
                 "Boot loader to build into image (only on x86)",
-            ) orelse .grub_legacy,
+            ) orelse .limine,
             .build_bochs = b.option(
                 bool,
                 "build_bochs",

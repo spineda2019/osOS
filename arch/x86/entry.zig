@@ -69,6 +69,8 @@ pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE
 const PanicNamespace = @import("std").debug.FullPanic;
 pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 
+pub const debug = @import("debug/root.zig");
+
 /// Entry point of our kernel. Will only setup our stack and jump to setup.
 export fn boot() linksection(".boot") callconv(.naked) noreturn {
     asm volatile (
