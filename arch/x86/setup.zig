@@ -33,24 +33,25 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     framebuffer.clear();
 
     var writer_buf: [256]u8 = undefined;
-    var writer = framebuffer.writer(&writer_buf);
+    var fb_writer = framebuffer.writer(&writer_buf);
 
-    writer.writef("Kernel Panic! Message: {s}\n", .{msg});
+    fb_writer.writef("Kernel Panic! Message: {s}\n", .{msg});
 
     // subtract to get the previous address, i.e. the caller of panic
     const call_instruction_size = comptime 5;
     const return_addr = @returnAddress() - call_instruction_size;
 
-    writer.writef("Suspected panic-caller address: 0x{x}\n", .{return_addr});
+    fb_writer.writef("Suspected panic-caller address: 0x{x}\n", .{return_addr});
 
-    if (start_address) |addr| blk: {
-        writer.writef("TODO: Source info using addr: 0x{x}\n", .{addr});
-        break :blk;
-    } else {
-        writer.writef("Start address unavailable\n", .{});
-    }
+    const start: usize = start_address orelse return_addr;
+    _ = start;
 
-    writer.flush();
+    const si = std.debug.getSelfDebugInfo() catch {
+        fb_writer.writef("Could not get SelfInfo\n", .{});
+    };
+    fb_writer.writef("SelfInfo address: 0x{x}\n", .{@intFromPtr(si)});
+
+    fb_writer.flush();
     while (true) {
         asm volatile ("");
     }
