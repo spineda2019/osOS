@@ -18,6 +18,7 @@ const std = @import("std");
 const as = @import("x86asm");
 const pic = @import("pic.zig");
 const osformat = @import("osformat");
+const x86syscall = @import("syscall.zig");
 const PageAllocator = @import("x86memory").PageAllocator;
 
 /// Interrupts are numbered 0 through 255 inclusive. This table will describe
@@ -309,12 +310,14 @@ const InterruptNumber = union(enum) {
     picInterrupt: pic.irq,
     pageFault: u32,
     generalProtection: u32,
+    syscall: u32,
 
     pub fn init(number: u32) InterruptNumber {
         return switch (number) {
             13 => .{ .generalProtection = number },
             14 => .{ .pageFault = number },
             8, 10, 11, 12, 17 => .{ .withErrorCode = number },
+            0x80 => .{ .syscall = number },
             @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
                 .picInterrupt = @enumFromInt(number),
             },
@@ -325,10 +328,7 @@ const InterruptNumber = union(enum) {
     pub fn get(this: InterruptNumber) u32 {
         return switch (this) {
             .picInterrupt => |enumerator| @intFromEnum(enumerator),
-            .pageFault => |pf| pf,
-            .generalProtection => |gpf| gpf,
-            .withErrorCode => |with| with,
-            .withoutErrorCode => |without| without,
+            inline else => |el| el,
         };
     }
 };
@@ -380,6 +380,7 @@ fn generateHandler(
             }
         }.handler,
         .picInterrupt => |irq| &pic.IrqHandler(irq).handler,
+        .syscall => &x86syscall.syscallIsr,
         .generalProtection => &struct {
             fn sink() noreturn {
                 @panic("Poop, General Protection Fault occurred...");
