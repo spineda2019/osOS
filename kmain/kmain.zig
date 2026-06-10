@@ -23,6 +23,7 @@ const process = @import("osprocess");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const testoptions = @import("testoptions");
+const osshell = @import("osshell");
 
 pub fn kmain(
     comptime layout: oshal.HalLayout,
@@ -49,6 +50,7 @@ pub fn kmain(
         @panic("Testing Panic");
     }
 
+    // TODO(SEP): somehow move to build system maybe?
     if (builtin.target.cpu.arch == .riscv32) {
         terminal.writef(
             "Purposefully performing an illegal instruction...\r\n",
@@ -57,14 +59,14 @@ pub fn kmain(
         arch_agnostic_hal.assembly_wrappers.illegal_instruction();
     }
 
-    const col_width: u32 = 80;
-    terminal.writef("Terminal Column Width: {d}\r\n", .{col_width});
-
     terminal.flush();
     serial.flush();
 
-    const process_pool: process.ProcessTable = .init();
-    _ = process_pool;
+    var process_pool: process.ProcessTable(8) = .init();
+    const shell = process_pool.createProcess(&osshell.shellMain) catch |err| {
+        @panic(@errorName(err));
+    };
+    shell.jump();
 
     while (true) {
         asm volatile ("");

@@ -14,21 +14,15 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const osstdlib = @import("osstdlib");
-
-fn eval(input: []const u8) []const u8 {
-    // TODO: actual evaluation
-    return input;
-}
+const osstd = @import("osstdlib");
 
 /// The main "init" process of the osOS kernel. Should be run in user space.
 /// Will be capable to run other processes (eventuallY) but will need basic
 /// IO and will use the syscall interface to do this (exec/CreateProcess).
-pub fn shellMain() void {
+pub fn shellMain() noreturn {
     while (true) {
-        osstdlib.io.console.print("osshell> ");
-        const line: []const u8 = osstdlib.io.console.readLine(); // R
-        const result: []const u8 = eval(line); // E
-        osstdlib.io.console.printLine(result); // P
-    } // L
+        asm volatile (
+            \\
+        );
+    }
 }
