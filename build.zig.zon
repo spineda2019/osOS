@@ -19,8 +19,8 @@
             .lazy = true,
         },
         .schilytools_zig = .{
-            .url = "git+https://github.com/spineda2019/schilytools-zig#a8d5da9129a2a81485835edab62210cb9d6e76a6",
-            .hash = "schilytools-0.0.0-Wp4ZM8yLAACxIYljXiCrNILHd_0WkkdHbU_zITsL_uAl",
+            .url = "git+https://github.com/spineda2019/schilytools-zig#05acf323660d3c17a46db69389975ff7c3a41440",
+            .hash = "schilytools-0.0.1-Wp4ZM4rnWACSHPTUd3HkxBV_G4jfIz4sFV1AyWTXYr8c",
             .lazy = true,
         },
     },
