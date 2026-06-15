@@ -19,3 +19,11 @@ pub inline fn illegal_instruction() void {
         \\unimp
     );
 }
+
+pub inline fn jump(address: u32) void {
+    asm volatile (
+        \\jr %[addr]
+        : // no outs
+        : [addr] "r" (address),
+    );
+}

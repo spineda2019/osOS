@@ -66,7 +66,7 @@ pub fn kmain(
     const shell = process_pool.createProcess(&osshell.shellMain) catch |err| {
         @panic(@errorName(err));
     };
-    shell.jump();
+    arch_agnostic_hal.assembly_wrappers.jump(@intFromPtr(shell.entry_address));
 
     while (true) {
         asm volatile ("");

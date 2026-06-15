@@ -34,17 +34,6 @@ pub const Process = struct {
 
     entry_address: *const fn () noreturn,
 
-    /// Calling this essentially just jumps to the entry routine address. All
-    /// we have to do then is save calle process registers.
-    pub inline fn jump(self: *Process) noreturn {
-        asm volatile (
-            \\ jmp *%[proc]
-            :
-            : [proc] "r" (self.entry_address),
-        );
-        unreachable;
-    }
-
     /// Represents an empty process that doesn't exist. Inidicates that this
     /// process can be used to make a real running one.
     pub const emptyProcess: Process = .{
