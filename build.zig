@@ -68,7 +68,7 @@ const BuildOptions = struct {
                 bool,
                 "build_schilytools",
                 "Build schilytools for iso creation from source",
-            ) orelse true,
+            ) orelse (builtin.os.tag == .linux),
         };
     }
 
