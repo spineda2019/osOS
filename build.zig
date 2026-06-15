@@ -25,6 +25,7 @@ const BuildOptions = struct {
     test_panic: bool,
     build_bochs: bool,
     use_debugger: bool,
+    build_schilytools: bool,
 
     pub fn init(b: *std.Build) BuildOptions {
         return .{
@@ -63,6 +64,11 @@ const BuildOptions = struct {
                 "debugger",
                 "Enable usage of the debugger associated with the selected emulator",
             ) orelse false,
+            .build_schilytools = b.option(
+                bool,
+                "build_schilytools",
+                "Build schilytools for iso creation from source",
+            ) orelse true,
         };
     }
 
@@ -235,11 +241,18 @@ pub fn build(b: *std.Build) Err!void {
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
 
-    const depbochs = b.lazyDependency(
+    const depbochs: ?*std.Build.Dependency = b.lazyDependency(
         "bochs_zig",
         .{
             .optimize = std.builtin.OptimizeMode.ReleaseFast,
             .@"with-x11" = true,
+        },
+    );
+
+    const dep_schilytools: ?*std.Build.Dependency = b.lazyDependency(
+        "schilytools_zig",
+        .{
+            .optimize = std.builtin.OptimizeMode.ReleaseFast,
         },
     );
 
@@ -281,6 +294,18 @@ pub fn build(b: *std.Build) Err!void {
             break :bochs dep.artifact("bochs");
         } else {
             break :bochs null;
+        }
+    };
+
+    const exe_mkisofs: ?*std.Build.Step.Compile = blk: {
+        if (build_options.build_schilytools) {
+            if (dep_schilytools) |dep| {
+                break :blk dep.artifact("mkisofs");
+            } else {
+                break :blk null;
+            }
+        } else {
+            break :blk null;
         }
     };
 
@@ -830,9 +855,23 @@ pub fn build(b: *std.Build) Err!void {
     runiso.addArtifactArg(x86_exe);
     runiso.step.dependOn(b.getInstallStep());
 
-    // const genisoimage: []const u8 = try b.findProgram(&.{}, &.{});
-    const create_x86_iso = b.addSystemCommand(&.{
-        "genisoimage",
+    const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
+    if (exe_mkisofs) |exe| {
+        create_x86_iso.addArtifactArg(exe);
+    } else {
+        const prog: []const u8 = b.findProgram(&.{
+            "genisoimage",
+            "mkisofs",
+            "genisoimage.exe",
+            "mkisofs.exe",
+        }, &.{}) catch |err| blk: {
+            std.debug.print("WARNING: {}\n", .{err});
+            break :blk "genisoimage";
+        };
+
+        create_x86_iso.addArg(prog);
+    }
+    create_x86_iso.addArgs(&.{
         "-R",
         "-b",
         build_options.bootBinary(),

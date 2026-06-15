@@ -18,6 +18,11 @@
             .hash = "N-V-__8AAFNxSgAmqC734zRSm3zL_0brYgzmptnRM0U_q6Zk",
             .lazy = true,
         },
+        .schilytools_zig = .{
+            .url = "git+https://github.com/spineda2019/schilytools-zig#a8d5da9129a2a81485835edab62210cb9d6e76a6",
+            .hash = "schilytools-0.0.0-Wp4ZM8yLAACxIYljXiCrNILHd_0WkkdHbU_zITsL_uAl",
+            .lazy = true,
+        },
     },
 
     .paths = .{
