@@ -26,10 +26,10 @@ jobs:
         version: 0.16.0
     - name: Build Kernel & Docs for all targets
       run: |
-        zig build kernel -Darch="x86" --summary all
-        zig build kernel -Darch="riscv32" --summary all
-        zig build kernel -Darch="x86" -Dbootloader="limine" --summary all
-        zig build kernel -Darch="riscv32" -Dbootloader="limine" --summary all
+        zig build kernel -Darch="x86" -Dbuild_bochs=false --summary all
+        zig build kernel -Darch="riscv32" -Dbuild_bochs=false --summary all
+        zig build kernel -Darch="x86" -Dbuild_bochs=false -Dbootloader="limine" --summary all
+        zig build kernel -Darch="riscv32" -Dbuild_bochs=false -Dbootloader="limine" --summary all
         zig build doc_site --summary all
     - name: Unit Test
       # Don't be wasteful with CI resources, unit tests on one agent is enough
