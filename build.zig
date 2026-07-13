@@ -241,20 +241,32 @@ pub fn build(b: *std.Build) Err!void {
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
 
-    const depbochs: ?*std.Build.Dependency = b.lazyDependency(
-        "bochs_zig",
-        .{
-            .optimize = std.builtin.OptimizeMode.ReleaseFast,
-            .@"with-x11" = true,
-        },
-    );
+    const depbochs: ?*std.Build.Dependency = dep: {
+        if (builtin.target.os.tag == .linux) {
+            break :dep b.lazyDependency(
+                "bochs_zig",
+                .{
+                    .optimize = std.builtin.OptimizeMode.ReleaseFast,
+                    .@"with-x11" = true,
+                },
+            );
+        } else {
+            break :dep null;
+        }
+    };
 
-    const dep_schilytools: ?*std.Build.Dependency = b.lazyDependency(
-        "schilytools_zig",
-        .{
-            .optimize = std.builtin.OptimizeMode.ReleaseFast,
-        },
-    );
+    const dep_schilytools: ?*std.Build.Dependency = dep: {
+        if (builtin.target.os.tag == .linux) {
+            break :dep b.lazyDependency(
+                "schilytools_zig",
+                .{
+                    .optimize = std.builtin.OptimizeMode.ReleaseFast,
+                },
+            );
+        } else {
+            break :dep null;
+        }
+    };
 
     //**************************************************************************
     //                               Module Setup                              *
