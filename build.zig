@@ -242,7 +242,7 @@ pub fn build(b: *std.Build) Err!void {
     test_options.addOption(bool, "test_panic", build_options.test_panic);
 
     const depbochs: ?*std.Build.Dependency = dep: {
-        if (builtin.target.os.tag == .linux) {
+        if (build_options.build_bochs) {
             break :dep b.lazyDependency(
                 "bochs_zig",
                 .{
@@ -256,7 +256,7 @@ pub fn build(b: *std.Build) Err!void {
     };
 
     const dep_schilytools: ?*std.Build.Dependency = dep: {
-        if (builtin.target.os.tag == .linux) {
+        if (build_options.build_schilytools) {
             break :dep b.lazyDependency(
                 "schilytools_zig",
                 .{
