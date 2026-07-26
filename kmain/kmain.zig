@@ -21,10 +21,14 @@ const oshal = @import("oshal");
 const testoptions = @import("testoptions");
 const osshell = @import("osshell");
 
-pub fn kmain(
-    rt_hal: oshal.RtHAL,
-    comptime ct_hal: oshal.CtHal,
-) noreturn {
+/// Ideally the beginning of true arch agnostic osOS logic, like where the
+/// scheduler will start and where pretty much everything that need not know
+/// about CPU architecture (mostly) will be initialized.
+///
+/// Universally common CPU instructions (like jumping to an address, executing
+/// and arbitrary illegal instruction for testing, etc) will be provided via
+/// functions in `ct_hal`. Might be an escape hatch, but I like the abstraction.
+pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
     var terminal = rt_hal.terminal;
     var serial = rt_hal.serial_io;
 
