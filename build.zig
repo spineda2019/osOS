@@ -282,6 +282,9 @@ pub fn build(b: *std.Build) Err!void {
         oshal: CommonModule,
         osshell: CommonModule,
         osstdlib: CommonModule,
+
+        /// This is special
+        kmain: CommonModule,
     };
 
     const shared_modules: SharedModules = .{
@@ -292,6 +295,7 @@ pub fn build(b: *std.Build) Err!void {
         .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
         .osshell = .create(b, "osshell", "userland/shell/shell.zig", test_target),
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
+        .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
     };
 
     shared_modules.oshal.module.addImport(
@@ -493,36 +497,39 @@ pub fn build(b: *std.Build) Err!void {
     // dummy objects for freestanding modules.
 
     //* ******************************* kmain ******************************** *
-    const kmain_module = b.createModule(.{
-        .root_source_file = b.path("kmain/kmain.zig"),
-    });
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.oshal.name,
         shared_modules.oshal.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osshell.name,
         shared_modules.osshell.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osstdlib.name,
         shared_modules.osstdlib.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osprocess.name,
         shared_modules.osprocess.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
-    kmain_module.addOptions(
+    shared_modules.kmain.module.addOptions(
         "testoptions",
         test_options,
     );
 
-    x86_module.addImport("kmain", kmain_module);
-    riscv32_module.addImport("kmain", kmain_module);
+    x86_module.addImport(
+        shared_modules.kmain.name,
+        shared_modules.kmain.module,
+    );
+    riscv32_module.addImport(
+        shared_modules.kmain.name,
+        shared_modules.kmain.module,
+    );
 
     //**************************************************************************
     //                           Compile Step Setup                            *
