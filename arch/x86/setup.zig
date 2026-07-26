@@ -241,14 +241,16 @@ pub fn setup(boot_info: BootInfo) noreturn {
     boot_info.paging.unmap(0);
     as.assembly_wrappers.enable_x86_interrupts();
 
-    const hal_layout: oshal.HalLayout = comptime .{
-        .assembly_wrappers = as.assembly_wrappers,
-    };
     kmain.kmain(
-        hal_layout,
-        oshal.HAL(hal_layout){
+        .{
             .terminal = fb_writer,
             .serial_io = sp_writer,
+        },
+        .{
+            .assembly_wrappers = .{
+                .jump = as.assembly_wrappers.jump,
+                .illegal_instruction = as.assembly_wrappers.illegal_instruction,
+            },
         },
     );
 }

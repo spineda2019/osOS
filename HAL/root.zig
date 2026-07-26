@@ -13,19 +13,6 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const IWriter = @import("osformat").IWriter;
+pub const RtHAL = @import("RtHAL.zig");
 
-pub const HalLayout = struct {
-    /// namespace where architecture specific (duh?) functions are defined.
-    assembly_wrappers: type,
-};
-
-pub fn HAL(comptime layout: HalLayout) type {
-    return struct {
-        comptime assembly_wrappers: type = layout.assembly_wrappers,
-
-        serial_io: IWriter,
-
-        terminal: IWriter,
-    };
-}
+pub const CtHal = @import("CtHAL.zig");

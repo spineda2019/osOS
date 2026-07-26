@@ -14,10 +14,6 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// const terminal = @import("hal_terminal");
-// const serial = @import("hal_serial");
-
-const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 const process = @import("osprocess");
 const osformat = @import("osformat");
@@ -26,13 +22,11 @@ const testoptions = @import("testoptions");
 const osshell = @import("osshell");
 
 pub fn kmain(
-    comptime layout: oshal.HalLayout,
-    arch_agnostic_hal: oshal.HAL(layout),
+    rt_hal: oshal.RtHAL,
+    comptime ct_hal: oshal.CtHal,
 ) noreturn {
-    comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
-
-    var terminal = arch_agnostic_hal.terminal;
-    var serial = arch_agnostic_hal.serial_io;
+    var terminal = rt_hal.terminal;
+    var serial = rt_hal.serial_io;
 
     for (0..12) |_| {
         terminal.writef("Foo " ** 20, .{});
@@ -56,17 +50,16 @@ pub fn kmain(
             "Purposefully performing an illegal instruction...\r\n",
             .{},
         );
-        arch_agnostic_hal.assembly_wrappers.illegal_instruction();
+        ct_hal.assembly_wrappers.illegal_instruction();
     }
 
     terminal.flush();
     serial.flush();
 
     var process_pool: process.ProcessTable(8) = .init();
-    const shell = process_pool.createProcess(&osshell.shellMain) catch |err| {
-        @panic(@errorName(err));
-    };
-    arch_agnostic_hal.assembly_wrappers.jump(@intFromPtr(shell.entry_address));
+    _ = &process_pool;
+    // TODO(SEP) somehow start shell proc in userland
+    // Userland semantics will likely need to be passed in via the RtHAL or CtHAL
 
     while (true) {
         asm volatile ("");

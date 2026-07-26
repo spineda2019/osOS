@@ -168,12 +168,15 @@ pub noinline fn enableSSE() void {
         : .{ .eax = true });
 }
 
-pub inline fn illegal_instruction() void {}
+pub inline fn illegal_instruction() noreturn {
+    unreachable;
+}
 
-pub inline fn jump(address: u32) void {
+pub inline fn jump(address: u32) noreturn {
     asm volatile (
         \\jmp *%[addr]
         : // no outs
         : [addr] "r" (address),
     );
+    unreachable;
 }
