@@ -57,20 +57,24 @@ pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
     }
 }
 
+const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
+var gdt_descriptor: memory.gdt.GDTDescriptor = .{ .size = 0, .address = 0 };
+
+var idt: [256]interrupts.idt.InterruptDescriptor = undefined;
+var idt_descriptor: interrupts.idt.IDTDescriptor = undefined;
+
 /// Hardware setup; jumped to from the boot routine
 /// At this point, paging should be enabled, and we should be in the higher
-/// half.
+/// half and using a virtual stack.
 pub fn setup(boot_info: BootInfo) noreturn {
-    // Switch to the virtual stack
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
-    const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
 
-    const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
+    gdt_descriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    const idt = interrupts.idt.createDefaultIDT();
-    const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
+    idt = interrupts.idt.createDefaultIDT();
+    idt_descriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
     var framebuffer: io.FrameBuffer = .init(
@@ -105,11 +109,15 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .serial_port_writer = &sp_writer,
     };
 
-    logger.log("Trying to write out of COM port 1...\r\n", .{});
-
     const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
         @panic(@errorName(err));
     };
+
+    logger.log("******************* Memory info *******************\r\n", .{});
+    logger.log("Setup fn linear address: {*}\r\n", .{&setup});
+    logger.log("GDT (array) linear address: {*}\r\n", .{&gdt});
+    logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
+    logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
 
     logger.log("Physical kernel end at {*}\r\n", .{boot_info.memory.kernel_end});
     logger.log("Probing paging information...\r\n", .{});
