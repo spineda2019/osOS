@@ -152,6 +152,7 @@ pub inline fn enable_x86_interrupts() void {
 ///
 /// Note: CR0 register is 32 bits wide, CR4 is 25 bits wide.
 pub noinline fn enableSSE() void {
+    // TODO(SEP): clobber correctness
     asm volatile (
         \\mov %cr0, %eax
         \\and 0xFFFB, %ax # clear coprocessor emulation CR0.EM
@@ -167,4 +168,15 @@ pub noinline fn enableSSE() void {
         : .{ .eax = true });
 }
 
-pub inline fn illegal_instruction() void {}
+pub inline fn illegal_instruction() noreturn {
+    unreachable;
+}
+
+pub inline fn jump(address: u32) noreturn {
+    asm volatile (
+        \\jmp *%[addr]
+        : // no outs
+        : [addr] "r" (address),
+    );
+    unreachable;
+}

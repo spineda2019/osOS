@@ -14,8 +14,17 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub inline fn illegal_instruction() void {
+pub inline fn illegal_instruction() noreturn {
     asm volatile (
         \\unimp
+    );
+    unreachable;
+}
+
+pub inline fn jump(address: u32) noreturn {
+    asm volatile (
+        \\jr %[addr]
+        : // no outs
+        : [addr] "r" (address),
     );
 }

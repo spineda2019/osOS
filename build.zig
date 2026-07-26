@@ -23,8 +23,10 @@ const BuildOptions = struct {
     boot_loader: BootLoader,
     emulator: Emulator,
     test_panic: bool,
+    test_illegal_instruction: bool,
     build_bochs: bool,
     use_debugger: bool,
+    build_schilytools: bool,
 
     pub fn init(b: *std.Build) BuildOptions {
         return .{
@@ -43,6 +45,11 @@ const BuildOptions = struct {
                 "test_panic",
                 "Test the panic handler in kmain",
             ) orelse false,
+            .test_illegal_instruction = b.option(
+                bool,
+                "test_ill",
+                "Test the runtime illegal CPU instruction handler",
+            ) orelse false,
             .boot_loader = b.option(
                 BootLoader,
                 "bootloader",
@@ -52,7 +59,7 @@ const BuildOptions = struct {
                 bool,
                 "build_bochs",
                 "Build bochs from source",
-            ) orelse false,
+            ) orelse true,
             .emulator = b.option(
                 Emulator,
                 "emulator",
@@ -63,6 +70,11 @@ const BuildOptions = struct {
                 "debugger",
                 "Enable usage of the debugger associated with the selected emulator",
             ) orelse false,
+            .build_schilytools = b.option(
+                bool,
+                "build_schilytools",
+                "Build schilytools for iso creation from source",
+            ) orelse (builtin.os.tag == .linux),
         };
     }
 
@@ -234,11 +246,34 @@ pub fn build(b: *std.Build) Err!void {
 
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
+    test_options.addOption(bool, "test_ill", build_options.test_illegal_instruction);
 
-    const depbochs = b.lazyDependency(
-        "bochs_zig",
-        .{ .@"with-x11" = true, .@"with-sdl" = true },
-    );
+    const depbochs: ?*std.Build.Dependency = dep: {
+        if (build_options.build_bochs) {
+            break :dep b.lazyDependency(
+                "bochs_zig",
+                .{
+                    .optimize = std.builtin.OptimizeMode.ReleaseFast,
+                    .@"with-x11" = true,
+                },
+            );
+        } else {
+            break :dep null;
+        }
+    };
+
+    const dep_schilytools: ?*std.Build.Dependency = dep: {
+        if (build_options.build_schilytools) {
+            break :dep b.lazyDependency(
+                "schilytools_zig",
+                .{
+                    .optimize = std.builtin.OptimizeMode.ReleaseFast,
+                },
+            );
+        } else {
+            break :dep null;
+        }
+    };
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -254,6 +289,9 @@ pub fn build(b: *std.Build) Err!void {
         oshal: CommonModule,
         osshell: CommonModule,
         osstdlib: CommonModule,
+
+        /// This is special
+        kmain: CommonModule,
     };
 
     const shared_modules: SharedModules = .{
@@ -264,6 +302,7 @@ pub fn build(b: *std.Build) Err!void {
         .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
         .osshell = .create(b, "osshell", "userland/shell/shell.zig", test_target),
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
+        .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
     };
 
     shared_modules.oshal.module.addImport(
@@ -271,13 +310,25 @@ pub fn build(b: *std.Build) Err!void {
         shared_modules.osformat.module,
     );
 
-    const modbochs = bochs: {
+    const exebochs: ?*std.Build.Step.Compile = bochs: {
         if (!build_options.build_bochs) {
             break :bochs null;
         } else if (depbochs) |dep| {
-            break :bochs dep.module("bochs");
+            break :bochs dep.artifact("bochs");
         } else {
             break :bochs null;
+        }
+    };
+
+    const exe_mkisofs: ?*std.Build.Step.Compile = blk: {
+        if (build_options.build_schilytools) {
+            if (dep_schilytools) |dep| {
+                break :blk dep.artifact("mkisofs");
+            } else {
+                break :blk null;
+            }
+        } else {
+            break :blk null;
         }
     };
 
@@ -453,40 +504,69 @@ pub fn build(b: *std.Build) Err!void {
     // dummy objects for freestanding modules.
 
     //* ******************************* kmain ******************************** *
-    const kmain_module = b.createModule(.{
-        .root_source_file = b.path("kmain/kmain.zig"),
-    });
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.oshal.name,
         shared_modules.oshal.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osshell.name,
         shared_modules.osshell.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osstdlib.name,
         shared_modules.osstdlib.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osprocess.name,
         shared_modules.osprocess.module,
     );
-    kmain_module.addImport(
+    shared_modules.kmain.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
-    kmain_module.addOptions(
+    shared_modules.kmain.module.addOptions(
         "testoptions",
         test_options,
     );
 
-    x86_module.addImport("kmain", kmain_module);
-    riscv32_module.addImport("kmain", kmain_module);
+    x86_module.addImport(
+        shared_modules.kmain.name,
+        shared_modules.kmain.module,
+    );
+    riscv32_module.addImport(
+        shared_modules.kmain.name,
+        shared_modules.kmain.module,
+    );
 
     //**************************************************************************
     //                           Compile Step Setup                            *
     //**************************************************************************
+
+    const Outputs = struct {
+        const Self = @This();
+        riscv32: std.Build.Step.InstallArtifact.Options,
+        x86: std.Build.Step.InstallArtifact.Options,
+
+        fn init() Self {
+            return .{
+                .riscv32 = .{
+                    .dest_dir = .{
+                        .override = .{
+                            .custom = @tagName(std.Target.Cpu.Arch.riscv32),
+                        },
+                    },
+                },
+                .x86 = .{
+                    .dest_dir = .{
+                        .override = .{
+                            .custom = @tagName(std.Target.Cpu.Arch.x86),
+                        },
+                    },
+                },
+            };
+        }
+    };
+    const output_dirs: Outputs = comptime .init();
 
     //* *************************** RISC Specific **************************** *
     const riscv32_exe = b.addExecutable(.{
@@ -504,18 +584,6 @@ pub fn build(b: *std.Build) Err!void {
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
 
-    //* ******************************* Bochs ******************************** *
-    const exebochs = bochs_exe: {
-        if (modbochs) |mod| {
-            break :bochs_exe b.addExecutable(.{
-                .name = "bochs",
-                .root_module = mod,
-            });
-        } else {
-            break :bochs_exe null;
-        }
-    };
-
     //**************************************************************************
     //                          Install Artifact Setup                         *
     //**************************************************************************
@@ -525,23 +593,11 @@ pub fn build(b: *std.Build) Err!void {
     );
 
     //* *************************** RISC Specific **************************** *
-    const riscv32_out = b.addInstallArtifact(riscv32_exe, .{
-        .dest_dir = .{
-            .override = .{
-                .custom = @tagName(std.Target.Cpu.Arch.riscv32),
-            },
-        },
-    });
+    const riscv32_out = b.addInstallArtifact(riscv32_exe, output_dirs.riscv32);
     all_step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
-    const x86_out = b.addInstallArtifact(x86_exe, .{
-        .dest_dir = .{
-            .override = .{
-                .custom = @tagName(std.Target.Cpu.Arch.x86),
-            },
-        },
-    });
+    const x86_out = b.addInstallArtifact(x86_exe, output_dirs.x86);
     all_step.dependOn(&x86_out.step);
 
     //* *************************** Doc Specific ***************************** *
@@ -716,20 +772,6 @@ pub fn build(b: *std.Build) Err!void {
     doc_page_step.dependOn(&rundoccopy.step);
     all_step.dependOn(doc_page_step);
 
-    //* ******************************* Bochs ******************************** *
-    const installbochs = install_bochs: {
-        if (exebochs) |exe| {
-            break :install_bochs b.addInstallArtifact(exe, .{});
-        } else {
-            break :install_bochs null;
-        }
-    };
-    if (build_options.build_bochs) {
-        if (installbochs) |install_bochs| {
-            b.getInstallStep().dependOn(&install_bochs.step);
-        }
-    }
-
     //**************************************************************************
     //                             Run Step Setup                              *
     //**************************************************************************
@@ -839,9 +881,23 @@ pub fn build(b: *std.Build) Err!void {
     runiso.addArtifactArg(x86_exe);
     runiso.step.dependOn(b.getInstallStep());
 
-    // const genisoimage: []const u8 = try b.findProgram(&.{}, &.{});
-    const create_x86_iso = b.addSystemCommand(&.{
-        "genisoimage",
+    const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
+    if (exe_mkisofs) |exe| {
+        create_x86_iso.addArtifactArg(exe);
+    } else {
+        const prog: []const u8 = b.findProgram(&.{
+            "genisoimage",
+            "mkisofs",
+            "genisoimage.exe",
+            "mkisofs.exe",
+        }, &.{}) catch |err| blk: {
+            std.debug.print("WARNING: {}\n", .{err});
+            break :blk "genisoimage";
+        };
+
+        create_x86_iso.addArg(prog);
+    }
+    create_x86_iso.addArgs(&.{
         "-R",
         "-b",
         build_options.bootBinary(),
@@ -900,12 +956,26 @@ pub fn build(b: *std.Build) Err!void {
     x86_run_qemu_debugger.step.dependOn(&runiso.step);
     x86_run_qemu_debugger.step.dependOn(&create_x86_iso.step);
 
-    const x86_run_bochs = b.addSystemCommand(&.{
-        "bochs",
-        "-f",
-        "zig-out/x86/bochs.config",
-        "-q",
-    });
+    const x86_run_bochs: *std.Build.Step.Run = .create(b, "runbochs");
+    if (build_options.emulator == .bochs) {
+        if (build_options.build_bochs) {
+            if (exebochs) |exe| {
+                x86_run_bochs.addArtifactArg(exe);
+            }
+        } else {
+            x86_run_bochs.addArg("bochs"); // use system installation
+        }
+        x86_run_bochs.addArg("-f");
+        x86_run_bochs.addFileArg(b.path("arch/x86/bochs/bochs.config"));
+        x86_run_bochs.addArg("-q");
+    }
+
+    // const x86_run_bochs = b.addSystemCommand(&.{
+    // "bochs",
+    // "-f",
+    // "zig-out/x86/bochs.config",
+    // "-q",
+    // });
     x86_run_bochs.step.dependOn(&runiso.step);
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
 

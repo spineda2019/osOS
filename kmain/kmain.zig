@@ -1,4 +1,4 @@
-//! kmain.zig - The central core of osOS; where the boot routine jumps to
+//! kmain.zig - The central core of osOS; where the boot routine jumps from setup
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -14,24 +14,19 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// const terminal = @import("hal_terminal");
-// const serial = @import("hal_serial");
-
-const hal_validation = @import("hal_validation.zig");
 const builtin = @import("builtin");
 const process = @import("osprocess");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const testoptions = @import("testoptions");
+const osshell = @import("osshell");
 
 pub fn kmain(
-    comptime layout: oshal.HalLayout,
-    arch_agnostic_hal: oshal.HAL(layout),
+    rt_hal: oshal.RtHAL,
+    comptime ct_hal: oshal.CtHal,
 ) noreturn {
-    comptime hal_validation.validateHalType(@TypeOf(arch_agnostic_hal));
-
-    var terminal = arch_agnostic_hal.terminal;
-    var serial = arch_agnostic_hal.serial_io;
+    var terminal = rt_hal.terminal;
+    var serial = rt_hal.serial_io;
 
     for (0..12) |_| {
         terminal.writef("Foo " ** 20, .{});
@@ -49,22 +44,21 @@ pub fn kmain(
         @panic("Testing Panic");
     }
 
-    if (builtin.target.cpu.arch == .riscv32) {
+    if (testoptions.test_ill) {
         terminal.writef(
             "Purposefully performing an illegal instruction...\r\n",
             .{},
         );
-        arch_agnostic_hal.assembly_wrappers.illegal_instruction();
+        ct_hal.assembly_wrappers.illegal_instruction();
     }
-
-    const col_width: u32 = 80;
-    terminal.writef("Terminal Column Width: {d}\r\n", .{col_width});
 
     terminal.flush();
     serial.flush();
 
-    const process_pool: process.ProcessTable = .init();
-    _ = process_pool;
+    var process_pool: process.ProcessTable(8) = .init();
+    _ = &process_pool;
+    // TODO(SEP) somehow start shell proc in userland
+    // Userland semantics will likely need to be passed in via the RtHAL or CtHAL
 
     while (true) {
         asm volatile ("");

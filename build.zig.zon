@@ -9,13 +9,18 @@
 
     .dependencies = .{
         .bochs_zig = .{
-            .url = "git+https://github.com/spineda2019/bochs-zig.git#d0f701d2bf6a66dcee176226c8b6e70415cd99bf",
-            .hash = "bochs-2.7.0-WqPDh7NfLwHcr8Wg-lqqMLmnj1yXgtIQfAfa_ZpCFeV_",
+            .url = "git+https://github.com/spineda2019/bochs-zig.git#cd4124de26494d966a85faf516a455afd029476a",
+            .hash = "bochs-2.7.0-WqPDh5lpLwES66pEyrP5szdAc0bkBHBf_sb50wC_wVCT",
             .lazy = true,
         },
         .limine = .{
             .url = "git+https://github.com/limine-bootloader/limine.git?ref=v10.6.3-binary#a464531c5e1192b83230da29d74ddcf40ea30efd",
             .hash = "N-V-__8AAFNxSgAmqC734zRSm3zL_0brYgzmptnRM0U_q6Zk",
+            .lazy = true,
+        },
+        .schilytools_zig = .{
+            .url = "git+https://github.com/spineda2019/schilytools-zig#05acf323660d3c17a46db69389975ff7c3a41440",
+            .hash = "schilytools-0.0.1-Wp4ZM4rnWACSHPTUd3HkxBV_G4jfIz4sFV1AyWTXYr8c",
             .lazy = true,
         },
     },

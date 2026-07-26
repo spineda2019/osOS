@@ -14,8 +14,47 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub fn syscallISR() callconv(.naked) void {
+fn syscallHandler(
+    edi: u32,
+    esi: u32,
+    ebp: u32,
+    esp: u32,
+    ebx: u32,
+    edx: u32,
+    ecx: u32,
+    eax: u32,
+) callconv(.c) void {
+    _ = edi;
+    _ = esi;
+    _ = ebp;
+    _ = esp;
+    _ = ebx;
+    _ = edx;
+    _ = ecx;
+    _ = eax;
+}
+
+/// never forget gang, args are pushed right to left
+///
+/// `pushal` pushes args in this order
+/// * EAX
+/// * ECX
+/// * EDX
+/// * EBX
+/// * ESP
+/// * EBP
+/// * ESI
+/// * EDI
+pub fn syscallIsr() callconv(.naked) noreturn {
     asm volatile (
+        \\pushal
+    );
+
+    asm volatile (
+        \\call *%[landing_pad]
+        \\popal
         \\iret
+        : // no outputs
+        : [landing_pad] "r" (@intFromPtr(&syscallHandler)),
     );
 }
