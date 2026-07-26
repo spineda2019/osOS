@@ -1,4 +1,4 @@
-//! kmain.zig - The central core of osOS; where the boot routine jumps to
+//! kmain.zig - The central core of osOS; where the boot routine jumps from setup
 //! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
 //!
 //! This program is free software: you can redistribute it and/or modify
@@ -44,8 +44,7 @@ pub fn kmain(
         @panic("Testing Panic");
     }
 
-    // TODO(SEP): somehow move to build system maybe?
-    if (builtin.target.cpu.arch == .riscv32) {
+    if (testoptions.test_ill) {
         terminal.writef(
             "Purposefully performing an illegal instruction...\r\n",
             .{},

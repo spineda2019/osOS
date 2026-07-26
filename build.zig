@@ -23,6 +23,7 @@ const BuildOptions = struct {
     boot_loader: BootLoader,
     emulator: Emulator,
     test_panic: bool,
+    test_illegal_instruction: bool,
     build_bochs: bool,
     use_debugger: bool,
     build_schilytools: bool,
@@ -43,6 +44,11 @@ const BuildOptions = struct {
                 bool,
                 "test_panic",
                 "Test the panic handler in kmain",
+            ) orelse false,
+            .test_illegal_instruction = b.option(
+                bool,
+                "test_ill",
+                "Test the runtime illegal CPU instruction handler",
             ) orelse false,
             .boot_loader = b.option(
                 BootLoader,
@@ -240,6 +246,7 @@ pub fn build(b: *std.Build) Err!void {
 
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
+    test_options.addOption(bool, "test_ill", build_options.test_illegal_instruction);
 
     const depbochs: ?*std.Build.Dependency = dep: {
         if (build_options.build_bochs) {
