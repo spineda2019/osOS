@@ -27,6 +27,9 @@ const syscall_count: comptime_int = blk: {
 
 const impl = struct {
     fn exit(_: *const Registers) void {}
+    fn open(_: *const Registers) void {}
+    fn read(_: *const Registers) void {}
+    fn write(_: *const Registers) void {}
 };
 
 const handler_table: [syscall_count]?*const fn (*const Registers) void = blk: {
