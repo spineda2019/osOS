@@ -14,6 +14,41 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const syscall_table = @import("syscall.zon");
+const syscall_count: comptime_int = blk: {
+    var count: comptime_int = 0;
+    for (syscall_table) |syscall| {
+        if (syscall.number >= count) {
+            count = syscall.number + 1;
+        }
+    }
+    break :blk count;
+};
+
+const impl = struct {
+    fn exit(_: *const Registers) void {}
+};
+
+const handler_table: [syscall_count]?*const fn (*const Registers) void = blk: {
+    var table: [syscall_count]?*const fn (*const Registers) void = @splat(null);
+    for (syscall_table) |syscall| {
+        if (@hasDecl(impl, syscall.name)) {
+            table[syscall.number] = @field(impl, syscall.name);
+        }
+    }
+    break :blk table;
+};
+
+const Registers = struct {
+    edi: u32,
+    esi: u32,
+    ebp: u32,
+    esp: u32,
+    ebx: u32,
+    edx: u32,
+    ecx: u32,
+};
+
 fn syscallHandler(
     edi: u32,
     esi: u32,
@@ -22,16 +57,26 @@ fn syscallHandler(
     ebx: u32,
     edx: u32,
     ecx: u32,
-    eax: u32,
+    syscallIndex: u32, // Actually EAX
 ) callconv(.c) void {
-    _ = edi;
-    _ = esi;
-    _ = ebp;
-    _ = esp;
-    _ = ebx;
-    _ = edx;
-    _ = ecx;
-    _ = eax;
+    if (syscallIndex >= handler_table.len) {
+        @panic("Invalid syscall index");
+    }
+
+    if (handler_table[syscallIndex]) |handler| {
+        const regs: Registers = .{
+            .edi = edi,
+            .esi = esi,
+            .ebp = ebp,
+            .esp = esp,
+            .ebx = ebx,
+            .edx = edx,
+            .ecx = ecx,
+        };
+        handler(&regs);
+    } else {
+        @panic("Syscall TODO");
+    }
 }
 
 /// never forget gang, args are pushed right to left
