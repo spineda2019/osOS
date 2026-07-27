@@ -287,7 +287,6 @@ pub fn build(b: *std.Build) Err!void {
         osprocess: CommonModule,
         osboot: CommonModule,
         oshal: CommonModule,
-        osshell: CommonModule,
         osstdlib: CommonModule,
 
         /// This is special
@@ -300,7 +299,6 @@ pub fn build(b: *std.Build) Err!void {
         .osprocess = .create(b, "osprocess", "process/root.zig", test_target),
         .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig", test_target),
         .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
-        .osshell = .create(b, "osshell", "userland/shell/shell.zig", test_target),
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
         .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
     };
@@ -331,6 +329,27 @@ pub fn build(b: *std.Build) Err!void {
             break :blk null;
         }
     };
+
+    const UserlandModules = struct {
+        sys: CommonModule,
+    };
+    const userland_modules: UserlandModules = .{
+        .sys = .create(b, "sys", "userland/stdlib/root.zig", test_target),
+    };
+    const shell_module = b.createModule(.{
+        .root_source_file = b.path("userland/shell/main.zig"),
+        .target = b.resolveTargetQuery(.{
+            .cpu_arch = switch (build_options.default_run_target) {
+                .x86 => .x86,
+                .riscv32 => .riscv32,
+            },
+            .os_tag = .freestanding,
+            .abi = .none,
+        }),
+        .optimize = optimize,
+        .strip = false,
+    });
+    shell_module.addImport(userland_modules.sys.name, userland_modules.sys.module);
 
     //* *************************** RISC Specific **************************** *
     const RiscV32Modules = struct {
@@ -509,10 +528,6 @@ pub fn build(b: *std.Build) Err!void {
         shared_modules.oshal.module,
     );
     shared_modules.kmain.module.addImport(
-        shared_modules.osshell.name,
-        shared_modules.osshell.module,
-    );
-    shared_modules.kmain.module.addImport(
         shared_modules.osstdlib.name,
         shared_modules.osstdlib.module,
     );
@@ -568,6 +583,14 @@ pub fn build(b: *std.Build) Err!void {
     };
     const output_dirs: Outputs = comptime .init();
 
+    //* ******************************* Shared ******************************* *
+    const shell_exe = b.addExecutable(.{
+        .name = "init",
+        .root_module = shell_module,
+    });
+    shell_exe.entry = .{ .symbol_name = "main" };
+    shell_exe.setLinkerScript(b.path("userland/shell/link.ld"));
+
     //* *************************** RISC Specific **************************** *
     const riscv32_exe = b.addExecutable(.{
         .name = kernel_name,
@@ -591,6 +614,17 @@ pub fn build(b: *std.Build) Err!void {
         "all",
         "Build the Kernel for all supported architectures",
     );
+
+    //* ******************************* Shared ******************************* *
+    const shell_out = b.addInstallArtifact(
+        shell_exe,
+        switch (build_options.default_run_target) {
+            .x86 => output_dirs.x86,
+            .riscv32 => output_dirs.riscv32,
+        },
+    );
+    all_step.dependOn(&shell_out.step);
+    b.getInstallStep().dependOn(&shell_out.step);
 
     //* *************************** RISC Specific **************************** *
     const riscv32_out = b.addInstallArtifact(riscv32_exe, output_dirs.riscv32);
