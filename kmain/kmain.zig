@@ -19,7 +19,6 @@ const process = @import("osprocess");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const testoptions = @import("testoptions");
-const osshell = @import("osshell");
 
 /// Ideally the beginning of true arch agnostic osOS logic, like where the
 /// scheduler will start and where pretty much everything that need not know

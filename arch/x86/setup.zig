@@ -119,6 +119,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
     logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
 
+    logger.log("******************* Paging info *******************\r\n", .{});
     logger.log("Physical kernel end at {*}\r\n", .{boot_info.memory.kernel_end});
     logger.log("Probing paging information...\r\n", .{});
     logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});

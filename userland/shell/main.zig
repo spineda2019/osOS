@@ -14,12 +14,12 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const osstd = @import("osstdlib");
+const sys = @import("sys");
 
 /// The main "init" process of the osOS kernel. Should be run in user space.
 /// Will be capable to run other processes (eventuallY) but will need basic
 /// IO and will use the syscall interface to do this (exec/CreateProcess).
-pub fn shellMain() noreturn {
+export fn main() noreturn {
     while (true) {
         asm volatile (
             \\
