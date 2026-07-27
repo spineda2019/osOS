@@ -183,6 +183,43 @@ const autogen_lines = [_][]const u8{
     "// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",
 };
 
+const Steps = struct {
+    build_all: *std.Build.Step,
+    build_docs: *std.Build.Step,
+    build_iso: *std.Build.Step,
+    build_kernel: *std.Build.Step,
+    build_shell: *std.Build.Step,
+    run: *std.Build.Step,
+    test_: *std.Build.Step,
+
+    fn init(b: *std.Build) Steps {
+        return .{
+            .build_all = b.step(
+                "all",
+                "Build the Kernel for all supported architectures",
+            ),
+            .build_docs = b.step(
+                "doc_site",
+                "Build all docs and tie them together with the landing page",
+            ),
+            .build_iso = b.step("iso", "Build the x86 ISO disc image"),
+            .build_kernel = b.step(
+                "kernel",
+                "Build (just) the kernel for just the specified target",
+            ),
+            .build_shell = b.step("shell", "build the userland shell"),
+            .run = b.step(
+                "run",
+                "Boot kernel for specified target (x86 by default)",
+            ),
+            .test_ = b.step(
+                "test",
+                "Run arch-agnostic unit tests (Runnable from any host)",
+            ),
+        };
+    }
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -274,6 +311,8 @@ pub fn build(b: *std.Build) Err!void {
             break :dep null;
         }
     };
+
+    const build_steps: Steps = .init(b);
 
     //**************************************************************************
     //                               Module Setup                              *
@@ -610,10 +649,6 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                          Install Artifact Setup                         *
     //**************************************************************************
-    const all_step = b.step(
-        "all",
-        "Build the Kernel for all supported architectures",
-    );
 
     //* ******************************* Shared ******************************* *
     const shell_out = b.addInstallArtifact(
@@ -623,16 +658,16 @@ pub fn build(b: *std.Build) Err!void {
             .riscv32 => output_dirs.riscv32,
         },
     );
-    all_step.dependOn(&shell_out.step);
+    build_steps.build_all.dependOn(&shell_out.step);
     b.getInstallStep().dependOn(&shell_out.step);
 
     //* *************************** RISC Specific **************************** *
     const riscv32_out = b.addInstallArtifact(riscv32_exe, output_dirs.riscv32);
-    all_step.dependOn(&riscv32_out.step);
+    build_steps.build_all.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
     const x86_out = b.addInstallArtifact(x86_exe, output_dirs.x86);
-    all_step.dependOn(&x86_out.step);
+    build_steps.build_all.dependOn(&x86_out.step);
 
     //* *************************** Doc Specific ***************************** *
 
@@ -730,10 +765,6 @@ pub fn build(b: *std.Build) Err!void {
             try common.end();
         }
     }
-    const doc_page_step = b.step(
-        "doc_site",
-        "Build all docs and tie them together with the landing page",
-    );
     const moddoccopy = b.createModule(.{
         .root_source_file = b.path("docs/main.zig"),
         .optimize = .Debug,
@@ -803,8 +834,8 @@ pub fn build(b: *std.Build) Err!void {
     rundoccopy.step.dependOn(&x86_install_doc.step);
     rundoccopy.step.dependOn(&riscv32_install_doc.step);
 
-    doc_page_step.dependOn(&rundoccopy.step);
-    all_step.dependOn(doc_page_step);
+    build_steps.build_docs.dependOn(&rundoccopy.step);
+    build_steps.build_all.dependOn(build_steps.build_docs);
 
     //**************************************************************************
     //                             Run Step Setup                              *
@@ -950,11 +981,10 @@ pub fn build(b: *std.Build) Err!void {
     });
     create_x86_iso.step.dependOn(&runiso.step);
 
-    const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
     switch (build_options.default_run_target) {
         .x86 => {
-            x86_iso_step.dependOn(&create_x86_iso.step);
-            x86_iso_step.dependOn(&runiso.step);
+            build_steps.build_iso.dependOn(&create_x86_iso.step);
+            build_steps.build_iso.dependOn(&runiso.step);
         },
         .riscv32 => {
             // riscv32 currently doesn't make an iso
@@ -1022,26 +1052,18 @@ pub fn build(b: *std.Build) Err!void {
     });
     x86_run_bochs_debugger.step.dependOn(&runiso.step);
     x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
-    all_step.dependOn(x86_iso_step);
+    build_steps.build_all.dependOn(build_steps.build_iso);
 
     //* ************************* Generic Run Target ************************* *
-    const generic_build_step = b.step(
-        "kernel",
-        "Build the kernel for just the specified target",
-    );
-    generic_build_step.dependOn(switch (build_options.default_run_target) {
+    build_steps.build_kernel.dependOn(switch (build_options.default_run_target) {
         .x86 => &x86_out.step,
         .riscv32 => &riscv32_out.step,
     });
-    b.getInstallStep().dependOn(generic_build_step);
+    b.getInstallStep().dependOn(build_steps.build_kernel);
 
-    const generic_run_step = b.step(
-        "run",
-        "Boot kernel for specified target (x86 by default)",
-    );
     switch (build_options.default_run_target) {
         .x86 => {
-            generic_run_step.dependOn(switch (build_options.emulator) {
+            build_steps.run.dependOn(switch (build_options.emulator) {
                 .bochs => switch (build_options.use_debugger) {
                     false => &x86_run_bochs.step,
                     true => &x86_run_bochs_debugger.step,
@@ -1053,33 +1075,28 @@ pub fn build(b: *std.Build) Err!void {
             });
         },
         .riscv32 => {
-            generic_run_step.dependOn(&run_riscv32.step);
+            build_steps.run.dependOn(&run_riscv32.step);
         },
     }
 
     //* ***************************** Unit Tests ***************************** *
 
-    const arch_agnostic_test_step = b.step(
-        "test",
-        "Run arch-agnostic unit tests (Runnable from any host)",
-    );
-
     inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
         const run_test = b.addRunArtifact(
             @field(shared_modules, field_name).test_artifact,
         );
-        arch_agnostic_test_step.dependOn(&run_test.step);
+        build_steps.test_.dependOn(&run_test.step);
     }
     inline for (comptime std.meta.fieldNames(X86Modules)) |field_name| {
         const run_test = b.addRunArtifact(
             @field(x86_modules, field_name).test_artifact,
         );
-        arch_agnostic_test_step.dependOn(&run_test.step);
+        build_steps.test_.dependOn(&run_test.step);
     }
     inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field_name| {
         const run_test = b.addRunArtifact(
             @field(riscv32_modules, field_name).test_artifact,
         );
-        arch_agnostic_test_step.dependOn(&run_test.step);
+        build_steps.test_.dependOn(&run_test.step);
     }
 }
