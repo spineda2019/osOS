@@ -15,6 +15,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const sys = @import("sys");
+const std = @import("std");
 
 /// The main "init" process of the osOS kernel. Should be run in user space.
 /// Will be capable to run other processes (eventuallY) but will need basic

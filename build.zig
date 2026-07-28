@@ -403,6 +403,15 @@ pub fn build(b: *std.Build) Err!void {
         .strip = false,
     });
     shell_module.addImport(userland_modules.sys.name, userland_modules.sys.module);
+    userland_modules.sys.module.addAnonymousImport(
+        "syscall_table",
+        .{
+            .root_source_file = switch (build_options.default_run_target) {
+                .x86 => b.path("arch/x86/interrupts/syscall.zon"),
+                else => @panic("syscall TODO"),
+            },
+        },
+    );
 
     //* *************************** RISC Specific **************************** *
     const RiscV32Modules = struct {
