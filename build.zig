@@ -220,10 +220,52 @@ const Steps = struct {
     }
 };
 
+const kernel_name = "osOS.elf";
+
+const Targets = struct {
+    x86: std.Target.Query,
+    riscv32: std.Target.Query,
+
+    fn init() Targets {
+        return .{
+            .x86 = .{
+                .cpu_arch = .x86,
+                .os_tag = .freestanding,
+                .abi = .none,
+                // remove features not guaranteed to exist on the original i386
+                .cpu_features_sub = std.Target.x86.featureSet(&.{
+                    .mmx,
+                    .sse,
+                    .sse2,
+                    .sse3,
+                    .sse4_1,
+                    .sse4_2,
+                    .sse4a,
+                    .sse_unaligned_mem,
+                    .ssse3,
+                    .avx,
+                }),
+            },
+            .riscv32 = .{
+                .cpu_arch = .riscv32,
+                .os_tag = .freestanding,
+                .abi = .none,
+            },
+        };
+    }
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) Err!void {
+    const optimize = b.standardOptimizeOption(.{});
+    const test_target = b.standardTargetOptions(.{});
+
+    const target_info: Targets = .init();
+    const x86_target = b.resolveTargetQuery(target_info.x86);
+    const riscv32_target = b.resolveTargetQuery(target_info.riscv32);
+
     var threaded_io: std.Io.Threaded = .init(b.allocator, .{});
     const io: std.Io = threaded_io.io();
 
@@ -245,34 +287,6 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
-    const optimize = b.standardOptimizeOption(.{});
-    const test_target = b.standardTargetOptions(.{});
-
-    const kernel_name = "osOS.elf";
-
-    const x86_target = b.resolveTargetQuery(.{
-        .cpu_arch = .x86,
-        .os_tag = .freestanding,
-        .abi = .none,
-        // remove features not guaranteed to exist on the original i386
-        .cpu_features_sub = std.Target.x86.featureSet(&.{
-            .mmx,
-            .sse,
-            .sse2,
-            .sse3,
-            .sse4_1,
-            .sse4_2,
-            .sse4a,
-            .sse_unaligned_mem,
-            .ssse3,
-            .avx,
-        }),
-    });
-    const riscv32_target = b.resolveTargetQuery(.{
-        .cpu_arch = .riscv32,
-        .os_tag = .freestanding,
-        .abi = .none,
-    });
 
     const boot_options = b.addOptions();
     boot_options.addOption(
@@ -659,6 +673,7 @@ pub fn build(b: *std.Build) Err!void {
         },
     );
     build_steps.build_all.dependOn(&shell_out.step);
+    build_steps.build_shell.dependOn(&shell_out.step);
     b.getInstallStep().dependOn(&shell_out.step);
 
     //* *************************** RISC Specific **************************** *
