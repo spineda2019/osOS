@@ -40,7 +40,7 @@ pub export const multiboot_header linksection(".multiboot") = switch (bootoption
     .MultibootOne => bootutils.MultiBoot.V1.init(
         .{
             .flags = .{
-                .enforce_all_4kb_alignment = false,
+                .enforce_all_4kb_alignment = true,
                 .include_memory_information = false,
                 .include_video_mode_info = true,
                 .activate_address_configurations = false,
