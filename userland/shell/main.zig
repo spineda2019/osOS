@@ -17,13 +17,20 @@
 const sys = @import("sys");
 const std = @import("std");
 
+pub const panic = std.debug.FullPanic(struct {
+    fn impl(_: []const u8, _: ?usize) noreturn {
+        sys.exit();
+    }
+}.impl);
+
 /// The main "init" process of the osOS kernel. Should be run in user space.
 /// Will be capable to run other processes (eventuallY) but will need basic
 /// IO and will use the syscall interface to do this (exec/CreateProcess).
 export fn main() noreturn {
     while (true) {
-        asm volatile (
-            \\
-        );
+        sys.io.console.write("osh> ");
+        const line = sys.io.console.readLine();
+        sys.io.console.write("Hey I see what you entered: ");
+        sys.io.console.writeLine(line);
     }
 }
