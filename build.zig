@@ -472,13 +472,8 @@ pub fn build(b: *std.Build) Err!void {
         .io_module = .create(b, "x86io", "arch/x86/io/root.zig", test_target),
         .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig", test_target),
         .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig", test_target),
-        .boot_info = .create(b, "BootInfo", "arch/x86/BootInfo.zig", test_target),
+        .boot_info = .create(b, "BootInfo", "arch/x86/boot_info/root.zig", test_target),
     };
-
-    shared_modules.osboot.module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.module,
-    );
 
     x86_modules.boot_info.module.addImport(
         x86_modules.memory_module.name,

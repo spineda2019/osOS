@@ -14,8 +14,8 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const physical_kernel_end: *anyopaque = @extern(
-    *anyopaque,
+const physical_kernel_end: [*]const u8 = @extern(
+    [*]const u8,
     .{ .name = "__physical_kernel_end" },
 );
 
@@ -27,6 +27,9 @@ const virtual_stack_top: [*]u8 = @extern(
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("osboot");
+const BootInfo = @import("BootInfo");
+const MemoryInfo = BootInfo.MemoryInfo;
+const MemoryError = MemoryInfo.IMemoryProber.MemError;
 /// Defined in the build script
 const bootoptions = @import("bootoptions");
 const memory = @import("x86memory");
@@ -174,8 +177,26 @@ fn trampoline(
             }
         },
         .memory = .{
-            .interface = mb_info.prober(),
-            .len = if (mb_info.flags.mmap) mb_info.mmap_length else 0,
+            .interface = .{
+                .instance = mb_info,
+                .vtable = &.{
+                    .availableMemChunkAt = &struct {
+                        fn impl(
+                            opaque_self: *const anyopaque,
+                            idx: usize,
+                        ) MemoryError!?[]allowzero u8 {
+                            const T = bootutils.MultiBoot.V1.Info;
+                            const self: *const T = @ptrCast(@alignCast(opaque_self));
+                            return self.availableMemChunkAt(idx) catch |err| {
+                                switch (err) {
+                                    error.MemNoMoreChunks => return MemoryError.NoMoreChunks,
+                                    error.MemInfoUnavailable => return MemoryError.InfoUnavailable,
+                                }
+                            };
+                        }
+                    }.impl,
+                },
+            },
             .kernel_end = physical_kernel_end,
         },
         .paging = page_info,
