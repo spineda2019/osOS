@@ -120,7 +120,6 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
 
     logger.log("******************* Paging info *******************\r\n", .{});
-    logger.log("Physical kernel end at {*}\r\n", .{boot_info.memory.kernel_end});
     logger.log("Probing paging information...\r\n", .{});
     logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
     logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
@@ -216,30 +215,52 @@ pub fn setup(boot_info: BootInfo) noreturn {
         logger.log("    Framebuffer Width not found...\r\n", .{});
     }
 
-    logger.log("Probing Available Memory...\r\n", .{});
-    logger.log("    Total Chunk Count: {d}\r\n", .{boot_info.memory.len});
-    logger.log("    Available Chunks: \r\n", .{});
-    for (0..boot_info.memory.len) |idx| {
-        if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
-            logger.log("        Addr: 0x{d}\r\n", .{chunk.address});
-            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.length});
+    {
+        var iter = boot_info.memory.iterator();
+        logger.log("Probing Available Memory...\r\n", .{});
+        logger.log("    Available Chunks: \r\n", .{});
+
+        while (iter.next()) |chunk| {
+            logger.log("        Addr: {*}\r\n", .{chunk.ptr});
+            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.len});
+
+            logger.flush();
         }
     }
 
-    var page_allocator = memory.PageAllocator.init(boot_info.memory) catch |err| {
+    var page_iter = blk: {
+        var iter = boot_info.memory.iterator();
+        const kernel_end: usize = @intFromPtr(boot_info.memory.kernel_end);
+        while (iter.peek()) |chunk| {
+            const ptr: usize = @intFromPtr(chunk.ptr);
+            const region_end = ptr + chunk.len;
+
+            if (region_end > kernel_end) {
+                break;
+            } else {
+                _ = iter.next();
+            }
+        }
+
+        break :blk iter;
+    };
+
+    var page_allocator = memory.PageAllocator.init(
+        &page_iter,
+        boot_info.memory.kernel_end,
+    ) catch |err| {
         @panic(@errorName(err));
     };
     interrupts.idt.free_page_list = page_allocator.head.first;
 
     logger.log("allocator address: {*}\r\n", .{&page_allocator});
 
-    var maybe_node = page_allocator.head.first;
-    while (maybe_node) |node| {
-        const chunk: *memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
-
-        logger.log("Free Chunk at: {*}\r\n", .{chunk});
-        logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
-        maybe_node = node.next;
+    {
+        var iter = page_allocator.iterator();
+        while (iter.next()) |chunk| {
+            logger.log("Free Chunk at: {*}\r\n", .{chunk});
+            logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
+        }
     }
 
     logger.log("COM1 succesfully written to! Testing cursor movement...\r\n", .{});
