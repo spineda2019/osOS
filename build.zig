@@ -107,6 +107,39 @@ const BootLoader = enum {
     limine,
 };
 
+/// Modules used/ran for build time generation of some artifacts, such as
+/// creating directories/copying files for creating the iso.
+const GenerationModule = struct {
+    name: []const u8,
+    exe: *std.Build.Step.Run,
+    test_exe: *std.Build.Step.Run,
+
+    pub fn init(b: *std.Build, path: std.Build.LazyPath) GenerationModule {
+        const mod = b.createModule(.{
+            .root_source_file = path,
+            .target = .{
+                .query = .fromTarget(&builtin.target),
+                .result = builtin.target,
+            },
+            .optimize = .Debug, // no need to optimize for generation (for now?)
+        });
+
+        const exe = b.addExecutable(.{
+            .name = "",
+            .root_module = mod,
+        });
+
+        const test_exe = b.addTest(.{
+            .root_module = mod,
+        });
+
+        return .{
+            .exe = b.addRunArtifact(exe),
+            .test_exe = b.addRunArtifact(test_exe),
+        };
+    }
+};
+
 const CommonModule = struct {
     name: []const u8,
     module: *std.Build.Module,
@@ -877,92 +910,60 @@ pub fn build(b: *std.Build) Err!void {
     run_riscv32.step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
-    const isooptions = b.addOptions();
-    var buf: [4096]u8 = undefined;
-    var dir: std.Io.Dir = std.Io.Dir.cwd();
-    var output: std.Io.File = try dir.createFile(
-        io,
-        b.pathResolve(&.{ "build_iso", "zon", "limine.zon" }),
-        .{},
-    );
-    var file_writer = output.writer(io, &buf);
-    defer file_writer.end() catch {};
-
-    for (autogen_lines) |line| {
-        try file_writer.interface.writeAll(line);
-    }
-
-    var zon_serializer: std.zon.Serializer = .{
-        .writer = &file_writer.interface,
-    };
-
-    // Top level zon object
-    var obj = try zon_serializer.beginStruct(.{});
-    if (build_options.boot_loader == .limine) {
-        if (b.lazyDependency("limine", .{})) |limine| {
-            {
-                var to_create = try obj.beginTupleField("to_create", .{});
-                try to_create.field("zig-out/x86/iso/boot/limine", .{});
-                try to_create.end();
-            }
-
-            {
-                const pairs = .{
-                    .{
-                        .src = "arch/x86/limine/limine.conf",
-                        .dest = "zig-out/x86/iso/boot/limine/limine.conf",
-                    },
-                    .{
-                        .src = limine.builder.pathResolve(&.{
-                            limine.builder.build_root.path.?,
-                            "limine-bios-cd.bin",
-                        }),
-                        .dest = "zig-out/x86/iso/boot/limine/limine-bios-cd.bin",
-                    },
-                    .{
-                        .src = limine.builder.pathResolve(&.{
-                            limine.builder.build_root.path.?,
-                            "limine-bios.sys",
-                        }),
-                        .dest = "zig-out/x86/iso/boot/limine/limine-bios.sys",
-                    },
-                };
-                var to_copy = try obj.beginTupleField("to_copy", .{});
-
-                inline for (pairs) |pair| {
-                    var pair_field = try to_copy.beginStructField(.{});
-                    try pair_field.field("src", pair.src, .{});
-                    try pair_field.field("dest", pair.dest, .{});
-                    try pair_field.end();
-                }
-
-                try to_copy.end();
-            }
-
-            {
-                try obj.field(
-                    "kernel_destination",
-                    "zig-out/x86/iso/boot/",
-                    .{},
-                );
-            }
-        } else {}
-    }
-    try obj.end();
-    isooptions.addOption(BootLoader, "bootloader", build_options.boot_loader);
     const modiso = b.createModule(.{
         .root_source_file = b.path("build_iso/main.zig"),
         .optimize = .Debug,
         .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
     });
-    modiso.addOptions("isooptions", isooptions);
     const exeiso = b.addExecutable(.{
         .name = "build_iso",
         .root_module = modiso,
     });
     const runiso = b.addRunArtifact(exeiso);
+
     runiso.addFileArg(b.path(""));
+    runiso.addArg("--kernel-src");
     runiso.addArtifactArg(x86_exe);
+    runiso.addArg("--kernel-dest");
+    runiso.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
+    runiso.addArg("--to-create");
+    runiso.addArgs(switch (build_options.boot_loader) {
+        .limine => &.{"zig-out/x86/iso/boot/limine/"},
+        .grub_legacy => &.{"zig-out/x86/iso/boot/grub/"},
+    });
+    switch (build_options.boot_loader) {
+        .limine => {
+            if (b.lazyDependency("limine", .{})) |limine| {
+                runiso.addArgs(&.{
+                    "--copy",
+                    "arch/x86/limine/limine.conf",
+                    "zig-out/x86/iso/boot/limine/limine.conf",
+                });
+
+                runiso.addArg("--copy");
+                runiso.addFileArg(limine.builder.path("limine-bios-cd.bin"));
+                runiso.addArg("zig-out/x86/iso/boot/limine/limine-bios-cd.bin");
+
+                runiso.addArg("--copy");
+                runiso.addFileArg(limine.builder.path("limine-bios.sys"));
+                runiso.addArg("zig-out/x86/iso/boot/limine/limine-bios.sys");
+            }
+        },
+        .grub_legacy => {
+            runiso.addArgs(&.{
+                "--copy",
+                "arch/x86/grub/stage2_eltorito",
+                "zig-out/x86/iso/boot/grub/stage2_eltorito",
+                "--copy",
+                "arch/x86/grub/menu.lst",
+                "zig-out/x86/iso/boot/grub/menu.lst",
+                "--copy",
+                "arch/x86/bochs/bochs.config",
+                "zig-out/x86/bochs.config",
+            });
+        },
+    }
+
     runiso.step.dependOn(b.getInstallStep());
 
     const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
