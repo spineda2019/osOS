@@ -162,6 +162,7 @@ const Args = struct {
         };
 
         var copy_buf: std.ArrayList(CopyFiles) = .empty;
+        var minmum_complete: bool = false;
 
         while (iter.next()) |arg| {
             switch (state) {
@@ -181,6 +182,7 @@ const Args = struct {
                     if (std.mem.eql(u8, arg, "--kernel-src")) {
                         result.kernel = try searchKernelInfo(&iter);
                         state = .search_dirs;
+                        minmum_complete = true;
                     } else {
                         std.debug.print(
                             "Expected '--kernel-src', found: {s}\n",
@@ -211,7 +213,13 @@ const Args = struct {
         }
 
         result.files_to_copy = copy_buf.items;
-        return result;
+
+        if (minmum_complete) {
+            return result;
+        } else {
+            std.debug.print("Missing required repo root and kernel info\n", .{});
+            return ParseError.missing_value;
+        }
     }
 
     fn searchKernelInfo(iter: *ArgIter) ParseError!KernelInfo {
