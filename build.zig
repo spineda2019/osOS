@@ -114,9 +114,13 @@ const GenerationModule = struct {
     exe: *std.Build.Step.Run,
     test_exe: *std.Build.Step.Run,
 
-    pub fn init(b: *std.Build, path: std.Build.LazyPath) GenerationModule {
+    pub fn init(
+        b: *std.Build,
+        root_source_file: std.Build.LazyPath,
+        name: []const u8,
+    ) GenerationModule {
         const mod = b.createModule(.{
-            .root_source_file = path,
+            .root_source_file = root_source_file,
             .target = .{
                 .query = .fromTarget(&builtin.target),
                 .result = builtin.target,
@@ -125,7 +129,7 @@ const GenerationModule = struct {
         });
 
         const exe = b.addExecutable(.{
-            .name = "",
+            .name = name,
             .root_module = mod,
         });
 
@@ -134,6 +138,7 @@ const GenerationModule = struct {
         });
 
         return .{
+            .name = name,
             .exe = b.addRunArtifact(exe),
             .test_exe = b.addRunArtifact(test_exe),
         };
@@ -910,47 +915,43 @@ pub fn build(b: *std.Build) Err!void {
     run_riscv32.step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
-    const modiso = b.createModule(.{
-        .root_source_file = b.path("build_iso/main.zig"),
-        .optimize = .Debug,
-        .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
-    });
-    const exeiso = b.addExecutable(.{
-        .name = "build_iso",
-        .root_module = modiso,
-    });
-    const runiso = b.addRunArtifact(exeiso);
+    const BuildTimeTools = struct {
+        setup_iso: GenerationModule,
+    };
+    const build_time_tools: BuildTimeTools = .{
+        .setup_iso = .init(b, b.path("build_iso/main.zig"), "build_iso"),
+    };
 
-    runiso.addFileArg(b.path(""));
-    runiso.addArg("--kernel-src");
-    runiso.addArtifactArg(x86_exe);
-    runiso.addArg("--kernel-dest");
-    runiso.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
-    runiso.addArg("--to-create");
-    runiso.addArgs(switch (build_options.boot_loader) {
+    build_time_tools.setup_iso.exe.addFileArg(b.path(""));
+    build_time_tools.setup_iso.exe.addArg("--kernel-src");
+    build_time_tools.setup_iso.exe.addArtifactArg(x86_exe);
+    build_time_tools.setup_iso.exe.addArg("--kernel-dest");
+    build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
+    build_time_tools.setup_iso.exe.addArg("--to-create");
+    build_time_tools.setup_iso.exe.addArgs(switch (build_options.boot_loader) {
         .limine => &.{"zig-out/x86/iso/boot/limine/"},
         .grub_legacy => &.{"zig-out/x86/iso/boot/grub/"},
     });
     switch (build_options.boot_loader) {
         .limine => {
             if (b.lazyDependency("limine", .{})) |limine| {
-                runiso.addArgs(&.{
+                build_time_tools.setup_iso.exe.addArgs(&.{
                     "--copy",
                     "arch/x86/limine/limine.conf",
                     "zig-out/x86/iso/boot/limine/limine.conf",
                 });
 
-                runiso.addArg("--copy");
-                runiso.addFileArg(limine.builder.path("limine-bios-cd.bin"));
-                runiso.addArg("zig-out/x86/iso/boot/limine/limine-bios-cd.bin");
+                build_time_tools.setup_iso.exe.addArg("--copy");
+                build_time_tools.setup_iso.exe.addFileArg(limine.path("limine-bios-cd.bin"));
+                build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/limine/limine-bios-cd.bin");
 
-                runiso.addArg("--copy");
-                runiso.addFileArg(limine.builder.path("limine-bios.sys"));
-                runiso.addArg("zig-out/x86/iso/boot/limine/limine-bios.sys");
+                build_time_tools.setup_iso.exe.addArg("--copy");
+                build_time_tools.setup_iso.exe.addFileArg(limine.path("limine-bios.sys"));
+                build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/limine/limine-bios.sys");
             }
         },
         .grub_legacy => {
-            runiso.addArgs(&.{
+            build_time_tools.setup_iso.exe.addArgs(&.{
                 "--copy",
                 "arch/x86/grub/stage2_eltorito",
                 "zig-out/x86/iso/boot/grub/stage2_eltorito",
@@ -964,7 +965,7 @@ pub fn build(b: *std.Build) Err!void {
         },
     }
 
-    runiso.step.dependOn(b.getInstallStep());
+    build_time_tools.setup_iso.exe.step.dependOn(b.getInstallStep());
 
     const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
     if (exe_mkisofs) |exe| {
@@ -999,12 +1000,12 @@ pub fn build(b: *std.Build) Err!void {
         "zig-out/x86/osOS.iso",
         "zig-out/x86/iso/",
     });
-    create_x86_iso.step.dependOn(&runiso.step);
+    create_x86_iso.step.dependOn(&build_time_tools.setup_iso.exe.step);
 
     switch (build_options.default_run_target) {
         .x86 => {
             build_steps.build_iso.dependOn(&create_x86_iso.step);
-            build_steps.build_iso.dependOn(&runiso.step);
+            build_steps.build_iso.dependOn(&build_time_tools.setup_iso.exe.step);
         },
         .riscv32 => {
             // riscv32 currently doesn't make an iso
@@ -1027,7 +1028,7 @@ pub fn build(b: *std.Build) Err!void {
     };
 
     const x86_run_qemu = b.addSystemCommand(&common_x86_qemu_flags);
-    x86_run_qemu.step.dependOn(&runiso.step);
+    x86_run_qemu.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
 
     const x86_run_qemu_debugger = b.addSystemCommand(add_debug_flags: {
@@ -1037,7 +1038,7 @@ pub fn build(b: *std.Build) Err!void {
         try flag_buf.append(b.allocator, "-S");
         break :add_debug_flags flag_buf.items;
     });
-    x86_run_qemu_debugger.step.dependOn(&runiso.step);
+    x86_run_qemu_debugger.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_qemu_debugger.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs: *std.Build.Step.Run = .create(b, "runbochs");
@@ -1060,7 +1061,7 @@ pub fn build(b: *std.Build) Err!void {
     // "zig-out/x86/bochs.config",
     // "-q",
     // });
-    x86_run_bochs.step.dependOn(&runiso.step);
+    x86_run_bochs.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs_debugger = b.addSystemCommand(&.{
@@ -1070,7 +1071,7 @@ pub fn build(b: *std.Build) Err!void {
         "-q",
         // "-debugger",
     });
-    x86_run_bochs_debugger.step.dependOn(&runiso.step);
+    x86_run_bochs_debugger.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
     build_steps.build_all.dependOn(build_steps.build_iso);
 
