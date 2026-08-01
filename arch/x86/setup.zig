@@ -109,146 +109,17 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .serial_port_writer = &sp_writer,
     };
 
-    const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
-        @panic(@errorName(err));
-    };
-
     logger.log("******************* Memory info *******************\r\n", .{});
     logger.log("Setup fn linear address: {*}\r\n", .{&setup});
     logger.log("GDT (array) linear address: {*}\r\n", .{&gdt});
     logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
     logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
 
-    logger.log("******************* Paging info *******************\r\n", .{});
-    logger.log("Probing paging information...\r\n", .{});
-    logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
-    logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
-    logger.log("    Checking VirtToPhy mappings...\r\n", .{});
-
-    const virt_addresses = comptime [_]u32{
-        0xC00B8000,
-        0xC0000000,
-    };
-    inline for (virt_addresses) |addr| {
-        const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
-        if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
-            logger.log(
-                "    Virt address (0x" ++ str ++ ") maps to physical address: (0x{x})\r\n",
-                .{mapped},
-            );
-        } else {
-            logger.log("    Virt address (0x" ++ str ++ ") is unmapped\r\n", .{});
-        }
-    }
-
-    logger.log("    Checking PhyToVirt mappings...\r\n", .{});
-
-    const phy_addresses = comptime [_]u32{
-        0x000B8000,
-        0x00000000,
-    };
-    inline for (phy_addresses) |addr| {
-        const MappingInfo = memory.paging.Info.MappingInfo;
-        const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
-
-        if (mappings.map_count == 0) {
-            logger.log("    Phy address (0x{d}) maps to nothing...\r\n", .{addr});
-        } else {
-            const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
-            logger.log(
-                "    Phy address (0x" ++ str ++ ") maps to virtual address(es):\r\n",
-                .{},
-            );
-            for (mappings.virtual_mappings, 0..) |mapped, idx| {
-                if (idx >= mappings.map_count) {
-                    break;
-                } else {
-                    logger.log("        0x{d}\r\n", .{mapped});
-                }
-            }
-        }
-    }
-
-    logger.log("Dumping special register info...\r\n", .{});
-    const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
-    inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
-        const field = @field(cr0, name);
-        if (@TypeOf(field) == bool) {
-            const bit: []const u8 = if (field) "1" else "0";
-            logger.log("    " ++ name ++ ": {s}\r\n", .{bit});
-        }
-    }
-
-    if (!boot_info.bootinfo.valid) {
-        @panic(&boot_info.bootinfo.diagnostic);
-    } else {
-        const slice: []const u8 = &boot_info.bootinfo.diagnostic;
-        logger.log("{s}\r\n", .{slice});
-    }
-
-    logger.log("Bootloader name: {s}\r\n", .{boot_info.bootinfo.name});
-
-    logger.log("Command Line: ", .{});
-    if (boot_info.bootinfo.cmdline) |cmd| {
-        logger.log("{s}\r\n", .{cmd});
-    } else {
-        logger.log("Not found...", .{});
-    }
-
-    logger.log("Probing Framebuffer info...\r\n", .{});
-
-    if (boot_info.framebuffer.addr) |address| {
-        logger.log("    Address: 0x{d}\r\n", .{address});
-    } else {
-        logger.log("    Address not found...\r\n", .{});
-    }
-
-    if (boot_info.framebuffer.height) |height| {
-        logger.log("    Framebuffer Height: {d}\r\n", .{height});
-    } else {
-        logger.log("    Framebuffer Height not found...\r\n", .{});
-    }
-
-    if (boot_info.framebuffer.width) |width| {
-        logger.log("    Framebuffer Width: {d}\r\n", .{width});
-    } else {
-        logger.log("    Framebuffer Width not found...\r\n", .{});
-    }
-
-    {
-        logger.log("******************* Mod info *******************\r\n", .{});
-        var iter = boot_info.module_info.iterator();
-        while (iter.next()) |mod| {
-            logger.log(
-                "    Module (physical) address: {*}\r\n",
-                .{mod.physical_address.ptr},
-            );
-            logger.log(
-                "    Module size: {d}B\r\n",
-                .{mod.physical_address.len},
-            );
-            logger.log("    Module name: '{s}'\r\n", .{mod.name});
-            const virt = boot_info.paging.physicalToVirtual(
-                @intFromPtr(mod.physical_address.ptr),
-            ) catch memory.paging.Info.MappingInfo{
-                .physical_address = @intFromPtr(mod.physical_address.ptr),
-                .virtual_mappings = @as([16]u32, @splat(0)),
-                .map_count = 0,
-            };
-            for (virt.virtual_mappings[0..virt.map_count]) |mapped| {
-                if (boot_info.paging.virtualToPhysical(mapped)) |phy| {
-                    logger.log(
-                        "    Potential Module (virtual) address: 0x{x}\r\n",
-                        .{mapped},
-                    );
-                    logger.log(
-                        "        Proof translating back to phys: 0x{x}\r\n",
-                        .{phy},
-                    );
-                }
-            }
-        }
-    }
+    reportSpecialRegInfo(&logger);
+    reportPagingInfo(&logger, &boot_info);
+    reportBootloaderInfo(&logger, &boot_info);
+    reportFramebufferInfo(&logger, &boot_info);
+    reportBootModuleInfo(&logger, &boot_info);
 
     {
         var iter = boot_info.memory.iterator();
@@ -318,4 +189,146 @@ pub fn setup(boot_info: BootInfo) noreturn {
             },
         },
     );
+}
+
+fn reportPagingInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
+        @panic(@errorName(err));
+    };
+    logger.log("******************* Paging info *******************\r\n", .{});
+    logger.log("Probing paging information...\r\n", .{});
+    logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
+    logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
+    logger.log("    Checking VirtToPhy mappings...\r\n", .{});
+
+    const virt_addresses = comptime [_]u32{
+        0xC00B8000,
+        0xC0000000,
+    };
+    inline for (virt_addresses) |addr| {
+        const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
+        if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
+            logger.log(
+                "    Virt address (0x" ++ str ++ ") maps to physical address: (0x{x})\r\n",
+                .{mapped},
+            );
+        } else {
+            logger.log("    Virt address (0x" ++ str ++ ") is unmapped\r\n", .{});
+        }
+    }
+
+    logger.log("    Checking PhyToVirt mappings...\r\n", .{});
+
+    const phy_addresses = comptime [_]u32{
+        0x000B8000,
+        0x00000000,
+    };
+    inline for (phy_addresses) |addr| {
+        const MappingInfo = memory.paging.Info.MappingInfo;
+        const mappings: MappingInfo = boot_info.paging.physicalToVirtual(addr) catch .empty;
+
+        if (mappings.map_count == 0) {
+            logger.log("    Phy address (0x{d}) maps to nothing...\r\n", .{addr});
+        } else {
+            const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
+            logger.log(
+                "    Phy address (0x" ++ str ++ ") maps to virtual address(es):\r\n",
+                .{},
+            );
+            for (mappings.virtual_mappings, 0..) |mapped, idx| {
+                if (idx >= mappings.map_count) {
+                    break;
+                } else {
+                    logger.log("        0x{d}\r\n", .{mapped});
+                }
+            }
+        }
+    }
+}
+
+fn reportSpecialRegInfo(logger: *io.Logger) void {
+    logger.log("Dumping special register info...\r\n", .{});
+    const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
+    inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
+        const field = @field(cr0, name);
+        if (@TypeOf(field) == bool) {
+            const bit: []const u8 = if (field) "1" else "0";
+            logger.log("    " ++ name ++ ": {s}\r\n", .{bit});
+        }
+    }
+}
+
+fn reportBootloaderInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    if (!boot_info.bootinfo.valid) {
+        @panic(&boot_info.bootinfo.diagnostic);
+    } else {
+        const slice: []const u8 = &boot_info.bootinfo.diagnostic;
+        logger.log("{s}\r\n", .{slice});
+    }
+
+    logger.log("Bootloader name: {s}\r\n", .{boot_info.bootinfo.name});
+
+    logger.log("Command Line: ", .{});
+    if (boot_info.bootinfo.cmdline) |cmd| {
+        logger.log("{s}\r\n", .{cmd});
+    } else {
+        logger.log("Not found...", .{});
+    }
+}
+
+fn reportFramebufferInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("Probing Framebuffer info...\r\n", .{});
+
+    if (boot_info.framebuffer.addr) |address| {
+        logger.log("    Address: 0x{d}\r\n", .{address});
+    } else {
+        logger.log("    Address not found...\r\n", .{});
+    }
+
+    if (boot_info.framebuffer.height) |height| {
+        logger.log("    Framebuffer Height: {d}\r\n", .{height});
+    } else {
+        logger.log("    Framebuffer Height not found...\r\n", .{});
+    }
+
+    if (boot_info.framebuffer.width) |width| {
+        logger.log("    Framebuffer Width: {d}\r\n", .{width});
+    } else {
+        logger.log("    Framebuffer Width not found...\r\n", .{});
+    }
+}
+
+fn reportBootModuleInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("******************* Mod info *******************\r\n", .{});
+    var iter = boot_info.module_info.iterator();
+    while (iter.next()) |mod| {
+        logger.log(
+            "    Module (physical) address: {*}\r\n",
+            .{mod.physical_address.ptr},
+        );
+        logger.log(
+            "    Module size: {d}B\r\n",
+            .{mod.physical_address.len},
+        );
+        logger.log("    Module name: '{s}'\r\n", .{mod.name});
+        const virt = boot_info.paging.physicalToVirtual(
+            @intFromPtr(mod.physical_address.ptr),
+        ) catch memory.paging.Info.MappingInfo{
+            .physical_address = @intFromPtr(mod.physical_address.ptr),
+            .virtual_mappings = @as([16]u32, @splat(0)),
+            .map_count = 0,
+        };
+        for (virt.virtual_mappings[0..virt.map_count]) |mapped| {
+            if (boot_info.paging.virtualToPhysical(mapped)) |phy| {
+                logger.log(
+                    "    Potential Module (virtual) address: 0x{x}\r\n",
+                    .{mapped},
+                );
+                logger.log(
+                    "        Proof translating back to phys: 0x{x}\r\n",
+                    .{phy},
+                );
+            }
+        }
+    }
 }
