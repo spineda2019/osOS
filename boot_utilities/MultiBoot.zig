@@ -32,8 +32,6 @@
 /// 40        u32     height        if flags.include_video_mode_info is set
 /// 44        u32     depth         if flags.include_video_mode_info is set
 pub const V1 = extern struct {
-    const Self = @This();
-
     /// MUST be set to the MultiBoot V1 Magic Number of 0x1BADB002
     magic_number: u32,
 
@@ -66,11 +64,11 @@ pub const V1 = extern struct {
     depth: u32,
 
     pub const magic_number_value: u32 = 0x1BADB002;
-    pub fn init(flags: Flags.InitInfo, video_info: VideoInformation) Self {
+    pub fn init(flags: Flags.InitInfo, video_info: VideoInformation) V1 {
         return .{
-            .magic_number = Self.magic_number_value,
+            .magic_number = V1.magic_number_value,
             .flags = flags.flags,
-            .checksum = 0 -% Self.magic_number_value -% @as(
+            .checksum = 0 -% V1.magic_number_value -% @as(
                 u32,
                 @bitCast(flags.flags),
             ),
@@ -203,7 +201,7 @@ pub const V1 = extern struct {
             MemInfoUnavailable,
         };
         pub fn availableMemChunkAt(
-            self: *const Self.Info,
+            self: *const V1.Info,
             idx: usize,
         ) MemChunkError!?[]allowzero u8 {
             if (self.flags.mmap) {
@@ -221,6 +219,37 @@ pub const V1 = extern struct {
                 }
             } else {
                 return MemChunkError.MemInfoUnavailable;
+            }
+        }
+
+        pub fn nthModuleAddress(self: *const V1.Info, idx: usize) ?[]const u8 {
+            if (self.flags.mods and idx < self.mods_count) {
+                const entries: [*]const ModuleEntry = @ptrFromInt(self.mods_addr);
+                const entry: ModuleEntry = entries[idx];
+                const start: [*]const u8 = @ptrFromInt(entry.start);
+                const end: [*]const u8 = @ptrFromInt(entry.end);
+                const len = @intFromPtr(end) - @intFromPtr(start);
+                return start[0..len];
+            } else {
+                return null;
+            }
+        }
+
+        pub fn nthModuleName(self: *const V1.Info, idx: usize) ?[]const u8 {
+            if (self.flags.mods and idx < self.mods_count) {
+                const entries: [*]const ModuleEntry = @ptrFromInt(self.mods_addr);
+                const entry: ModuleEntry = entries[idx];
+                const c_str: [*:0]const u8 = @ptrFromInt(entry.string);
+                const strlen: usize = len: {
+                    var str_idx: usize = 0;
+                    while (c_str[str_idx] != 0) {
+                        str_idx += 1;
+                    }
+                    break :len str_idx;
+                };
+                return c_str[0..strlen];
+            } else {
+                return null;
             }
         }
 
@@ -268,6 +297,13 @@ pub const V1 = extern struct {
                 nvs = 4,
                 badram = 5,
             };
+        };
+
+        pub const ModuleEntry = packed struct(u128) {
+            start: u32,
+            end: u32,
+            string: u32,
+            _reserved: u32 = 0,
         };
 
         const SymbolTable = extern union {
