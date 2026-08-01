@@ -14,7 +14,7 @@ fn createDirectories(args: *const Args, io: std.Io) !void {
     defer root_dir.close(io);
 
     for (args.dirs_to_create) |dir| {
-        var it = std.fs.path.componentIterator(dir);
+        var it = std.Io.Dir.path.componentIterator(dir);
         while (it.next()) |child| {
             std.debug.print("Trying to create {s} ...\n", .{child.path});
             root_dir.createDirPath(io, child.path) catch |e| {
@@ -34,12 +34,12 @@ fn copyFiles(args: *const Args, allocator: std.mem.Allocator, io: std.Io) !void 
         const source, const should_free = handle_absolute: {
             var result: []const u8 = undefined;
             var free = false;
-            if (std.fs.path.isAbsolute(pair.src)) {
+            if (std.Io.Dir.path.isAbsolute(pair.src)) {
                 // source files may be absolute if passed from a build system
                 // dependency (e.g.: limine)
                 result = pair.src;
             } else {
-                result = try std.fs.path.join(allocator, &.{
+                result = try std.Io.Dir.path.join(allocator, &.{
                     args.repo_root,
                     pair.src,
                 });
@@ -48,10 +48,22 @@ fn copyFiles(args: *const Args, allocator: std.mem.Allocator, io: std.Io) !void 
 
             break :handle_absolute .{ result, free };
         };
-        const destination = try std.fs.path.join(
-            allocator,
-            &.{ args.repo_root, pair.dest },
-        );
+        const destination = blk: {
+            const dest: []const u8 = try std.Io.Dir.path.join(
+                allocator,
+                &.{ args.repo_root, pair.dest },
+            );
+            if (std.mem.endsWith(u8, dest, "/")) {
+                var iter = std.mem.splitBackwardsAny(u8, source, "/");
+                const f_name: []const u8 = iter.first();
+                break :blk try std.Io.Dir.path.join(
+                    allocator,
+                    &.{ dest, f_name },
+                );
+            } else {
+                break :blk dest;
+            }
+        };
         defer allocator.free(destination);
         defer {
             if (should_free) {
@@ -73,10 +85,10 @@ fn copyKernel(
         .{ args.kernel.kernel_image_src, args.kernel.kernel_image_dest },
     );
 
-    const destination = try std.fs.path.join(allocator, &.{
+    const destination = try std.Io.Dir.path.join(allocator, &.{
         args.repo_root,
         args.kernel.kernel_image_dest,
-        std.fs.path.basename(args.kernel.kernel_image_src),
+        std.Io.Dir.path.basename(args.kernel.kernel_image_src),
     });
     defer allocator.free(destination);
     try std.Io.Dir.copyFileAbsolute(

@@ -3,3 +3,4 @@ timeout=0
 
 title osOS
 kernel /boot/osOS.elf
+module /modules/init
