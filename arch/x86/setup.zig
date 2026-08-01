@@ -228,6 +228,25 @@ pub fn setup(boot_info: BootInfo) noreturn {
                 .{mod.physical_address.len},
             );
             logger.log("    Module name: '{s}'\r\n", .{mod.name});
+            const virt = boot_info.paging.physicalToVirtual(
+                @intFromPtr(mod.physical_address.ptr),
+            ) catch memory.paging.Info.MappingInfo{
+                .physical_address = @intFromPtr(mod.physical_address.ptr),
+                .virtual_mappings = @as([16]u32, @splat(0)),
+                .map_count = 0,
+            };
+            for (virt.virtual_mappings[0..virt.map_count]) |mapped| {
+                if (boot_info.paging.virtualToPhysical(mapped)) |phy| {
+                    logger.log(
+                        "    Potential Module (virtual) address: 0x{x}\r\n",
+                        .{mapped},
+                    );
+                    logger.log(
+                        "        Proof translating back to phys: 0x{x}\r\n",
+                        .{phy},
+                    );
+                }
+            }
         }
     }
 
