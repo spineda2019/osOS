@@ -27,10 +27,9 @@ pub const panic = std.debug.FullPanic(struct {
 /// Will be capable to run other processes (eventuallY) but will need basic
 /// IO and will use the syscall interface to do this (exec/CreateProcess).
 export fn main() noreturn {
+    sys.io.console.write("osh> ");
+
     while (true) {
-        sys.io.console.write("osh> ");
-        const line = sys.io.console.readLine();
-        sys.io.console.write("Hey I see what you entered: ");
-        sys.io.console.writeLine(line);
+        asm volatile ("");
     }
 }

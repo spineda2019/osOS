@@ -929,8 +929,14 @@ pub fn build(b: *std.Build) Err!void {
     build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
     build_time_tools.setup_iso.exe.addArg("--to-create");
     build_time_tools.setup_iso.exe.addArgs(switch (build_options.boot_loader) {
-        .limine => &.{"zig-out/x86/iso/boot/limine/"},
-        .grub_legacy => &.{"zig-out/x86/iso/boot/grub/"},
+        .limine => &.{
+            "zig-out/x86/iso/boot/limine/",
+            "zig-out/x86/iso/modules/",
+        },
+        .grub_legacy => &.{
+            "zig-out/x86/iso/boot/grub/",
+            "zig-out/x86/iso/modules/",
+        },
     });
     switch (build_options.boot_loader) {
         .limine => {
@@ -964,6 +970,9 @@ pub fn build(b: *std.Build) Err!void {
             });
         },
     }
+    build_time_tools.setup_iso.exe.addArg("--copy");
+    build_time_tools.setup_iso.exe.addArtifactArg(shell_exe);
+    build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/modules/");
 
     build_time_tools.setup_iso.exe.step.dependOn(b.getInstallStep());
 
