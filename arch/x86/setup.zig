@@ -216,6 +216,22 @@ pub fn setup(boot_info: BootInfo) noreturn {
     }
 
     {
+        logger.log("******************* Mod info *******************\r\n", .{});
+        var iter = boot_info.module_info.iterator();
+        while (iter.next()) |mod| {
+            logger.log(
+                "    Module (physical) address: {*}\r\n",
+                .{mod.physical_address.ptr},
+            );
+            logger.log(
+                "    Module size: {d}B\r\n",
+                .{mod.physical_address.len},
+            );
+            logger.log("    Module name: '{s}'\r\n", .{mod.name});
+        }
+    }
+
+    {
         var iter = boot_info.memory.iterator();
         logger.log("Probing Available Memory...\r\n", .{});
         logger.log("    Available Chunks: \r\n", .{});

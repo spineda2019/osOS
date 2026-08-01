@@ -199,6 +199,27 @@ fn trampoline(
             },
             .kernel_end = physical_kernel_end,
         },
+        .module_info = .{
+            .prober = .{
+                .impl = mb_info,
+                .vtable = &.{
+                    .nthModuleAddress = &struct {
+                        fn impl(opaque_self: *const anyopaque, idx: usize) ?[]const u8 {
+                            const T = bootutils.MultiBoot.V1.Info;
+                            const self: *const T = @ptrCast(@alignCast(opaque_self));
+                            return self.nthModuleAddress(idx);
+                        }
+                    }.impl,
+                    .nthModuleName = &struct {
+                        fn impl(opaque_self: *const anyopaque, idx: usize) ?[]const u8 {
+                            const T = bootutils.MultiBoot.V1.Info;
+                            const self: *const T = @ptrCast(@alignCast(opaque_self));
+                            return self.nthModuleName(idx);
+                        }
+                    }.impl,
+                },
+            },
+        },
         .paging = page_info,
     });
 }
