@@ -398,6 +398,10 @@ pub fn build(b: *std.Build) Err!void {
         shared_modules.osformat.name,
         shared_modules.osformat.module,
     );
+    shared_modules.oshal.module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
+    );
 
     const exebochs: ?*std.Build.Step.Compile = bochs: {
         if (!build_options.build_bochs) {
@@ -455,15 +459,21 @@ pub fn build(b: *std.Build) Err!void {
     const RiscV32Modules = struct {
         asm_module: CommonModule,
         tty_module: CommonModule,
+        boot_info: CommonModule,
     };
     const riscv32_modules: RiscV32Modules = .{
         .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig", test_target),
         .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/root.zig", test_target),
+        .boot_info = .create(b, "BootInfo", "arch/riscv32/boot_info/root.zig", test_target),
     };
 
     riscv32_modules.tty_module.module.addImport(
         shared_modules.osformat.name,
         shared_modules.osformat.module,
+    );
+    riscv32_modules.boot_info.module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
     );
 
     const riscv32_module = b.createModule(.{
@@ -475,6 +485,10 @@ pub fn build(b: *std.Build) Err!void {
     riscv32_module.addImport(
         riscv32_modules.tty_module.name,
         riscv32_modules.tty_module.module,
+    );
+    riscv32_module.addImport(
+        riscv32_modules.boot_info.name,
+        riscv32_modules.boot_info.module,
     );
     riscv32_module.addImport(
         riscv32_modules.asm_module.name,

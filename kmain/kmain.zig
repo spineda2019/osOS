@@ -59,6 +59,19 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
     logger.writef("Hi there from a new line!\r\n", .{});
     logger.writef("Hi there from a new line again!\r\n", .{});
 
+    {
+        logger.writef("Reprobing modules in arch-agnostic kmain\r\n", .{});
+        var iter = rt_hal.boot_module_info.iterator();
+        while (iter.next()) |mod| {
+            logger.writef(
+                "    Mod Physical Address: {*}\r\n",
+                .{mod.physical_address.ptr},
+            );
+            logger.writef("    Mod Size: {d}\r\n", .{mod.physical_address.len});
+            logger.writef("    Mod Name: {s}\r\n", .{mod.name});
+        }
+    }
+
     if (testoptions.test_panic) {
         logger.writef("Testing Panic\r\n", .{});
         @panic("Testing Panic");

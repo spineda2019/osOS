@@ -7,6 +7,7 @@ const oshal = @import("oshal");
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 const serial = @import("serial/serial.zig");
+const BootInfo = @import("BootInfo");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -89,6 +90,7 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
         .{
             .terminal = terminal_writer,
             .serial_io = serial_stub.writer(&serial_buffer),
+            .boot_module_info = BootInfo.ModuleInfo.moduleProber(),
         },
         .{
             .assembly_wrappers = .{
