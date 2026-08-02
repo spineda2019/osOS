@@ -14,6 +14,9 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+pub const BootModule = @import("BootModule.zig");
+pub const IModuleProber = @import("IModuleProber.zig");
+
 /// Universal construct representing an osOS process
 pub const Process = struct {
     const ProcessState = enum {

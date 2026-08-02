@@ -27,14 +27,15 @@ const virtual_stack_top: [*]u8 = @extern(
 const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
 
 const bootutils = @import("osboot");
-const BootInfo = @import("BootInfo");
-const MemoryInfo = BootInfo.MemoryInfo;
-const MemoryError = MemoryInfo.IMemoryProber.MemError;
 /// Defined in the build script
 const bootoptions = @import("bootoptions");
 const memory = @import("x86memory");
+const osmemory = @import("osmemory");
 const as = @import("x86asm");
 const osformat = @import("osformat");
+const BootInfo = @import("BootInfo");
+const MemoryInfo = BootInfo.MemoryInfo;
+const MemoryError = osmemory.IMemoryProber.MemError;
 
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
