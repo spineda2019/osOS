@@ -70,7 +70,7 @@ pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE
 } ** memory.paging.ENTRY_COUNT;
 
 const PanicNamespace = @import("std").debug.FullPanic;
-pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
+pub const panic = PanicNamespace(@import("panic/root.zig").handlePanic);
 
 pub const debug = @import("debug/root.zig");
 
