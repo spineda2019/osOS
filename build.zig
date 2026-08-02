@@ -450,7 +450,7 @@ pub fn build(b: *std.Build) Err!void {
         .{
             .root_source_file = switch (build_options.default_run_target) {
                 .x86 => b.path("arch/x86/interrupts/syscall.zon"),
-                else => @panic("syscall TODO"),
+                else => b.path("arch/riscv32/interrupts/syscall.zon"),
             },
         },
     );
