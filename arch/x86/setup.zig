@@ -132,6 +132,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .{
             .terminal = fb_writer,
             .serial_io = sp_writer,
+            .boot_module_info = boot_info.module_info,
         },
         .{
             .assembly_wrappers = .{

@@ -18,7 +18,13 @@
 //* along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const RtHal = @This();
+
+const osformat = @import("osformat");
+const osprocess = @import("osprocess");
+
 const IWriter = @import("osformat").IWriter;
+const IModuleProber = osprocess.IModuleProber;
 
 serial_io: IWriter,
 terminal: IWriter,
+boot_module_info: IModuleProber,
