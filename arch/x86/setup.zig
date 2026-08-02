@@ -76,30 +76,14 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .serial_port_writer = &sp_writer,
     };
 
-    logger.log("******************* Memory info *******************\r\n", .{});
-    logger.log("Setup fn linear address: {*}\r\n", .{&setup});
-    logger.log("GDT (array) linear address: {*}\r\n", .{&gdt});
-    logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
-    logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
+    logger.log("******* Beginning x86 specific reporting *******\r\n\r\n", .{});
 
+    reportMemoryInfo(&logger, &boot_info);
     reportSpecialRegInfo(&logger);
     reportPagingInfo(&logger, &boot_info);
     reportBootloaderInfo(&logger, &boot_info);
     reportFramebufferInfo(&logger, &boot_info);
     reportBootModuleInfo(&logger, &boot_info);
-
-    {
-        var iter = boot_info.memory.iterator();
-        logger.log("Probing Available Memory...\r\n", .{});
-        logger.log("    Available Chunks: \r\n", .{});
-
-        while (iter.next()) |chunk| {
-            logger.log("        Addr: {*}\r\n", .{chunk.ptr});
-            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.len});
-
-            logger.flush();
-        }
-    }
 
     var page_iter = blk: {
         var iter = boot_info.memory.iterator();
@@ -163,6 +147,7 @@ fn reportPagingInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
         @panic(@errorName(err));
     };
     logger.log("******************* Paging info *******************\r\n", .{});
+    defer logger.log("************ Paging info END ************\r\n\r\n", .{});
     logger.log("Probing paging information...\r\n", .{});
     logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
     logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
@@ -213,8 +198,30 @@ fn reportPagingInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
     }
 }
 
+fn reportMemoryInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("******************* Memory info *******************\r\n", .{});
+    defer logger.log("************ Memory info END ************\r\n\r\n", .{});
+    logger.log("Setup fn linear address: {*}\r\n", .{&setup});
+    logger.log("GDT (array) linear address: {*}\r\n", .{&gdt});
+    logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
+    logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
+    {
+        var iter = boot_info.memory.iterator();
+        logger.log("Probing Available Memory...\r\n", .{});
+        logger.log("    Available Chunks: \r\n", .{});
+
+        while (iter.next()) |chunk| {
+            logger.log("        Addr: {*}\r\n", .{chunk.ptr});
+            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.len});
+
+            logger.flush();
+        }
+    }
+}
+
 fn reportSpecialRegInfo(logger: *io.Logger) void {
-    logger.log("Dumping special register info...\r\n", .{});
+    logger.log("************** Special register info **************\r\n", .{});
+    defer logger.log("******* Special register info END *******\r\n\r\n", .{});
     const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
     inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
         const field = @field(cr0, name);
@@ -226,6 +233,8 @@ fn reportSpecialRegInfo(logger: *io.Logger) void {
 }
 
 fn reportBootloaderInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("***************** Bootloader info *****************\r\n", .{});
+    defer logger.log("********** Bootloader info END **********\r\n\r\n", .{});
     if (!boot_info.bootinfo.valid) {
         @panic(&boot_info.bootinfo.diagnostic);
     } else {
@@ -244,7 +253,8 @@ fn reportBootloaderInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
 }
 
 fn reportFramebufferInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
-    logger.log("Probing Framebuffer info...\r\n", .{});
+    logger.log("***************** Framebuffer info *****************\r\n", .{});
+    defer logger.log("********** Framebuffer info END **********\r\n\r\n", .{});
 
     if (boot_info.framebuffer.addr) |address| {
         logger.log("    Address: 0x{d}\r\n", .{address});
@@ -267,6 +277,7 @@ fn reportFramebufferInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
 
 fn reportBootModuleInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
     logger.log("******************* Mod info *******************\r\n", .{});
+    defer logger.log("************** Mod info END **************\r\n\r\n", .{});
     var iter = boot_info.module_info.iterator();
     while (iter.next()) |mod| {
         logger.log(
