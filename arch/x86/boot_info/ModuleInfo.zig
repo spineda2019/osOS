@@ -1,5 +1,8 @@
 const ModuleInfo = @This();
 
+const osprocess = @import("osprocess");
+const IModuleProber = osprocess.IModuleProber;
+
 prober: IModuleProber,
 
 pub fn iterator(self: *const ModuleInfo) Iterator {
@@ -10,12 +13,7 @@ pub const Iterator = struct {
     prober: IModuleProber,
     idx: usize = 0,
 
-    pub const BootModule = struct {
-        physical_address: []const u8,
-        name: []const u8,
-    };
-
-    pub fn next(self: *Iterator) ?BootModule {
+    pub fn next(self: *Iterator) ?osprocess.BootModule {
         const peeked = self.peek();
         if (peeked) |_| {
             self.idx += 1;
@@ -23,7 +21,7 @@ pub const Iterator = struct {
         return peeked;
     }
 
-    pub fn peek(self: *const Iterator) ?BootModule {
+    pub fn peek(self: *const Iterator) ?osprocess.BootModule {
         const maybe_addr: ?[]const u8 = self.prober.vtable.nthModuleAddress(
             self.prober.impl,
             self.idx,
@@ -42,16 +40,6 @@ pub const Iterator = struct {
             return null;
         }
     }
-};
-
-pub const IModuleProber = struct {
-    impl: *anyopaque,
-    vtable: *const VTable,
-
-    pub const VTable = struct {
-        nthModuleAddress: *const fn (*const anyopaque, usize) ?[]const u8,
-        nthModuleName: *const fn (*const anyopaque, usize) ?[]const u8,
-    };
 };
 
 test Iterator {}

@@ -334,19 +334,20 @@ const test_helpers = struct {
 };
 
 test allocFrame {
+    const osmemory = @import("osmemory");
     var single_chunk: [2 * 4096]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
     const first: [][]u8 = arena[0..arena.len];
 
     var fake_mem_prober: test_helpers.FakeMemoryProber = .init(first);
-    const interface: MemoryInfo.IMemoryProber = .{
+    const interface: osmemory.IMemoryProber = .{
         .instance = &fake_mem_prober,
         .vtable = &.{
             .availableMemChunkAt = &struct {
                 fn impl(
                     opaque_self: *const anyopaque,
                     idx: usize,
-                ) MemoryInfo.IMemoryProber.MemError!?[]allowzero u8 {
+                ) osmemory.IMemoryProber.MemError!?[]allowzero u8 {
                     const T: type = test_helpers.FakeMemoryProber;
                     const self: *const T = @ptrCast(@alignCast(opaque_self));
                     return self.availableMemChunkAt(idx);
@@ -387,19 +388,20 @@ test allocFrame {
 }
 
 test PageAllocator {
+    const osmemory = @import("osmemory");
     var single_chunk: [2 * 4096]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
     const first: [][]u8 = arena[0..arena.len];
 
     var fake_mem_prober: test_helpers.FakeMemoryProber = .init(first);
-    const interface: MemoryInfo.IMemoryProber = .{
+    const interface: osmemory.IMemoryProber = .{
         .instance = &fake_mem_prober,
         .vtable = &.{
             .availableMemChunkAt = &struct {
                 fn impl(
                     opaque_self: *const anyopaque,
                     idx: usize,
-                ) MemoryInfo.IMemoryProber.MemError!?[]allowzero u8 {
+                ) osmemory.IMemoryProber.MemError!?[]allowzero u8 {
                     const T: type = test_helpers.FakeMemoryProber;
                     const self: *const T = @ptrCast(@alignCast(opaque_self));
                     return self.availableMemChunkAt(idx);

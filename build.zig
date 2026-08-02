@@ -525,6 +525,18 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.memory_module.name,
         x86_modules.memory_module.doc_artifact.root_module,
     );
+    x86_modules.boot_info.module.addImport(
+        shared_modules.osprocess.name,
+        shared_modules.osprocess.module,
+    );
+    x86_modules.boot_info.module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.module,
+    );
+    x86_modules.boot_info.test_artifact.root_module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.test_artifact.root_module,
+    );
 
     x86_modules.io_module.module.addImport(
         x86_modules.asm_module.name,
@@ -550,6 +562,14 @@ pub fn build(b: *std.Build) Err!void {
     x86_modules.memory_module.test_artifact.root_module.addImport(
         x86_modules.boot_info.name,
         x86_modules.boot_info.test_artifact.root_module,
+    );
+    x86_modules.memory_module.module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.module,
+    );
+    x86_modules.memory_module.test_artifact.root_module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.test_artifact.root_module,
     );
 
     x86_modules.interrupts_module.module.addImport(
@@ -610,6 +630,10 @@ pub fn build(b: *std.Build) Err!void {
     x86_module.addImport(
         shared_modules.oshal.name,
         shared_modules.oshal.module,
+    );
+    x86_module.addImport(
+        shared_modules.osmemory.name,
+        shared_modules.osmemory.module,
     );
     x86_module.addOptions("bootoptions", boot_options);
 

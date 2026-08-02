@@ -1,21 +1,9 @@
 const MemoryInfo = @This();
+const osmemory = @import("osmemory");
+const IMemoryProber = osmemory.IMemoryProber;
 
 interface: IMemoryProber,
 kernel_end: [*]const u8,
-
-pub const IMemoryProber = struct {
-    instance: *anyopaque,
-    vtable: *const VTable,
-
-    pub const MemError = error{
-        InfoUnavailable,
-        NoMoreChunks,
-    };
-
-    pub const VTable = struct {
-        availableMemChunkAt: *const fn (*const anyopaque, usize) MemError!?[]allowzero u8,
-    };
-};
 
 pub const Iterator = struct {
     prober: IMemoryProber,

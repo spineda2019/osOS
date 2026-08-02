@@ -47,6 +47,7 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
         .terminal = rt_hal.terminal,
     };
 
+    logger.writef("********************* kmain *********************\r\n", .{});
     for (0..12) |_| {
         logger.writef("Foo " ** 20, .{});
         logger.writef("Bar " ** 20, .{});

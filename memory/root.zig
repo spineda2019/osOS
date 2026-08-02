@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub const SpinLock = @import("SpinLock.zig");
+pub const IMemoryProber = @import("IMemoryProber.zig");
 
 pub fn runtimeMemset(ptr: [*]u8, value: u8, length: usize) void {
     var bytes_left: usize = length;
