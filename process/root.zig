@@ -16,63 +16,45 @@
 
 pub const BootModule = @import("BootModule.zig");
 pub const IModuleProber = @import("IModuleProber.zig");
-
-/// Universal construct representing an osOS process
-pub const Process = struct {
-    const ProcessState = enum {
-        unused,
-        runnable,
-        waiting,
-    };
-
-    pub const ProcessError = error{
-        OutOfSlots,
-    };
-
-    /// this is generic code, don't assume arch size
-    pid: usize,
-
-    /// Self explanatory
-    state: ProcessState,
-
-    entry_address: *const fn () noreturn,
-
-    /// Represents an empty process that doesn't exist. Inidicates that this
-    /// process can be used to make a real running one.
-    pub const emptyProcess: Process = .{
-        .pid = 0,
-        .state = .unused,
-        .entry_address = undefined,
-    };
-};
+pub const Process = @import("Process.zig");
 
 pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
     return struct {
         const Self = @This();
 
-        pool: [MAX_PROCESS_COUNT]Process,
+        pool: [MAX_PROCESS_COUNT]?Process,
 
         pub fn init() Self {
             return .{
-                .pool = .{Process.emptyProcess} ** MAX_PROCESS_COUNT,
+                .pool = @splat(null),
             };
         }
         /// Create a process at a specific address in RAM. Creates the process entry
         /// in the table and returns the address to the process entry.
         pub fn createProcess(
             self: *Self,
-            process_start_address: *const fn () noreturn,
+            process_start_address: [*]const u8,
         ) Process.ProcessError!*Process {
             for (&self.pool, 0..) |*process, p| {
-                if (process.*.state == .unused) {
-                    process.*.state = .runnable;
-                    process.*.entry_address = process_start_address;
-                    process.pid = p;
+                if (process.* == null) {
+                    process.* = .{
+                        .state = .runnable,
+                        .entry_address = process_start_address,
+                        .pid = p,
+                    };
                     return process;
                 }
             }
 
             return Process.ProcessError.OutOfSlots;
+        }
+
+        pub fn schedule(self: *Self) void {
+            for (&self.pool) |*proc| {
+                if (proc.*) |p| {
+                    _ = p;
+                }
+            }
         }
     };
 }
