@@ -65,12 +65,12 @@ fn buildFile(
     try writer.writeAll(rom_info.vgaromimage);
     try writer.writeAll("\n");
 
-    try writer.writeAll("ata0-master: type=cdrom, path=zig-out/x86/osOS.iso, status=inserted");
-    try writer.writeAll("boot: cdrom");
-    try writer.writeAll("log: bochslog.txt");
-    try writer.writeAll("clock: sync=realtime, time0=local");
-    try writer.writeAll("cpu: count=1, ips=1000000");
-    try writer.writeAll("com1: enabled=1, mode=file, dev=com1.out");
+    try writer.writeAll("ata0-master: type=cdrom, path=zig-out/x86/osOS.iso, status=inserted\n");
+    try writer.writeAll("boot: cdrom\n");
+    try writer.writeAll("log: bochslog.txt\n");
+    try writer.writeAll("clock: sync=realtime, time0=local\n");
+    try writer.writeAll("cpu: count=1, ips=1000000\n");
+    try writer.writeAll("com1: enabled=1, mode=file, dev=com1.out\n");
 
     try writer.flush();
 }
