@@ -1014,7 +1014,7 @@ pub fn build(b: *std.Build) Err!void {
         setup_iso: GenerationModule,
     };
     const build_time_tools: BuildTimeTools = .{
-        .setup_iso = .init(b, b.path("build_iso/main.zig"), "build_iso"),
+        .setup_iso = .init(b, b.path("build_time_tools/build_iso/main.zig"), "build_iso"),
     };
 
     build_time_tools.setup_iso.exe.addFileArg(b.path(""));
