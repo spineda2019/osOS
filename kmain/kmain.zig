@@ -59,19 +59,6 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
     logger.writef("Hi there from a new line!\r\n", .{});
     logger.writef("Hi there from a new line again!\r\n", .{});
 
-    {
-        logger.writef("Reprobing modules in arch-agnostic kmain\r\n", .{});
-        var iter = rt_hal.boot_module_info.iterator();
-        while (iter.next()) |mod| {
-            logger.writef(
-                "    Mod Physical Address: {*}\r\n",
-                .{mod.physical_address.ptr},
-            );
-            logger.writef("    Mod Size: {d}\r\n", .{mod.physical_address.len});
-            logger.writef("    Mod Name: {s}\r\n", .{mod.name});
-        }
-    }
-
     if (testoptions.test_panic) {
         logger.writef("Testing Panic\r\n", .{});
         @panic("Testing Panic");
@@ -88,9 +75,19 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
     logger.flush();
 
     var process_pool: process.ProcessTable(8) = .init();
-    _ = &process_pool;
-    // TODO(SEP) somehow start shell proc in userland
-    // Userland semantics will likely need to be passed in via the RtHAL or CtHAL
+    var module_iterator = rt_hal.boot_module_info.iterator();
+    while (module_iterator.next()) |module| {
+        logger.writef(
+            "Initializing module: '{s}' at addr {*}\r\n",
+            .{ module.name, module.physical_address.ptr },
+        );
+        process_pool.createProcess(module.physical_address.ptr) catch |err| {
+            @panic(@errorName(err));
+        };
+    }
+    logger.writef("Beginning to schedule from the process pool\r\n", .{});
+    logger.flush();
+    // TODO(SEP) somehow call schedule?
 
     while (true) {
         asm volatile ("");
