@@ -1167,7 +1167,7 @@ pub fn build(b: *std.Build) Err!void {
             x86_run_bochs.addArg("bochs"); // use system installation
         }
         x86_run_bochs.addArg("-f");
-        x86_run_bochs.addFileArg(b.path("arch/x86/bochs/bochs.config"));
+        x86_run_bochs.addFileArg(b.path("zig-out/x86/bochs.config"));
         x86_run_bochs.addArg("-q");
     }
 
