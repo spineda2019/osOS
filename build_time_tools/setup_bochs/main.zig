@@ -1,20 +1,79 @@
 const std = @import("std");
 
-const Error = std.process.Args.ToSliceError || ParserError;
-
-pub fn main(init: std.process.Init) Error!void {
-    const allocator = init.arena.allocator();
-    const all_args: []const [:0]const u8 = try init.minimal.args.toSlice(allocator);
-    std.debug.assert(all_args.len >= 1);
-    const info: RomInfo = parseArgs(all_args[1..]);
-    _ = info;
-}
-
 const ParserError = error{
     unrecognized_flag,
     unexpected_flag,
     missing_required_flag,
 };
+
+const IOError = std.Io.Dir.OpenError || std.Io.Dir.CopyFileError || std.Io.Writer.Error;
+
+const Error = std.process.Args.ToSliceError || ParserError || IOError;
+
+pub fn main(init: std.process.Init) Error!void {
+    const allocator = init.arena.allocator();
+    const all_args: []const [:0]const u8 = try init.minimal.args.toSlice(allocator);
+    std.debug.assert(all_args.len >= 1);
+    const info: Config = try parseArgs(all_args[1..]);
+
+    switch (info) {
+        .default => |def| {
+            try copyFile(init.io, &def);
+        },
+        .custom => |rom_info| {
+            try buildFile(init.io, &rom_info);
+        },
+    }
+}
+
+fn copyFile(
+    io: std.Io,
+    def: *const DefaultConfig,
+) std.Io.Dir.CopyFileError!void {
+    const cwd: std.Io.Dir = .cwd();
+
+    const dest_dir: std.Io.Dir = try cwd.openDir(io, def.dest_dir, .{});
+    defer dest_dir.close(io);
+    try cwd.copyFile(def.source, dest_dir, "bochs.config", io, .{});
+}
+
+fn buildFile(
+    io: std.Io,
+    rom_info: *const RomInfo,
+) IOError!void {
+    const cwd: std.Io.Dir = .cwd();
+
+    const dest_dir: std.Io.Dir = try cwd.openDir(io, rom_info.dest_dir, .{});
+    defer dest_dir.close(io);
+
+    const custom_file = try dest_dir.createFile(io, "bochs.config", .{});
+    defer custom_file.close(io);
+
+    var write_buf: [512]u8 = undefined;
+    var file_writer = custom_file.writer(io, &write_buf);
+    var writer = &file_writer.interface;
+
+    try writer.writeAll("megs: 32\n");
+
+    try writer.writeAll("display_library: sdl2\n");
+
+    try writer.writeAll("romimage: file=");
+    try writer.writeAll(rom_info.romimage);
+    try writer.writeAll("\n");
+
+    try writer.writeAll("vgaromimage: file=");
+    try writer.writeAll(rom_info.vgaromimage);
+    try writer.writeAll("\n");
+
+    try writer.writeAll("ata0-master: type=cdrom, path=zig-out/x86/osOS.iso, status=inserted");
+    try writer.writeAll("boot: cdrom");
+    try writer.writeAll("log: bochslog.txt");
+    try writer.writeAll("clock: sync=realtime, time0=local");
+    try writer.writeAll("cpu: count=1, ips=1000000");
+    try writer.writeAll("com1: enabled=1, mode=file, dev=com1.out");
+
+    try writer.flush();
+}
 
 fn parseArgs(args: []const []const u8) ParserError!Config {
     const Args = struct {

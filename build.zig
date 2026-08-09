@@ -137,6 +137,8 @@ const GenerationModule = struct {
             .root_module = mod,
         });
 
+        exe.step.dependOn(b.getInstallStep());
+
         return .{
             .name = name,
             .exe = b.addRunArtifact(exe),
@@ -1068,8 +1070,6 @@ pub fn build(b: *std.Build) Err!void {
     build_time_tools.setup_iso.exe.addArtifactArg(shell_exe);
     build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/modules/");
 
-    build_time_tools.setup_iso.exe.step.dependOn(b.getInstallStep());
-
     const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
     if (exe_mkisofs) |exe| {
         create_x86_iso.addArtifactArg(exe);
@@ -1104,11 +1104,26 @@ pub fn build(b: *std.Build) Err!void {
         "zig-out/x86/iso/",
     });
     create_x86_iso.step.dependOn(&build_time_tools.setup_iso.exe.step);
+    if (build_options.emulator == .bochs) {
+        build_time_tools.setup_bochs.exe.addArgs(&.{
+            "--dest_dir",
+            "zig-out/x86/",
+            "--default_config",
+        });
+        build_time_tools.setup_bochs.exe.addFileArg(b.path("arch/x86/bochs/bochs.config"));
+        if (depbochs) |dep| {
+            build_time_tools.setup_bochs.exe.addArg("--vgaromimage");
+            build_time_tools.setup_bochs.exe.addFileArg(dep.path("bochs/bios/VGABIOS-lgpl-latest"));
+            build_time_tools.setup_bochs.exe.addArg("--romimage");
+            build_time_tools.setup_bochs.exe.addFileArg(dep.path("bochs/bios/BIOS-bochs-latest"));
+        }
+
+        create_x86_iso.step.dependOn(&build_time_tools.setup_bochs.exe.step);
+    }
 
     switch (build_options.default_run_target) {
         .x86 => {
             build_steps.build_iso.dependOn(&create_x86_iso.step);
-            build_steps.build_iso.dependOn(&build_time_tools.setup_iso.exe.step);
         },
         .riscv32 => {
             // riscv32 currently doesn't make an iso
@@ -1131,7 +1146,6 @@ pub fn build(b: *std.Build) Err!void {
     };
 
     const x86_run_qemu = b.addSystemCommand(&common_x86_qemu_flags);
-    x86_run_qemu.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
 
     const x86_run_qemu_debugger = b.addSystemCommand(add_debug_flags: {
@@ -1141,7 +1155,6 @@ pub fn build(b: *std.Build) Err!void {
         try flag_buf.append(b.allocator, "-S");
         break :add_debug_flags flag_buf.items;
     });
-    x86_run_qemu_debugger.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_qemu_debugger.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs: *std.Build.Step.Run = .create(b, "runbochs");
@@ -1164,7 +1177,6 @@ pub fn build(b: *std.Build) Err!void {
     // "zig-out/x86/bochs.config",
     // "-q",
     // });
-    x86_run_bochs.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs_debugger = b.addSystemCommand(&.{
@@ -1174,7 +1186,6 @@ pub fn build(b: *std.Build) Err!void {
         "-q",
         // "-debugger",
     });
-    x86_run_bochs_debugger.step.dependOn(&build_time_tools.setup_iso.exe.step);
     x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
     build_steps.build_all.dependOn(build_steps.build_iso);
 
