@@ -293,6 +293,63 @@ const Targets = struct {
     }
 };
 
+const BuildConfig = struct {
+    run_info: RunInfo,
+    boot_info: BootInfo,
+    runtime_tests: RuntimeTestInfo,
+    tool_info: ToolInfo,
+
+    const RunInfo = struct {
+        target: SupportedTarget,
+        use_debugger: bool,
+        emulator: Emulator,
+    };
+    const BootInfo = struct {
+        specification: BootSpecification,
+        boot_loader: BootLoader,
+    };
+    const RuntimeTestInfo = struct {
+        test_panic: bool,
+        test_illegal_instruction: bool,
+    };
+    const ToolInfo = struct {
+        build_bochs: bool,
+        build_schilytools: bool,
+    };
+
+    fn init(
+        source: []const u8,
+        allocator: std.mem.Allocator,
+        io: std.Io,
+    ) !BuildConfig {
+        const cwd: std.Io.Dir = .cwd();
+        const file = try cwd.openFile(io, source, .{});
+
+        var reader_buf: [4096]u8 = undefined;
+        const file_reader = file.reader(io, &reader_buf);
+        var reader = file_reader.interface;
+
+        var file_contents: std.ArrayList(u8) = .empty;
+
+        var keep_going: bool = true;
+        var content_buf: [4096]u8 = @splat(0);
+        while (keep_going) {
+            const amount_read = try reader.readSliceShort(&content_buf);
+            try file_contents.appendSlice(allocator, content_buf[0..amount_read]);
+            keep_going = (amount_read >= content_buf.len);
+        }
+
+        try file_contents.append(allocator, 0);
+        return try std.zon.parse.fromSlice(
+            BuildConfig,
+            allocator,
+            @ptrCast(file_contents.items),
+            null,
+            .{},
+        );
+    }
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -343,7 +400,7 @@ pub fn build(b: *std.Build) Err!void {
                 "bochs_zig",
                 .{
                     .optimize = std.builtin.OptimizeMode.ReleaseFast,
-                    .@"with-x11" = true,
+                    .@"with-sdl2" = true,
                 },
             );
         } else {
