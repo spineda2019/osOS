@@ -17,8 +17,6 @@
 //! This module provides the entry point of the kernel on RISC-V 32 bit systems
 //! Specifically, this is currently designed for the QEMU "virt" machine
 
-const setup: *const fn (u32, u32) callconv(.c) noreturn = &@import("setup.zig").setup;
-
 /// Address to the top of the kernel stack
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
 
@@ -28,12 +26,12 @@ pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
 /// The entry point of our kernel. This is defined as the entry point of the
 /// executable in the linker script. It's only job is to set up the stack
 /// and jump to setup, which will do hardware initialization.
-export fn boot() linksection(".text.boot") callconv(.naked) noreturn {
+export fn boot(hart_id: u32, dtb_address: [*]const u8) linksection(".text.boot") callconv(.c) noreturn {
     asm volatile (
         \\mv sp, %[stack_top]
-        \\j %[setup_address]
         :
         : [stack_top] "r" (stack_top),
-          [setup_address] "i" (setup),
     );
+
+    @import("setup.zig").setup(hart_id, dtb_address);
 }
