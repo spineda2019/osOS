@@ -51,7 +51,7 @@ pub fn handlePanic(message: []const u8, start_address: ?usize) noreturn {
     }
 }
 
-pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
+pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
@@ -70,7 +70,7 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
 
     terminal_writer.writef("Hello RISC-V32 osOS!\n", .{});
     terminal_writer.writef("Hart ID: {d}\n", .{hart_id});
-    terminal_writer.writef("DTB Address: 0x{d}\n", .{dtb_address});
+    terminal_writer.writef("DTB Address: {*}\n", .{dtb_address});
 
     const sbi_spec_version = sbi.getSpecVersion();
     terminal_writer.writef(
