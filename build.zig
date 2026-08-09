@@ -403,6 +403,7 @@ pub fn build(b: *std.Build) Err!void {
                 .{
                     .optimize = std.builtin.OptimizeMode.ReleaseFast,
                     .@"with-sdl2" = true,
+                    .@"enable-debugger" = build_options.use_debugger,
                 },
             );
         } else {
@@ -1171,22 +1172,8 @@ pub fn build(b: *std.Build) Err!void {
         x86_run_bochs.addArg("-q");
     }
 
-    // const x86_run_bochs = b.addSystemCommand(&.{
-    // "bochs",
-    // "-f",
-    // "zig-out/x86/bochs.config",
-    // "-q",
-    // });
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
 
-    const x86_run_bochs_debugger = b.addSystemCommand(&.{
-        "bochs",
-        "-f",
-        "zig-out/x86/bochs.config",
-        "-q",
-        // "-debugger",
-    });
-    x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
     build_steps.build_all.dependOn(build_steps.build_iso);
 
     //* ************************* Generic Run Target ************************* *
@@ -1199,10 +1186,7 @@ pub fn build(b: *std.Build) Err!void {
     switch (build_options.default_run_target) {
         .x86 => {
             build_steps.run.dependOn(switch (build_options.emulator) {
-                .bochs => switch (build_options.use_debugger) {
-                    false => &x86_run_bochs.step,
-                    true => &x86_run_bochs_debugger.step,
-                },
+                .bochs => &x86_run_bochs.step,
                 .qemu => switch (build_options.use_debugger) {
                     false => &x86_run_qemu.step,
                     true => &x86_run_qemu_debugger.step,
