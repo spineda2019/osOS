@@ -34,7 +34,7 @@ pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
         pub fn createProcess(
             self: *Self,
             process_start_address: [*]const u8,
-        ) Process.ProcessError!*Process {
+        ) Process.ProcessError!void {
             for (&self.pool, 0..) |*process, p| {
                 if (process.* == null) {
                     process.* = .{
@@ -42,7 +42,7 @@ pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
                         .entry_address = process_start_address,
                         .pid = p,
                     };
-                    return process;
+                    return;
                 }
             }
 
