@@ -42,6 +42,7 @@ pub var free_page_list: ?*std.SinglyLinkedList.Node = null;
 pub fn createDefaultIDT() InterruptDescriptorTable {
     var entries: [256]InterruptDescriptor = undefined;
     for (interrupt_handler_table, 0..) |fn_ptr, interrupt_number| {
+        const int: InterruptNumber = .init(interrupt_number);
         entries[interrupt_number] = .{
             .offset_low = @truncate(@intFromPtr(fn_ptr)),
             .offset_high = @truncate(@intFromPtr(fn_ptr) >> 16),
@@ -49,7 +50,7 @@ pub fn createDefaultIDT() InterruptDescriptorTable {
             .unused = 0,
             .gate_type = .ProtectedModeInterruptGate,
             .zero = 0,
-            .descriptor_privilege_level = 0, // kernel mode
+            .descriptor_privilege_level = int.privilege(),
             .present_bit = 0b1,
         };
     }
@@ -128,7 +129,7 @@ pub const InterruptDescriptor = packed struct(u64) {
     ///
     /// Defines CPU privilege levels which are allow to access this interrupt
     /// with the "int" instruction (hardware interrupts just ignore this).
-    descriptor_privilege_level: u2,
+    descriptor_privilege_level: PrivilegeLevel,
 
     /// 47th overall bit. 15th bit in higher bits
     ///
@@ -140,6 +141,11 @@ pub const InterruptDescriptor = packed struct(u64) {
     /// Higher 16 bits of the total offset of ths descriptor in the table. The
     /// total offset points to the entry point of the handler
     offset_high: u16,
+
+    const PrivilegeLevel = enum(u2) {
+        kernel_mode = 0,
+        user_mode = 3,
+    };
 
     const SegmentSelector = packed struct(u16) {
         /// The requested Privilege Level of the selector, determines if the
@@ -322,6 +328,13 @@ const InterruptNumber = union(enum) {
                 .picInterrupt = @enumFromInt(number),
             },
             else => .{ .withoutErrorCode = number },
+        };
+    }
+
+    pub fn privilege(self: InterruptNumber) InterruptDescriptor.PrivilegeLevel {
+        return switch (self) {
+            .syscall => .user_mode,
+            else => .kernel_mode,
         };
     }
 
