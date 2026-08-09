@@ -1012,9 +1012,11 @@ pub fn build(b: *std.Build) Err!void {
     //* *************************** x86 Specific ***************************** *
     const BuildTimeTools = struct {
         setup_iso: GenerationModule,
+        setup_bochs: GenerationModule,
     };
     const build_time_tools: BuildTimeTools = .{
         .setup_iso = .init(b, b.path("build_time_tools/build_iso/main.zig"), "build_iso"),
+        .setup_bochs = .init(b, b.path("build_time_tools/setup_bochs/main.zig"), "setup_bochs"),
     };
 
     build_time_tools.setup_iso.exe.addFileArg(b.path(""));
@@ -1059,9 +1061,6 @@ pub fn build(b: *std.Build) Err!void {
                 "--copy",
                 "arch/x86/grub/menu.lst",
                 "zig-out/x86/iso/boot/grub/menu.lst",
-                "--copy",
-                "arch/x86/bochs/bochs.config",
-                "zig-out/x86/bochs.config",
             });
         },
     }
