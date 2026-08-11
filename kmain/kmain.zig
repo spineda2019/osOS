@@ -74,16 +74,12 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
 
     logger.flush();
 
-    var process_pool: process.ProcessTable(8) = .init();
     var module_iterator = rt_hal.boot_module_info.iterator();
     while (module_iterator.next()) |module| {
         logger.writef(
             "Initializing module: '{s}' at addr {*}\r\n",
             .{ module.name, module.physical_address.ptr },
         );
-        process_pool.createProcess(module.physical_address.ptr) catch |err| {
-            @panic(@errorName(err));
-        };
     }
     logger.writef("Beginning to schedule from the process pool\r\n", .{});
     logger.flush();
