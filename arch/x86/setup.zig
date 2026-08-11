@@ -134,12 +134,13 @@ pub fn setup(boot_info: BootInfo) noreturn {
             .serial_io = sp_writer,
             .boot_module_info = boot_info.module_info,
         },
-        .{
-            .assembly_wrappers = .{
-                .jump = as.assembly_wrappers.jump,
-                .illegal_instruction = as.assembly_wrappers.illegal_instruction,
-            },
-        },
+        .{ .assembly_wrappers = .{
+            .jump = as.assembly_wrappers.jump,
+            .illegal_instruction = as.assembly_wrappers.illegal_instruction,
+        }, .ctx_tools = .{
+            .enableInterrupts = as.assembly_wrappers.enable_x86_interrupts,
+            .disableInterrupts = as.assembly_wrappers.disable_x86_interrupts,
+        } },
     );
 }
 

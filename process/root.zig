@@ -17,17 +17,21 @@
 pub const BootModule = @import("BootModule.zig");
 pub const IModuleProber = @import("IModuleProber.zig");
 pub const Process = @import("Process.zig");
+pub const ContextTools = @import("ContextTools.zig");
+pub const ProcessPoolInfo = @import("ProcessPoolInfo.zig");
 
-pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
+pub fn ProcessTable(
+    comptime info: ProcessPoolInfo,
+) type {
     return struct {
         const Self = @This();
 
-        pool: [MAX_PROCESS_COUNT]?Process,
+        const ctx: ContextTools = info.context_tools;
+        procs: [info.max_process_count]?Process,
+        stacks: [info.max_process_count][info.stack_size]u8,
 
         pub fn init() Self {
-            return .{
-                .pool = @splat(null),
-            };
+            return .{ .procs = @splat(null), .stacks = @splat(@splat(0)) };
         }
         /// Create a process at a specific address in RAM. Creates the process entry
         /// in the table and returns the address to the process entry.
@@ -35,12 +39,13 @@ pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
             self: *Self,
             process_start_address: [*]const u8,
         ) Process.ProcessError!void {
-            for (&self.pool, 0..) |*process, p| {
+            for (&self.procs, 0..) |*process, p| {
                 if (process.* == null) {
                     process.* = .{
                         .state = .runnable,
                         .entry_address = process_start_address,
                         .pid = p,
+                        .stack_info = undefined, // TODO: !!!
                     };
                     return;
                 }
@@ -50,7 +55,7 @@ pub fn ProcessTable(comptime MAX_PROCESS_COUNT: comptime_int) type {
         }
 
         pub fn schedule(self: *Self) void {
-            for (&self.pool) |*proc| {
+            for (&self.procs) |*proc| {
                 if (proc.*) |p| {
                     _ = p;
                 }

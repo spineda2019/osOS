@@ -28,3 +28,9 @@ pub inline fn jump(address: u32) noreturn {
         : [addr] "r" (address),
     );
 }
+
+pub const SStatus = packed struct(u32) {};
+
+pub inline fn disableInterrupts() void {}
+
+pub inline fn enableInterrupts() void {}
