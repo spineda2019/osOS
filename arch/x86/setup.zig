@@ -23,6 +23,7 @@ const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const BootInfo = @import("BootInfo");
+const panic = @import("panic/root.zig");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -44,6 +45,8 @@ pub fn setup(boot_info: BootInfo) noreturn {
     // as.assembly_wrappers.enableSSE();
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
+
+    panic.virt_fb_addr = boot_info.framebuffer.virtual_addr;
 
     gdt_descriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
@@ -157,19 +160,17 @@ fn reportPagingInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
     logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
     logger.log("    Checking VirtToPhy mappings...\r\n", .{});
 
-    const virt_addresses = comptime [_]u32{
-        0xC00B8000,
-        0xC0000000,
+    const virt_addresses = [_]u32{
+        boot_info.framebuffer.virtual_addr,
     };
-    inline for (virt_addresses) |addr| {
-        const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
+    for (virt_addresses) |addr| {
         if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
             logger.log(
-                "    Virt address (0x" ++ str ++ ") maps to physical address: (0x{x})\r\n",
-                .{mapped},
+                "    Virt address (0x{x}) maps to physical address: (0x{x})\r\n",
+                .{ addr, mapped },
             );
         } else {
-            logger.log("    Virt address (0x" ++ str ++ ") is unmapped\r\n", .{});
+            logger.log("    Virt address (0x{x}) is unmapped\r\n", .{addr});
         }
     }
 
