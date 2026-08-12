@@ -24,6 +24,12 @@ const osformat = @import("osformat");
 const oshal = @import("oshal");
 const BootInfo = @import("BootInfo");
 
+/// BSS Start
+const bss = @extern([*]u8, .{ .name = "__bss" });
+
+/// BSS End
+const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
+
 const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
 var gdt_descriptor: memory.gdt.GDTDescriptor = .{ .size = 0, .address = 0 };
 
@@ -36,6 +42,8 @@ var idt_descriptor: interrupts.idt.IDTDescriptor = undefined;
 pub fn setup(boot_info: BootInfo) noreturn {
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
+    const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
+    @memset(bss[0..bssSize], 0);
 
     gdt_descriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
@@ -47,13 +55,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
     var framebuffer: io.FrameBuffer = .init(
         .LightBrown,
         .DarkGray,
-        fb_start: {
-            if (boot_info.framebuffer.addr) |addr| {
-                break :fb_start addr + boot_info.paging.virtual_kernel_base;
-            } else {
-                break :fb_start 0xC00B8000;
-            }
-        },
+        boot_info.framebuffer.virtual_addr,
     );
     var serial_port = io.SerialPort.defaultInit();
 
@@ -125,7 +127,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
     interrupts.pic.init(&framebuffer);
 
     // undo first 4MB identity mapping to finish higher half jump.
-    boot_info.paging.unmap(0);
+    boot_info.paging.unmapTable(0);
     as.assembly_wrappers.enable_x86_interrupts();
 
     kmain.kmain(
@@ -258,23 +260,9 @@ fn reportFramebufferInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
     logger.log("***************** Framebuffer info *****************\r\n", .{});
     defer logger.log("********** Framebuffer info END **********\r\n\r\n", .{});
 
-    if (boot_info.framebuffer.addr) |address| {
-        logger.log("    Address: 0x{d}\r\n", .{address});
-    } else {
-        logger.log("    Address not found...\r\n", .{});
-    }
-
-    if (boot_info.framebuffer.height) |height| {
-        logger.log("    Framebuffer Height: {d}\r\n", .{height});
-    } else {
-        logger.log("    Framebuffer Height not found...\r\n", .{});
-    }
-
-    if (boot_info.framebuffer.width) |width| {
-        logger.log("    Framebuffer Width: {d}\r\n", .{width});
-    } else {
-        logger.log("    Framebuffer Width not found...\r\n", .{});
-    }
+    logger.log("    Address: 0x{d}\r\n", .{boot_info.framebuffer.virtual_addr});
+    logger.log("    Framebuffer Height: {d}\r\n", .{boot_info.framebuffer.height});
+    logger.log("    Framebuffer Width: {d}\r\n", .{boot_info.framebuffer.width});
 }
 
 fn reportBootModuleInfo(logger: *io.Logger, boot_info: *const BootInfo) void {

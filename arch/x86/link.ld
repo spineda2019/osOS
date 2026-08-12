@@ -41,9 +41,11 @@ SECTIONS {
         KEEP(*(.trampoline))
     }
 
-    __stack_bottom = .;
+    __stack_bottom = ABSOLUTE(.);
     . += 1024 * 4;       /* 4 KiB Trampoline Stack */
-    __stack_top = .;
+    __stack_top = ABSOLUTE(.);
+
+    __kernel_lma_base = ALIGN(__stack_top, 0x1000);  /* Get page aligned addr for higher half LMA */
 
     /* --------------------------------------------------------------------- */
     
@@ -51,35 +53,39 @@ SECTIONS {
     . = 0xC0000000;
 
     /* align everything at 0x1000 (4096 in decimal, i.e. 4KB) */
-    .text ALIGN(0x1000) : AT (ADDR (.text) - 0xC0000000)
+    .text ALIGN(0x1000) : AT (ADDR (.text) - 0xC0000000 + __kernel_lma_base)
     {
            /* All text sections from all files                               */
         *(.text)
     }
 
     /* read-only data sections */
-    .rodata ALIGN(0x1000) : AT (ADDR (.rodata) - 0xC0000000)
+    .rodata ALIGN(0x1000) : AT (ADDR (.rodata) - 0xC0000000 + __kernel_lma_base)
     {
         *(.rodata*)
     }
 
     /* data sections */
-    .data ALIGN(0x1000) : AT (ADDR (.data) - 0xC0000000)
+    .data ALIGN(0x1000) : AT (ADDR (.data) - 0xC0000000 + __kernel_lma_base)
     {
         *(.data)
     }
 
     /* uninitialized data sections */
-    .bss ALIGN(0x1000) : AT (ADDR (.bss) - 0xC0000000)
+    .bss ALIGN(0x1000) : AT (ADDR (.bss) - 0xC0000000 + __kernel_lma_base)
     {
+        __bss = .;
         *(.bss)
+        __bss_end = .;
     }
     /* --------------------------------------------------------------------- */
 
     __virtual_stack_bottom = .;
     . += 1024 * 1024;            /* 1 MiB Virtual Stack */
     __virtual_stack_top = .;
-    __physical_kernel_end = . - 0xC0000000;
+    ASSERT(__virtual_stack_top <= 0xC0400000, "Kernel image larger than what a 4MiB page table can fit")
+    __virtual_mmio = 0xC0400000;
+    __physical_kernel_end = . - 0xC0000000 + __kernel_lma_base;
 
     
     /DISCARD/ : {
