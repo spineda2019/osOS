@@ -14,18 +14,6 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const physical_kernel_end: [*]const u8 = @extern(
-    [*]const u8,
-    .{ .name = "__physical_kernel_end" },
-);
-
-const virtual_stack_top: [*]u8 = @extern(
-    [*]u8,
-    .{ .name = "__virtual_stack_top" },
-);
-
-const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
-
 const bootutils = @import("osboot");
 /// Defined in the build script
 const bootoptions = @import("bootoptions");
@@ -36,6 +24,28 @@ const osformat = @import("osformat");
 const BootInfo = @import("BootInfo");
 const MemoryInfo = BootInfo.MemoryInfo;
 const MemoryError = osmemory.IMemoryProber.MemError;
+
+const physical_kernel_end: [*]const u8 = @extern(
+    [*]const u8,
+    .{ .name = "__physical_kernel_end" },
+);
+
+const virtual_stack_top: [*]u8 = @extern(
+    [*]u8,
+    .{ .name = "__virtual_stack_top" },
+);
+
+const virtual_mmio = @extern(
+    [*]allowzero align(memory.paging.PAGE_SIZE) const u8,
+    .{ .name = "__virtual_mmio" },
+);
+
+const stack_top: [*]u8 = @extern([*]u8, .{ .name = "__stack_top" });
+
+const kernel_lma_base = @extern(
+    [*]allowzero align(memory.paging.PAGE_SIZE) const u8,
+    .{ .name = "__kernel_lma_base" },
+);
 
 /// Header to mark our kernel as bootable. Will be placed at the beginning of
 /// our kernel's binary, and will be interpretted by the bootloader as the header
@@ -67,6 +77,14 @@ pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.P
 } ** memory.paging.ENTRY_COUNT;
 
 pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageTableEntry.default,
+} ** memory.paging.ENTRY_COUNT;
+
+pub var higher_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+    memory.paging.PageTableEntry.default,
+} ** memory.paging.ENTRY_COUNT;
+
+pub var mmio_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
     memory.paging.PageTableEntry.default,
 } ** memory.paging.ENTRY_COUNT;
 
@@ -103,6 +121,35 @@ fn trampoline(
         .{
             &page_info,
             &kernel_page_table,
+            memory.paging.InlineOptions{ .mode = .always_inline },
+        },
+    );
+    @call(.always_inline, memory.paging.fillTable, .{ &higher_page_table, kernel_lma_base, true });
+    @call(.always_inline, memory.paging.Info.mapTable, .{
+        &page_info,
+        &higher_page_table,
+        page_info.virtual_kernel_base,
+        memory.paging.InlineOptions{ .mode = .always_inline },
+    });
+    @call(
+        .always_inline,
+        memory.paging.mapFrame,
+        .{
+            &mmio_page_table,
+            0,
+            @as(
+                [*]allowzero align(memory.paging.PAGE_SIZE) const u8,
+                @ptrFromInt(mb_info.framebuffer_addr_lower / memory.paging.PAGE_SIZE * memory.paging.PAGE_SIZE),
+            ),
+        },
+    );
+    @call(
+        .always_inline,
+        memory.paging.Info.mapTable,
+        .{
+            &page_info,
+            &mmio_page_table,
+            @intFromPtr(virtual_mmio),
             memory.paging.InlineOptions{ .mode = .always_inline },
         },
     );
@@ -165,15 +212,15 @@ fn trampoline(
         .framebuffer = blk: {
             if (mb_info.flags.framebuffer) {
                 break :blk .{
-                    .addr = mb_info.framebuffer_addr_lower,
+                    .virtual_addr = @intFromPtr(virtual_mmio),
                     .height = mb_info.framebuffer_height,
                     .width = mb_info.framebuffer_width,
                 };
             } else {
                 break :blk .{
-                    .addr = null,
-                    .height = null,
-                    .width = null,
+                    .virtual_addr = @intFromPtr(virtual_mmio),
+                    .height = 25,
+                    .width = 80,
                 };
             }
         },

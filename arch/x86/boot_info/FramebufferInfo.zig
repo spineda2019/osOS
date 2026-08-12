@@ -1,5 +1,5 @@
-addr: ?u32,
+virtual_addr: u32,
 
-height: ?u32,
+height: u32,
 
-width: ?u32,
+width: u32,
