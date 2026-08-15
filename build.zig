@@ -439,6 +439,7 @@ pub fn build(b: *std.Build) Err!void {
         osboot: CommonModule,
         oshal: CommonModule,
         osstdlib: CommonModule,
+        oscontainers: CommonModule,
 
         /// This is special
         kmain: CommonModule,
@@ -451,8 +452,15 @@ pub fn build(b: *std.Build) Err!void {
         .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig", test_target),
         .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
+        .oscontainers = .create(b, "oscontainers", "containers/root.zig", test_target),
         .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
     };
+
+    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
+        const step = b.step(field_name, "Build " ++ field_name ++ " module");
+        const mod: CommonModule = @field(shared_modules, field_name);
+        step.dependOn(&mod.test_artifact.step);
+    }
 
     shared_modules.oshal.module.addImport(
         shared_modules.osformat.name,
