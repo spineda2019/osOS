@@ -10,6 +10,15 @@ pub const RingBufferWriteError = error{
 
 pub const RingBufferError = RingBufferWriteError || RingBufferReadError;
 
+/// Thread/Interrupt safe ring buffer. NOTE: (Read below)
+///
+/// This is _largely_ not my own implementation in the slightest. This was
+/// taken from rigtorp's blog post about optimizng a ring buffer in C++. His
+/// starting implementation bench marks (~5M items per second) mean I could in
+/// theory push 5 scan codes within a microsecond, which is what I want for
+/// my keyboard handler. See his blog post here:
+///
+/// https://rigtorp.se/ringbuffer/
 pub fn RingBuffer(comptime T: type, comptime capacity: usize) type {
     return struct {
         const Self = @This();
