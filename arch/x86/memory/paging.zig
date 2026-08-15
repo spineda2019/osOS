@@ -332,6 +332,10 @@ pub const Info = struct {
 };
 
 test Info {
+    if (@sizeOf(usize) != 4) {
+        return;
+    }
+
     const std = @import("std");
 
     const physical_framebuffer_start = 0x00_0B_80_00;

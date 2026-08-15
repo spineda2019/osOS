@@ -19,6 +19,7 @@ const PageAllocator = @This();
 const MemoryInfo = @import("BootInfo").MemoryInfo;
 const ChunkIterator = MemoryInfo.Iterator;
 const std = @import("std");
+const builtin = @import("builtin");
 
 head: std.SinglyLinkedList,
 
@@ -334,6 +335,10 @@ const test_helpers = struct {
 };
 
 test allocFrame {
+    if (@sizeOf(usize) != 4) {
+        return;
+    }
+
     const osmemory = @import("osmemory");
     var single_chunk: [2 * 4096]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
@@ -388,6 +393,10 @@ test allocFrame {
 }
 
 test PageAllocator {
+    if (@sizeOf(usize) != 4) {
+        return;
+    }
+
     const osmemory = @import("osmemory");
     var single_chunk: [2 * 4096]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
