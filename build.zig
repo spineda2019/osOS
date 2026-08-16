@@ -549,6 +549,7 @@ pub fn build(b: *std.Build) Err!void {
         .target = riscv32_target,
         .optimize = optimize,
         .strip = false,
+        .single_threaded = false,
     });
     riscv32_module.addImport(
         riscv32_modules.tty_module.name,
@@ -670,12 +671,17 @@ pub fn build(b: *std.Build) Err!void {
         x86_modules.memory_module.name,
         x86_modules.memory_module.module,
     );
+    x86_modules.interrupts_module.module.addImport(
+        shared_modules.oscontainers.name,
+        shared_modules.oscontainers.module,
+    );
 
     const x86_module = b.createModule(.{
         .root_source_file = b.path("arch/x86/entry.zig"),
         .target = x86_target,
         .optimize = optimize,
         .strip = false,
+        .single_threaded = false,
     });
     x86_module.addImport(
         x86_modules.boot_info.name,

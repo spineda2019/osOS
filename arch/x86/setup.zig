@@ -127,7 +127,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
 
     logger.log("COM1 succesfully written to! Testing cursor movement...\r\n", .{});
     logger.log("x86: Activating PIC...\r\n", .{});
-    interrupts.pic.init(&framebuffer);
+    interrupts.pic.init();
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmapTable(0);
@@ -138,14 +138,28 @@ pub fn setup(boot_info: BootInfo) noreturn {
             .terminal = fb_writer,
             .serial_io = sp_writer,
             .boot_module_info = boot_info.module_info,
+            .char_buf = .{
+                .impl = null,
+                .vtable = &.{
+                    .getChar = &struct {
+                        fn impl(_: ?*anyopaque) ?u8 {
+                            return interrupts.pic.scan_code_buffer.pop();
+                        }
+                    }.impl,
+                },
+            },
         },
-        .{ .assembly_wrappers = .{
-            .jump = as.assembly_wrappers.jump,
-            .illegal_instruction = as.assembly_wrappers.illegal_instruction,
-        }, .ctx_tools = .{
-            .enableInterrupts = as.assembly_wrappers.enable_x86_interrupts,
-            .disableInterrupts = as.assembly_wrappers.disable_x86_interrupts,
-        } },
+        .{
+            .assembly_wrappers = .{
+                .jump = as.assembly_wrappers.jump,
+                .illegal_instruction = as.assembly_wrappers.illegal_instruction,
+                .wait_for_interrupt = as.assembly_wrappers.haltUntilInterrupt,
+            },
+            .ctx_tools = .{
+                .enableInterrupts = as.assembly_wrappers.enable_x86_interrupts,
+                .disableInterrupts = as.assembly_wrappers.disable_x86_interrupts,
+            },
+        },
     );
 }
 

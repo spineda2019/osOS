@@ -86,6 +86,9 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
     // TODO(SEP) somehow call schedule?
 
     while (true) {
-        asm volatile ("");
+        if (rt_hal.char_buf.vtable.getChar(rt_hal.char_buf.impl)) |scan| {
+            logger.writef("Received scan code: {d}\r\n", .{scan});
+            logger.flush(); // not needed but good to observe correctness for now
+        }
     }
 }

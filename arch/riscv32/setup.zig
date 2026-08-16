@@ -91,13 +91,27 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
             .terminal = terminal_writer,
             .serial_io = serial_stub.writer(&serial_buffer),
             .boot_module_info = BootInfo.ModuleInfo.moduleProber(),
+            .char_buf = .{
+                .impl = null,
+                .vtable = &.{
+                    .getChar = &struct {
+                        fn impl(_: ?*anyopaque) ?u8 {
+                            return null;
+                        }
+                    }.impl,
+                },
+            },
         },
-        .{ .assembly_wrappers = .{
-            .jump = riscv32asm.assembly_wrappers.jump,
-            .illegal_instruction = riscv32asm.assembly_wrappers.illegal_instruction,
-        }, .ctx_tools = .{
-            .enableInterrupts = riscv32asm.assembly_wrappers.disableInterrupts,
-            .disableInterrupts = riscv32asm.assembly_wrappers.enableInterrupts,
-        } },
+        .{
+            .assembly_wrappers = .{
+                .jump = riscv32asm.assembly_wrappers.jump,
+                .illegal_instruction = riscv32asm.assembly_wrappers.illegal_instruction,
+                .wait_for_interrupt = riscv32asm.assembly_wrappers.waitForInterrupt,
+            },
+            .ctx_tools = .{
+                .enableInterrupts = riscv32asm.assembly_wrappers.disableInterrupts,
+                .disableInterrupts = riscv32asm.assembly_wrappers.enableInterrupts,
+            },
+        },
     );
 }

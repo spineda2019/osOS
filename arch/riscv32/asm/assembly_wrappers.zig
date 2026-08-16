@@ -34,3 +34,9 @@ pub const SStatus = packed struct(u32) {};
 pub inline fn disableInterrupts() void {}
 
 pub inline fn enableInterrupts() void {}
+
+pub inline fn waitForInterrupt() void {
+    asm volatile (
+        \\wfi
+    );
+}
