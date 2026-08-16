@@ -180,3 +180,11 @@ pub inline fn jump(address: u32) noreturn {
     );
     unreachable;
 }
+
+pub inline fn haltUntilInterrupt() void {
+    asm volatile (
+        \\hlt
+        : //no outs
+        : // no ins
+        : .{ .memory = true });
+}

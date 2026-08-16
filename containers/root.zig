@@ -28,10 +28,9 @@ pub fn RingBuffer(comptime T: type, comptime capacity: usize) type {
         read_ptr: usize align(64),
         /// TODO(SEP): calculate cach-line size of arch at comptime if possible.
         write_ptr: usize align(64),
-        dropped: usize,
 
         pub fn init() Self {
-            return .{ .buf = undefined, .read_ptr = 0, .write_ptr = 0, .dropped = 0 };
+            return .{ .buf = undefined, .read_ptr = 0, .write_ptr = 0 };
         }
 
         pub fn push(self: *Self, item: T) RingBufferWriteError!void {

@@ -20,10 +20,12 @@
 const as = @import("x86asm");
 const io = @import("x86io");
 const osformat = @import("osformat");
+const oscontainers = @import("oscontainers");
 
 const Self: type = @This();
 
-var framebuffer_handle: ?*io.FrameBuffer = null;
+pub var scan_code_buffer: oscontainers.RingBuffer(u8, 64) = .init();
+
 const irq_offset: u8 = 0x20;
 var clock_tics: usize = 0;
 
@@ -69,7 +71,7 @@ const common_messages = struct {
 /// Initialize the PIC master and slave with a predefined offset into the
 /// IDT (or else the default IRQ nums will be 0-7 which conflict wity x86
 /// CPU exceptions)
-pub fn init(fb_handle: *io.FrameBuffer) void {
+pub fn init() void {
     // TODO: log warn if no pic found. Right ow we assume it exists.
 
     // sending the initialization byte to a PIC makes it prepare for 3 more
@@ -129,8 +131,6 @@ pub fn init(fb_handle: *io.FrameBuffer) void {
     // as.assembly_wrappers.x86_out(slave_data_port, common_messages.unmask);
     as.assembly_wrappers.x86_out(slave_data_port, common_messages.masks.mask_all);
     io.SerialPort.ioWait();
-
-    framebuffer_handle = fb_handle;
 }
 
 /// Send acknowledgement to the PIC chip that sent an interrupt request. If
@@ -153,11 +153,7 @@ fn sendAcknowledgement(interrupt_request: u8) void {
 
 fn handleKeyboardIRQ() void {
     const scan_code: u8 = as.assembly_wrappers.x86_inb(0x60);
-    const scan_code_str: osformat.format.StringFromInt(u8, 10) = .init(scan_code);
-    if (framebuffer_handle) |handle| {
-        handle.write("Keyboard input detected. Scancode: ");
-        handle.writeLine(scan_code_str.getStr());
-    }
+    scan_code_buffer.push(scan_code) catch {};
 }
 
 fn handleTimerIRQ() void {
