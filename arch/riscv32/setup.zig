@@ -109,8 +109,8 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
                 .wait_for_interrupt = riscv32asm.assembly_wrappers.waitForInterrupt,
             },
             .ctx_tools = .{
-                .enableInterrupts = riscv32asm.assembly_wrappers.disableInterrupts,
-                .disableInterrupts = riscv32asm.assembly_wrappers.enableInterrupts,
+                .enableInterrupts = riscv32asm.assembly_wrappers.enableInterrupts,
+                .disableInterrupts = riscv32asm.assembly_wrappers.disableInterrupts,
             },
         },
     );
