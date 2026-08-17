@@ -14,6 +14,9 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+const std = @import("std");
+const csr = @import("csr.zig");
+
 pub inline fn illegal_instruction() noreturn {
     asm volatile (
         \\unimp
@@ -29,11 +32,36 @@ pub inline fn jump(address: u32) noreturn {
     );
 }
 
-pub const SStatus = packed struct(u32) {};
+const sie_mask: csr.SStatus = .{
+    .sie = true,
+    .spie = false,
+    .ube = false,
+    .spp = false,
+    .vs = 0,
+    .fs = 0,
+    .xs = 0,
+    .sum = false,
+    .mxr = false,
+    .spelp = false,
+    .sdt = false,
+    .sd = false,
+};
 
-pub inline fn disableInterrupts() void {}
+pub inline fn disableInterrupts() void {
+    asm volatile (
+        \\csrc sstatus, %[mask]
+        : // no outs
+        : [mask] "r" (sie_mask),
+    );
+}
 
-pub inline fn enableInterrupts() void {}
+pub inline fn enableInterrupts() void {
+    asm volatile (
+        \\csrs sstatus, %[mask]
+        : // no outs
+        : [mask] "r" (sie_mask),
+    );
+}
 
 pub inline fn waitForInterrupt() void {
     asm volatile (
