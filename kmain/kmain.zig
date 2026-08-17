@@ -74,6 +74,15 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
 
     logger.flush();
 
+    const static_process_storage = struct {
+        var process_pool: process.ProcessTable(.{
+            .max_process_count = 8,
+            .context_tools = ct_hal.ctx_tools,
+            .stack_size = 1024 * 64,
+        }) = undefined;
+    };
+    static_process_storage.process_pool = .init();
+
     var module_iterator = rt_hal.boot_module_info.iterator();
     while (module_iterator.next()) |module| {
         logger.writef(
