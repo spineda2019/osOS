@@ -31,7 +31,7 @@ pub fn ProcessTable(
         stacks: [info.max_process_count][info.stack_size]u8,
 
         pub fn init() Self {
-            return .{ .procs = @splat(null), .stacks = @splat(@splat(0)) };
+            return .{ .procs = @splat(null), .stacks = undefined };
         }
         /// Create a process at a specific address in RAM. Creates the process entry
         /// in the table and returns the address to the process entry.
