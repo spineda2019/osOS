@@ -1,3 +1,4 @@
+const std = @import("std");
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
 const riscv32asm = @import("riscv32asm");
@@ -8,6 +9,7 @@ const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 const serial = @import("serial/serial.zig");
 const BootInfo = @import("BootInfo");
+const dtb = @import("osdtb");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -71,6 +73,36 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     terminal_writer.writef("Hello RISC-V32 osOS!\n", .{});
     terminal_writer.writef("Hart ID: {d}\n", .{hart_id});
     terminal_writer.writef("DTB Address: {*}\n", .{dtb_address});
+
+    const fdt: *const dtb.FdtHeader = @ptrCast(@alignCast(dtb_address));
+    terminal_writer.writef("FDT Address: {*}\n", .{fdt});
+    terminal_writer.writef("FDT info:\n", .{});
+    inline for (comptime std.meta.fieldNames(dtb.FdtHeader)) |field_name| {
+        const val: u32 = @field(fdt, field_name);
+        const little = @byteSwap(val);
+        const format = comptime blk: {
+            if (std.mem.eql(u8, field_name, "magic")) {
+                break :blk "    ({s}): 0x{x}\n";
+            } else {
+                break :blk "    ({s}): {d}\n";
+            }
+        };
+        terminal_writer.writef(format, .{ field_name, little });
+    }
+
+    const mem_block = dtb.MemoryReservationBlock.getEntries(fdt);
+    terminal_writer.writef("Block start addr: {*}\n", .{mem_block.ptr});
+    terminal_writer.writef("Block count: {d}\n", .{mem_block.len});
+
+    terminal_writer.flush();
+
+    var string_block: dtb.StringsBlock.Iterator = .init(fdt);
+    terminal_writer.writef("String block start addr: {*}\n", .{string_block.begin});
+    var string_cnt: usize = 0;
+    while (string_block.next()) |block| {
+        string_cnt += 1;
+        terminal_writer.writef("    String #{d}: {s}\n", .{ string_cnt, block });
+    }
 
     const sbi_spec_version = sbi.getSpecVersion();
     terminal_writer.writef(

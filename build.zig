@@ -440,6 +440,7 @@ pub fn build(b: *std.Build) Err!void {
         oshal: CommonModule,
         osstdlib: CommonModule,
         oscontainers: CommonModule,
+        osdtb: CommonModule,
 
         /// This is special
         kmain: CommonModule,
@@ -453,6 +454,7 @@ pub fn build(b: *std.Build) Err!void {
         .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
         .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
         .oscontainers = .create(b, "oscontainers", "containers/root.zig", test_target),
+        .osdtb = .create(b, "osdtb", "dtb/root.zig", test_target),
         .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
     };
 
@@ -551,6 +553,10 @@ pub fn build(b: *std.Build) Err!void {
         .strip = false,
         .single_threaded = false,
     });
+    riscv32_module.addImport(
+        shared_modules.osdtb.name,
+        shared_modules.osdtb.module,
+    );
     riscv32_module.addImport(
         riscv32_modules.tty_module.name,
         riscv32_modules.tty_module.module,
