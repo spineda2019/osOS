@@ -78,8 +78,8 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     terminal_writer.writef("FDT Address: {*}\n", .{fdt});
     terminal_writer.writef("FDT info:\n", .{});
     inline for (comptime std.meta.fieldNames(dtb.FdtHeader)) |field_name| {
-        const val: u32 = @field(fdt, field_name);
-        const little = @byteSwap(val);
+        const val: dtb.BEU32 = @field(fdt, field_name);
+        const little: u32 = val.toNative();
         const format = comptime blk: {
             if (std.mem.eql(u8, field_name, "magic")) {
                 break :blk "    ({s}): 0x{x}\n";
@@ -90,13 +90,13 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
         terminal_writer.writef(format, .{ field_name, little });
     }
 
-    const mem_block = dtb.MemoryReservationBlock.getEntries(fdt);
+    const mem_block: []const dtb.MemoryReservationBlock = fdt.getMemEntries();
     terminal_writer.writef("Block start addr: {*}\n", .{mem_block.ptr});
     terminal_writer.writef("Block count: {d}\n", .{mem_block.len});
 
     terminal_writer.flush();
 
-    var string_block: dtb.StringsBlock.Iterator = .init(fdt);
+    var string_block: dtb.StringBlockIterator = fdt.stringBlockIter();
     terminal_writer.writef("String block start addr: {*}\n", .{string_block.begin});
     var string_cnt: usize = 0;
     while (string_block.next()) |block| {
