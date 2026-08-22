@@ -48,10 +48,17 @@ pub const FdtHeader = extern struct {
         }
         return slice_start[0..len];
     }
+
+    pub fn getStructureIter(self: *const FdtHeader) StructureBlock.Node.Iterator {
+        const offset: u32 = self.off_dt_struct.toNative();
+        const head_token: [*]const BEU32 = @ptrFromInt(@intFromPtr(self) + offset);
+
+        return .{ .head = head_token };
+    }
 };
 
 pub const StructureBlock = struct {
-    pub const Token = enum(BEU8) {
+    pub const Token = enum(u32) {
         begin_node = 0x00_00_00_01,
         end_node = 0x00_00_00_02,
         property = 0x00_00_00_03,
@@ -59,8 +66,65 @@ pub const StructureBlock = struct {
         end = 0x00_00_00_09,
 
         pub fn toUnderlying(self: Token) u8 {
-            return (BEU8{ .val = @intFromEnum(self) }).toNative();
+            return switch (builtin.cpu.arch.endian()) {
+                .big => @intFromEnum(self),
+                .little => @intFromEnum(@byteSwap(self)),
+            };
         }
+    };
+
+    pub const Node = struct {
+        unit_name: []const u8,
+        unit_address: ?[]const u8,
+
+        pub fn getPropIter(self: *const Node) Property.Iterator {
+            _ = self;
+            return .{};
+        }
+
+        pub const Property = struct {
+            name_offset: BEU32,
+            value: []const u8,
+            pub const Iterator = struct {};
+        };
+
+        pub const Iterator = struct {
+            head: [*]const BEU32,
+
+            pub const Error = error{
+                unexpected_token_type,
+            };
+            pub fn next(self: *Iterator) Error!?Node {
+                const raw_big_endian: BEU32 = self.head[0];
+                const token: Token = @enumFromInt(raw_big_endian.toNative());
+                var node: Node = .{ .unit_address = null, .unit_name = "" };
+                switch (token) {
+                    .begin_node => {
+                        //
+                        const full_name: [*:0]const u8 = @ptrCast(self.head + 1);
+                        var full_name_len: usize = 0;
+                        while (full_name[full_name_len] != 0) {
+                            full_name_len += 1;
+                        }
+                        node.unit_name = full_name[0..full_name_len];
+
+                        const first_aligned: [*]const BEU32 = loop: {
+                            const raw_head_addr: [*]const u8 = node.unit_name.ptr + node.unit_name.len + 1;
+                            var raw_head_idx: usize = 0;
+                            while (@mod(@intFromPtr(raw_head_addr + raw_head_idx), 4) != 0) {
+                                raw_head_idx += 1;
+                            }
+                            break :loop @ptrCast(@alignCast(raw_head_addr + raw_head_idx));
+                        };
+                        self.head = first_aligned;
+                    },
+                    .end => return null,
+                    else => return Error.unexpected_token_type,
+                }
+
+                return node;
+            }
+        };
     };
 };
 

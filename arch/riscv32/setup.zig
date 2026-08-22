@@ -104,6 +104,24 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
         terminal_writer.writef("    String #{d}: {s}\n", .{ string_cnt, block });
     }
 
+    var struct_iter: dtb.StructureBlock.Node.Iterator = fdt.getStructureIter();
+    terminal_writer.writef("First Token addr: {*}\n", .{struct_iter.head});
+    terminal_writer.writef("First Token val: {d}\n", .{struct_iter.head[0].toNative()});
+    terminal_writer.flush();
+
+    while (struct_iter.next() catch |err| val: {
+        terminal_writer.writef("    struct iter error: {s}\n", .{@errorName(err)});
+        break :val null;
+    }) |node| {
+        terminal_writer.writef("    Unit name: {s}\n", .{node.unit_name});
+        if (node.unit_address) |addr| {
+            terminal_writer.writef("    Unit addr: {s}\n", .{addr});
+        }
+        terminal_writer.writef("    Prop info:\n", .{});
+        var prop_iter = node.getPropIter();
+        _ = &prop_iter;
+    }
+
     const sbi_spec_version = sbi.getSpecVersion();
     terminal_writer.writef(
         "SBI Specification version: {s}.{s}\n",
