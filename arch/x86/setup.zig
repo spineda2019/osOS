@@ -22,7 +22,7 @@ const interrupts = @import("x86interrupts");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
-const BootInfo = @import("BootInfo");
+const BootInfo = @import("x86BootInfo");
 const panic = @import("panic/root.zig");
 
 /// BSS Start
