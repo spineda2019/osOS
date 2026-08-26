@@ -8,7 +8,7 @@ const oshal = @import("oshal");
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 const serial = @import("serial/serial.zig");
-const BootInfo = @import("BootInfo");
+const BootInfo = @import("riscv32BootInfo");
 const dtb = @import("osdtb");
 
 /// BSS Start
@@ -109,18 +109,16 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     terminal_writer.writef("First Token val: {d}\n", .{struct_iter.head[0].toNative()});
     terminal_writer.flush();
 
-    while (struct_iter.next() catch |err| val: {
-        terminal_writer.writef("    struct iter error: {s}\n", .{@errorName(err)});
-        break :val null;
-    }) |node| {
-        terminal_writer.writef("    Unit name: {s}\n", .{node.unit_name});
-        if (node.unit_address) |addr| {
-            terminal_writer.writef("    Unit addr: {s}\n", .{addr});
-        }
-        terminal_writer.writef("    Prop info:\n", .{});
-        var prop_iter = node.getPropIter();
-        _ = &prop_iter;
-    }
+    // while (struct_iter.next() catch |err| val: {
+    // terminal_writer.writef("    struct iter error: {s}\n", .{@errorName(err)});
+    // break :val null;
+    // }) |node| {
+    // terminal_writer.writef("    Unit name: {s}\n", .{node.unit_name});
+    // if (node.unit_address) |addr| {
+    // terminal_writer.writef("    Unit addr: {s}\n", .{addr});
+    // }
+    // terminal_writer.writef("    Prop info:\n", .{});
+    // }
 
     const sbi_spec_version = sbi.getSpecVersion();
     terminal_writer.writef(

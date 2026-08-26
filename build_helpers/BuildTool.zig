@@ -13,7 +13,7 @@ pub const InitInfo = struct {
     b: *std.Build,
     root_source_file: std.Build.LazyPath,
     name: []const u8,
-    creat_tests: bool = true,
+    create_tests: bool = true,
 };
 
 pub fn init(info: InitInfo) BuildTool {
@@ -34,7 +34,7 @@ pub fn init(info: InitInfo) BuildTool {
     exe.step.dependOn(info.b.getInstallStep());
 
     const test_exe: ?*std.Build.Step.Compile = blk: {
-        if (info.creat_tests) {
+        if (info.create_tests) {
             break :blk info.b.addTest(.{ .root_module = mod });
         } else {
             break :blk null;

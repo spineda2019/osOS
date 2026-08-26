@@ -16,7 +16,7 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const PageAllocator = @This();
-const MemoryInfo = @import("BootInfo").MemoryInfo;
+const MemoryInfo = @import("x86BootInfo").MemoryInfo;
 const ChunkIterator = MemoryInfo.Iterator;
 const std = @import("std");
 const builtin = @import("builtin");
