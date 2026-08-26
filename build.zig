@@ -16,136 +16,9 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_helpers = @import("build_helpers/root.zig");
 
-const BuildOptions = struct {
-    default_run_target: SupportedTarget,
-    boot_specification: BootSpecification,
-    boot_loader: BootLoader,
-    emulator: Emulator,
-    test_panic: bool,
-    test_illegal_instruction: bool,
-    build_bochs: bool,
-    use_debugger: bool,
-    build_schilytools: bool,
-
-    pub fn init(b: *std.Build) BuildOptions {
-        return .{
-            .default_run_target = b.option(
-                SupportedTarget,
-                "arch",
-                "Target Architecture",
-            ) orelse .x86,
-            .boot_specification = b.option(
-                BootSpecification,
-                "boot_specification",
-                "Boot specification to boot the kernel with",
-            ) orelse .MultibootOne,
-            .test_panic = b.option(
-                bool,
-                "test_panic",
-                "Test the panic handler in kmain",
-            ) orelse false,
-            .test_illegal_instruction = b.option(
-                bool,
-                "test_ill",
-                "Test the runtime illegal CPU instruction handler",
-            ) orelse false,
-            .boot_loader = b.option(
-                BootLoader,
-                "bootloader",
-                "Boot loader to build into image (only on x86)",
-            ) orelse .limine,
-            .build_bochs = b.option(
-                bool,
-                "build_bochs",
-                "Build bochs from source",
-            ) orelse true,
-            .emulator = b.option(
-                Emulator,
-                "emulator",
-                "Emulator to use when running the OS",
-            ) orelse .qemu,
-            .use_debugger = b.option(
-                bool,
-                "debugger",
-                "Enable usage of the debugger associated with the selected emulator",
-            ) orelse false,
-            .build_schilytools = b.option(
-                bool,
-                "build_schilytools",
-                "Build schilytools for iso creation from source",
-            ) orelse (builtin.os.tag == .linux),
-        };
-    }
-
-    pub fn bootBinary(self: BuildOptions) []const u8 {
-        return switch (self.boot_loader) {
-            .grub_legacy => "boot/grub/stage2_eltorito",
-            .limine => "boot/limine/limine-bios-cd.bin",
-        };
-    }
-};
-
-const Emulator = enum {
-    qemu,
-    bochs,
-};
-
-const SupportedTarget = enum {
-    x86,
-    riscv32,
-};
-
-const BootSpecification = enum {
-    MultibootOne,
-    MultibootTwo,
-    Limine,
-};
-
-const BootLoader = enum {
-    grub_legacy,
-    limine,
-};
-
-/// Modules used/ran for build time generation of some artifacts, such as
-/// creating directories/copying files for creating the iso.
-const GenerationModule = struct {
-    name: []const u8,
-    exe: *std.Build.Step.Run,
-    test_exe: *std.Build.Step.Run,
-
-    pub fn init(
-        b: *std.Build,
-        root_source_file: std.Build.LazyPath,
-        name: []const u8,
-    ) GenerationModule {
-        const mod = b.createModule(.{
-            .root_source_file = root_source_file,
-            .target = .{
-                .query = .fromTarget(&builtin.target),
-                .result = builtin.target,
-            },
-            .optimize = .Debug, // no need to optimize for generation (for now?)
-        });
-
-        const exe = b.addExecutable(.{
-            .name = name,
-            .root_module = mod,
-        });
-
-        const test_exe = b.addTest(.{
-            .root_module = mod,
-        });
-
-        exe.step.dependOn(b.getInstallStep());
-
-        return .{
-            .name = name,
-            .exe = b.addRunArtifact(exe),
-            .test_exe = b.addRunArtifact(test_exe),
-        };
-    }
-};
+const BuildTool = build_helpers.BuildTool;
 
 const CommonModule = struct {
     name: []const u8,
@@ -297,18 +170,14 @@ const Targets = struct {
 
 const BuildConfig = struct {
     run_info: RunInfo,
-    boot_info: BootInfo,
+    boot_info: build_helpers.enums.BootLoadInfo,
     runtime_tests: RuntimeTestInfo,
     tool_info: ToolInfo,
 
     const RunInfo = struct {
-        target: SupportedTarget,
+        target: build_helpers.enums.SupportedTarget,
         use_debugger: bool,
-        emulator: Emulator,
-    };
-    const BootInfo = struct {
-        specification: BootSpecification,
-        boot_loader: BootLoader,
+        emulator: build_helpers.enums.Emulator,
     };
     const RuntimeTestInfo = struct {
         test_panic: bool,
@@ -373,8 +242,8 @@ pub fn build(b: *std.Build) Err!void {
     );
 
     std.debug.print("*************** Build time options **************\n", .{});
-    const build_options: BuildOptions = .init(b);
-    inline for (comptime std.meta.fieldNames(BuildOptions)) |option_name| {
+    const build_options: build_helpers.BuildOptions = .init(b);
+    inline for (comptime std.meta.fieldNames(build_helpers.BuildOptions)) |option_name| {
         const option = @field(build_options, option_name);
         std.debug.print("Option: {s}\n", .{option_name});
         std.debug.print("\tValue: {}\n\n", .{option});
@@ -386,11 +255,22 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
 
     const boot_options = b.addOptions();
-    boot_options.addOption(
-        BootSpecification,
-        "boot_specification",
-        build_options.boot_specification,
-    );
+    switch (build_options.boot_info) {
+        .limine => |limine_boot| {
+            boot_options.addOption(
+                @TypeOf(limine_boot),
+                "boot_specification",
+                limine_boot,
+            );
+        },
+        .grub_legacy => |grub_boot| {
+            boot_options.addOption(
+                @TypeOf(grub_boot),
+                "boot_specification",
+                grub_boot,
+            );
+        },
+    }
 
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
@@ -871,7 +751,7 @@ pub fn build(b: *std.Build) Err!void {
 
         const arch_info = .{
             .{
-                .name = @tagName(SupportedTarget.x86),
+                .name = @tagName(build_helpers.enums.SupportedTarget.x86),
                 .label = "x86 Documentation",
                 .index_path = "x86/index.html",
                 .submod_root_path = "x86modules/",
@@ -879,7 +759,7 @@ pub fn build(b: *std.Build) Err!void {
                 .modules = x86_modules,
             },
             .{
-                .name = @tagName(SupportedTarget.riscv32),
+                .name = @tagName(build_helpers.enums.SupportedTarget.riscv32),
                 .label = "Risc-V32 Documentation",
                 .index_path = "riscv32/index.html",
                 .submod_root_path = "riscv32modules/",
@@ -1034,12 +914,24 @@ pub fn build(b: *std.Build) Err!void {
 
     //* *************************** x86 Specific ***************************** *
     const BuildTimeTools = struct {
-        setup_iso: GenerationModule,
-        setup_bochs: GenerationModule,
+        setup_iso: BuildTool,
+        setup_bochs: BuildTool,
     };
     const build_time_tools: BuildTimeTools = .{
-        .setup_iso = .init(b, b.path("build_time_tools/build_iso/main.zig"), "build_iso"),
-        .setup_bochs = .init(b, b.path("build_time_tools/setup_bochs/main.zig"), "setup_bochs"),
+        .setup_iso = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/build_iso/main.zig"),
+                .name = "build_iso",
+            },
+        ),
+        .setup_bochs = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/setup_bochs/main.zig"),
+                .name = "setup_bochs",
+            },
+        ),
     };
 
     build_time_tools.setup_iso.exe.addFileArg(b.path(""));
@@ -1048,7 +940,7 @@ pub fn build(b: *std.Build) Err!void {
     build_time_tools.setup_iso.exe.addArg("--kernel-dest");
     build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
     build_time_tools.setup_iso.exe.addArg("--to-create");
-    build_time_tools.setup_iso.exe.addArgs(switch (build_options.boot_loader) {
+    build_time_tools.setup_iso.exe.addArgs(switch (build_options.boot_info) {
         .limine => &.{
             "zig-out/x86/iso/boot/limine/",
             "zig-out/x86/iso/modules/",
@@ -1058,7 +950,7 @@ pub fn build(b: *std.Build) Err!void {
             "zig-out/x86/iso/modules/",
         },
     });
-    switch (build_options.boot_loader) {
+    switch (build_options.boot_info) {
         .limine => {
             if (b.lazyDependency("limine", .{})) |limine| {
                 build_time_tools.setup_iso.exe.addArgs(&.{
