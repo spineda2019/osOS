@@ -51,7 +51,7 @@ const kernel_lma_base = @extern(
 /// our kernel's binary, and will be interpretted by the bootloader as the header
 /// of bytes defining how the kernel will be booted.
 pub export const multiboot_header linksection(".multiboot") = switch (bootoptions.boot_specification) {
-    .MultibootOne => bootutils.MultiBoot.V1.init(
+    .multiboot_one => bootutils.MultiBoot.V1.init(
         .{
             .flags = .{
                 .enforce_all_4kb_alignment = true,
