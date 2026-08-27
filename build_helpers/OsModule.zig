@@ -1,3 +1,6 @@
+//! Wraps a build module built into the OS image into a bundle containing the
+//! Actual underlying module, plus a testing module for unit tests.
+
 const std = @import("std");
 const builtin = @import("builtin");
 const OsModule = @This();
