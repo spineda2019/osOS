@@ -855,22 +855,19 @@ pub fn build(b: *std.Build) Err!void {
 
     //* ***************************** Unit Tests ***************************** *
 
-    inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field_name| {
-        const mod: OsModule = @field(shared_modules, field_name);
-        if (mod.name) |_| {
-            build_steps.test_.dependOn(&mod.test_artifact.run.step);
-        }
-    }
-    inline for (comptime std.meta.fieldNames(X86Modules)) |field_name| {
-        const mod: OsModule = @field(x86_modules, field_name);
-        if (mod.name) |_| {
-            build_steps.test_.dependOn(&mod.test_artifact.run.step);
-        }
-    }
-    inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field_name| {
-        const mod: OsModule = @field(riscv32_modules, field_name);
-        if (mod.name) |_| {
-            build_steps.test_.dependOn(&mod.test_artifact.run.step);
+    const testables = .{
+        .{ ArchAgnosticKernelModules, &shared_modules },
+        .{ X86Modules, &x86_modules },
+        .{ RiscV32Modules, &riscv32_modules },
+    };
+
+    inline for (testables) |testable| {
+        const Container: type, const instance = testable;
+        inline for (comptime std.meta.fieldNames(Container)) |field_name| {
+            const mod: OsModule = @field(instance.*, field_name);
+            if (mod.name) |_| {
+                build_steps.test_.dependOn(&mod.test_artifact.run.step);
+            }
         }
     }
 }
