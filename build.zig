@@ -1,18 +1,18 @@
-// build.zig - Builds the osOS kernel for various architectures
-// Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//! build.zig - Builds the osOS kernel for various architectures
+//! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
+//!
+//! This program is free software: you can redistribute it and/or modify
+//! it under the terms of the GNU General Public License as published by
+//! the Free Software Foundation, either version 3 of the License, or
+//! (at your option) any later version.
+//!
+//! This program is distributed in the hope that it will be useful,
+//! but WITHOUT ANY WARRANTY; without even the implied warranty of
+//! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//! GNU General Public License for more details.
+//!
+//! You should have received a copy of the GNU General Public License
+//! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -20,6 +20,9 @@ const build_helpers = @import("build_helpers/root.zig");
 
 const BuildTool = build_helpers.BuildTool;
 const OsModule = build_helpers.OsModule;
+const RiscV32Modules = build_helpers.RiscV32Modules;
+const Steps = build_helpers.Steps;
+const Targets = build_helpers.Targets;
 
 const FileErrors = std.Io.File.OpenError || std.Io.File.Writer.EndError;
 const IoErrors = std.Io.Writer.Error || FileErrors;
@@ -33,130 +36,7 @@ const autogen_lines = [_][]const u8{
     "// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",
 };
 
-const Steps = struct {
-    build_all: *std.Build.Step,
-    build_docs: *std.Build.Step,
-    build_iso: *std.Build.Step,
-    build_kernel: *std.Build.Step,
-    build_shell: *std.Build.Step,
-    run: *std.Build.Step,
-    test_: *std.Build.Step,
-
-    fn init(b: *std.Build) Steps {
-        return .{
-            .build_all = b.step(
-                "all",
-                "Build the Kernel for all supported architectures",
-            ),
-            .build_docs = b.step(
-                "doc_site",
-                "Build all docs and tie them together with the landing page",
-            ),
-            .build_iso = b.step("iso", "Build the x86 ISO disc image"),
-            .build_kernel = b.step(
-                "kernel",
-                "Build (just) the kernel for just the specified target",
-            ),
-            .build_shell = b.step("shell", "build the userland shell"),
-            .run = b.step(
-                "run",
-                "Boot kernel for specified target (x86 by default)",
-            ),
-            .test_ = b.step(
-                "test",
-                "Run arch-agnostic unit tests (Runnable from any host)",
-            ),
-        };
-    }
-};
-
 const kernel_name = "osOS.elf";
-
-const Targets = struct {
-    x86: std.Target.Query,
-    riscv32: std.Target.Query,
-
-    fn init() Targets {
-        return .{
-            .x86 = .{
-                .cpu_arch = .x86,
-                .os_tag = .freestanding,
-                .abi = .none,
-                // remove features not guaranteed to exist on the original i386
-                .cpu_features_sub = std.Target.x86.featureSet(&.{
-                    .mmx,
-                    .sse,
-                    .sse2,
-                    .sse3,
-                    .sse4_1,
-                    .sse4_2,
-                    .sse4a,
-                    .sse_unaligned_mem,
-                    .ssse3,
-                    .avx,
-                }),
-            },
-            .riscv32 = .{
-                .cpu_arch = .riscv32,
-                .os_tag = .freestanding,
-                .abi = .none,
-            },
-        };
-    }
-};
-
-const BuildConfig = struct {
-    run_info: RunInfo,
-    boot_info: build_helpers.enums.BootLoadInfo,
-    runtime_tests: RuntimeTestInfo,
-    tool_info: ToolInfo,
-
-    const RunInfo = struct {
-        target: build_helpers.enums.SupportedTarget,
-        use_debugger: bool,
-        emulator: build_helpers.enums.Emulator,
-    };
-    const RuntimeTestInfo = struct {
-        test_panic: bool,
-        test_illegal_instruction: bool,
-    };
-    const ToolInfo = struct {
-        build_bochs: bool,
-        build_schilytools: bool,
-    };
-
-    fn init(
-        source: []const u8,
-        allocator: std.mem.Allocator,
-        io: std.Io,
-    ) !BuildConfig {
-        const cwd: std.Io.Dir = .cwd();
-        const file = try cwd.openFile(io, source, .{});
-
-        var reader_buf: [4096]u8 = undefined;
-        const file_reader = file.reader(io, &reader_buf);
-        var reader = file_reader.interface;
-
-        var file_contents: std.ArrayList(u8) = .empty;
-
-        var keep_going: bool = true;
-        var content_buf: [4096]u8 = @splat(0);
-        while (keep_going) {
-            const amount_read = try reader.readSliceShort(&content_buf);
-            try file_contents.appendSlice(allocator, content_buf[0..amount_read]);
-            keep_going = (amount_read >= content_buf.len);
-        }
-
-        try file_contents.append(allocator, 0);
-        return try std.zon.parse.fromSlice(
-            BuildConfig,
-            allocator,
-            @ptrCast(file_contents.items),
-            null,
-            .{},
-        );
-    }
-};
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -172,10 +52,13 @@ pub fn build(b: *std.Build) Err!void {
     var threaded_io: std.Io.Threaded = .init(b.allocator, .{});
     const io: std.Io = threaded_io.io();
 
-    const zigver = builtin.zig_version;
     std.debug.print(
         "building with zig version: {}.{}.{}\n",
-        .{ zigver.major, zigver.minor, zigver.patch },
+        .{
+            builtin.zig_version.major,
+            builtin.zig_version.minor,
+            builtin.zig_version.patch,
+        },
     );
 
     std.debug.print("*************** Build time options **************\n", .{});
@@ -358,7 +241,7 @@ pub fn build(b: *std.Build) Err!void {
         }),
         .shell = .init(.{
             .b = b,
-            .name = "init",
+            .name = null,
             .root_source_file = b.path("userland/shell/main.zig"),
             .test_target = test_target,
             .run_target = b.resolveTargetQuery(.{
@@ -384,13 +267,6 @@ pub fn build(b: *std.Build) Err!void {
     );
 
     //* *************************** RISC Specific **************************** *
-    const RiscV32Modules = struct {
-        asm_module: OsModule,
-        tty_module: OsModule,
-        boot_info: OsModule,
-
-        kernel_entry: OsModule,
-    };
     var riscv32_modules: RiscV32Modules = .{
         .asm_module = .init(.{
             .b = b,
@@ -593,7 +469,6 @@ pub fn build(b: *std.Build) Err!void {
         },
     );
     build_steps.build_all.dependOn(&shell_out.step);
-    build_steps.build_shell.dependOn(&shell_out.step);
     b.getInstallStep().dependOn(&shell_out.step);
 
     //* *************************** RISC Specific **************************** *

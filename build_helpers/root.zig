@@ -1,4 +1,7 @@
 pub const BuildOptions = @import("BuildOptions.zig");
 pub const BuildTool = @import("BuildTool.zig");
 pub const OsModule = @import("OsModule.zig");
+pub const RiscV32Modules = @import("build_targets/RiscV32Modules.zig");
+pub const Steps = @import("build_targets/Steps.zig");
+pub const Targets = @import("build_targets/Targets.zig");
 pub const enums = @import("enums.zig");
