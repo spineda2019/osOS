@@ -21,6 +21,8 @@ const build_helpers = @import("build_helpers/root.zig");
 const BuildTool = build_helpers.BuildTool;
 const OsModule = build_helpers.OsModule;
 const RiscV32Modules = build_helpers.RiscV32Modules;
+const X86Modules = build_helpers.X86Moudles;
+const ArchAgnosticKernelModules = build_helpers.ArchAgnosticKernelModules;
 const Steps = build_helpers.Steps;
 const Targets = build_helpers.Targets;
 
@@ -132,21 +134,7 @@ pub fn build(b: *std.Build) Err!void {
 
     //* ******************************* Shared ******************************* *
 
-    const ArchAgnosticModules = struct {
-        osformat: OsModule,
-        osmemory: OsModule,
-        osprocess: OsModule,
-        osboot: OsModule,
-        oshal: OsModule,
-        osstdlib: OsModule,
-        oscontainers: OsModule,
-        osdtb: OsModule,
-
-        /// This is special
-        kmain: OsModule,
-    };
-
-    var shared_modules: ArchAgnosticModules = .{
+    var shared_modules: ArchAgnosticKernelModules = .{
         .osformat = .init(.{
             .b = b,
             .name = "osformat",
@@ -309,15 +297,6 @@ pub fn build(b: *std.Build) Err!void {
     riscv32_modules.kernel_entry.addImportToAll(&shared_modules.oshal);
 
     //* *************************** x86 Specific ***************************** *
-    const X86Modules = struct {
-        asm_module: OsModule,
-        io_module: OsModule,
-        memory_module: OsModule,
-        interrupts_module: OsModule,
-        boot_info: OsModule,
-
-        kernel_entry: OsModule,
-    };
     var x86_modules: X86Modules = .{
         .asm_module = .init(.{
             .b = b,
@@ -563,7 +542,7 @@ pub fn build(b: *std.Build) Err!void {
 
         {
             var common = try obj.beginTupleField("common", .{});
-            inline for (comptime std.meta.fieldNames(ArchAgnosticModules)) |field| {
+            inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field| {
                 const mod: OsModule = @field(shared_modules, field);
                 if (mod.name) |name| {
                     var common_submodule = try common.beginStructField(.{});
@@ -640,7 +619,7 @@ pub fn build(b: *std.Build) Err!void {
         }
     }
 
-    inline for (comptime std.meta.fieldNames(ArchAgnosticModules)) |field_name| {
+    inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field_name| {
         const member: OsModule = @field(shared_modules, field_name);
         const install_directory = b.addInstallDirectory(.{
             .source_dir = member.emitted_doc_directory,
@@ -876,7 +855,7 @@ pub fn build(b: *std.Build) Err!void {
 
     //* ***************************** Unit Tests ***************************** *
 
-    inline for (comptime std.meta.fieldNames(ArchAgnosticModules)) |field_name| {
+    inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field_name| {
         const mod: OsModule = @field(shared_modules, field_name);
         if (mod.name) |_| {
             build_steps.test_.dependOn(&mod.test_artifact.run.step);
