@@ -5,6 +5,8 @@ build_all: *std.Build.Step,
 build_docs: *std.Build.Step,
 build_iso: *std.Build.Step,
 build_kernel: *std.Build.Step,
+build_shell: *std.Build.Step,
+
 run: *std.Build.Step,
 test_: *std.Build.Step,
 
@@ -31,5 +33,6 @@ pub fn init(b: *std.Build) Steps {
             "test",
             "Run arch-agnostic unit tests (Runnable from any host)",
         ),
+        .build_shell = b.step("shell", "Build the userland shell"),
     };
 }

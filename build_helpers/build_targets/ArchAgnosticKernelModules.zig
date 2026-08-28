@@ -13,7 +13,6 @@ osmemory: OsModule,
 osprocess: OsModule,
 osboot: OsModule,
 oshal: OsModule,
-osstdlib: OsModule,
 oscontainers: OsModule,
 osdtb: OsModule,
 
