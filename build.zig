@@ -196,12 +196,6 @@ pub fn build(b: *std.Build) Err!void {
             .root_source_file = b.path("HAL/root.zig"),
             .test_target = test_target,
         }),
-        .osstdlib = .init(.{
-            .b = b,
-            .name = "osstdlib",
-            .root_source_file = b.path("userland/stdlib/root.zig"),
-            .test_target = test_target,
-        }),
         .oscontainers = .init(.{
             .b = b,
             .name = "oscontainers",
@@ -400,7 +394,6 @@ pub fn build(b: *std.Build) Err!void {
 
     //* ******************************* kmain ******************************** *
     shared_modules.kmain.addImportToAll(&shared_modules.oshal);
-    shared_modules.kmain.addImportToAll(&shared_modules.osstdlib);
     shared_modules.kmain.addImportToAll(&shared_modules.osprocess);
     shared_modules.kmain.addImportToAll(&shared_modules.osformat);
     shared_modules.kmain.addOptionsToAll("testoptions", test_options);
@@ -419,6 +412,7 @@ pub fn build(b: *std.Build) Err!void {
     });
     shell_exe.entry = .{ .symbol_name = "main" };
     shell_exe.setLinkerScript(b.path("userland/shell/link.ld"));
+    build_steps.build_shell.dependOn(&shell_exe.step);
 
     //* *************************** RISC Specific **************************** *
     const riscv32_exe = b.addExecutable(.{
