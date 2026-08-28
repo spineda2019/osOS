@@ -25,6 +25,9 @@ const X86Modules = build_helpers.X86Moudles;
 const ArchAgnosticKernelModules = build_helpers.ArchAgnosticKernelModules;
 const Steps = build_helpers.Steps;
 const Targets = build_helpers.Targets;
+const BuildTimeTools = build_helpers.BuildTimeTools;
+const UserlandModules = build_helpers.UserlandModules;
+const OutputDirs = build_helpers.OutputDirs;
 
 const FileErrors = std.Io.File.OpenError || std.Io.File.Writer.EndError;
 const IoErrors = std.Io.Writer.Error || FileErrors;
@@ -39,6 +42,8 @@ const autogen_lines = [_][]const u8{
 };
 
 const kernel_name = "osOS.elf";
+
+const output_dirs: OutputDirs = .init();
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -216,10 +221,6 @@ pub fn build(b: *std.Build) Err!void {
         }
     };
 
-    const UserlandModules = struct {
-        sys: OsModule,
-        shell: OsModule,
-    };
     var userland_modules: UserlandModules = .{
         .sys = .init(.{
             .b = b,
@@ -384,32 +385,6 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                           Compile Step Setup                            *
     //**************************************************************************
-
-    const Outputs = struct {
-        const Self = @This();
-        riscv32: std.Build.Step.InstallArtifact.Options,
-        x86: std.Build.Step.InstallArtifact.Options,
-
-        fn init() Self {
-            return .{
-                .riscv32 = .{
-                    .dest_dir = .{
-                        .override = .{
-                            .custom = @tagName(std.Target.Cpu.Arch.riscv32),
-                        },
-                    },
-                },
-                .x86 = .{
-                    .dest_dir = .{
-                        .override = .{
-                            .custom = @tagName(std.Target.Cpu.Arch.x86),
-                        },
-                    },
-                },
-            };
-        }
-    };
-    const output_dirs: Outputs = comptime .init();
 
     //* ******************************* Shared ******************************* *
     const shell_exe = b.addExecutable(.{
@@ -656,10 +631,6 @@ pub fn build(b: *std.Build) Err!void {
     run_riscv32.step.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
-    const BuildTimeTools = struct {
-        setup_iso: BuildTool,
-        setup_bochs: BuildTool,
-    };
     const build_time_tools: BuildTimeTools = .{
         .setup_iso = .init(
             .{
@@ -868,6 +839,12 @@ pub fn build(b: *std.Build) Err!void {
             if (mod.name) |_| {
                 build_steps.test_.dependOn(&mod.test_artifact.run.step);
             }
+        }
+    }
+    inline for (comptime std.meta.fieldNames(BuildTimeTools)) |field_name| {
+        const tool: BuildTool = @field(build_time_tools, field_name);
+        if (tool.test_exe) |test_exe| {
+            build_steps.test_.dependOn(&test_exe.step);
         }
     }
 }
