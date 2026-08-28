@@ -12,3 +12,4 @@ const BuildTool = @import("../BuildTool.zig");
 /// to create an iso image from it.
 setup_iso: BuildTool,
 setup_bochs: BuildTool,
+doccopy: BuildTool,

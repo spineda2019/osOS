@@ -139,6 +139,32 @@ pub fn build(b: *std.Build) Err!void {
 
     //* ******************************* Shared ******************************* *
 
+    const build_time_tools: BuildTimeTools = .{
+        .setup_iso = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/build_iso/main.zig"),
+                .name = "build_iso",
+            },
+        ),
+        .setup_bochs = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/setup_bochs/main.zig"),
+                .name = "setup_bochs",
+            },
+        ),
+        .doccopy = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("docs/main.zig"),
+                .name = "doccopy",
+            },
+        ),
+    };
+
+    build_time_tools.doccopy.exe.addArg(b.install_prefix);
+
     var shared_modules: ArchAgnosticKernelModules = .{
         .osformat = .init(.{
             .b = b,
@@ -536,18 +562,6 @@ pub fn build(b: *std.Build) Err!void {
             try common.end();
         }
     }
-    const moddoccopy = b.createModule(.{
-        .root_source_file = b.path("docs/main.zig"),
-        .optimize = .Debug,
-        .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
-    });
-    const exedoccopy = b.addExecutable(.{
-        .name = "doccopy",
-        .root_module = moddoccopy,
-    });
-    const rundoccopy = b.addRunArtifact(exedoccopy);
-    rundoccopy.addArg(b.install_prefix);
-    rundoccopy.step.dependOn(b.getInstallStep());
 
     // build all module docs before copying index.html
     const x86_install_doc = b.addInstallDirectory(.{
@@ -568,7 +582,7 @@ pub fn build(b: *std.Build) Err!void {
                 .install_dir = .prefix,
                 .install_subdir = path,
             });
-            rundoccopy.step.dependOn(&install_directory.step);
+            build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
         }
     }
 
@@ -590,7 +604,7 @@ pub fn build(b: *std.Build) Err!void {
                 .install_dir = .prefix,
                 .install_subdir = path,
             });
-            rundoccopy.step.dependOn(&install_directory.step);
+            build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
         }
     }
 
@@ -601,13 +615,13 @@ pub fn build(b: *std.Build) Err!void {
             .install_dir = .prefix,
             .install_subdir = "docs/shared_modules/" ++ field_name,
         });
-        rundoccopy.step.dependOn(&install_directory.step);
+        build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
     }
 
-    rundoccopy.step.dependOn(&x86_install_doc.step);
-    rundoccopy.step.dependOn(&riscv32_install_doc.step);
+    build_time_tools.doccopy.exe.step.dependOn(&x86_install_doc.step);
+    build_time_tools.doccopy.exe.step.dependOn(&riscv32_install_doc.step);
 
-    build_steps.build_docs.dependOn(&rundoccopy.step);
+    build_steps.build_docs.dependOn(&build_time_tools.doccopy.exe.step);
     build_steps.build_all.dependOn(build_steps.build_docs);
 
     //**************************************************************************
@@ -629,24 +643,6 @@ pub fn build(b: *std.Build) Err!void {
     });
     run_riscv32.addArtifactArg(riscv32_exe);
     run_riscv32.step.dependOn(&riscv32_out.step);
-
-    //* *************************** x86 Specific ***************************** *
-    const build_time_tools: BuildTimeTools = .{
-        .setup_iso = .init(
-            .{
-                .b = b,
-                .root_source_file = b.path("build_time_tools/build_iso/main.zig"),
-                .name = "build_iso",
-            },
-        ),
-        .setup_bochs = .init(
-            .{
-                .b = b,
-                .root_source_file = b.path("build_time_tools/setup_bochs/main.zig"),
-                .name = "setup_bochs",
-            },
-        ),
-    };
 
     build_time_tools.setup_iso.exe.addFileArg(b.path(""));
     build_time_tools.setup_iso.exe.addArg("--kernel-src");
