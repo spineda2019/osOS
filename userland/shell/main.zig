@@ -14,15 +14,22 @@
 //! You should have received a copy of the GNU General Public License
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-const osstd = @import("osstdlib");
+const sys = @import("sys");
+const std = @import("std");
+
+pub const panic = std.debug.FullPanic(struct {
+    fn impl(_: []const u8, _: ?usize) noreturn {
+        sys.exit();
+    }
+}.impl);
 
 /// The main "init" process of the osOS kernel. Should be run in user space.
 /// Will be capable to run other processes (eventuallY) but will need basic
 /// IO and will use the syscall interface to do this (exec/CreateProcess).
-pub fn shellMain() noreturn {
+export fn main() noreturn {
+    sys.io.console.write("osh> ");
+
     while (true) {
-        asm volatile (
-            \\
-        );
+        asm volatile ("");
     }
 }

@@ -1,175 +1,33 @@
-// build.zig - Builds the osOS kernel for various architectures
-// Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//! build.zig - Builds the osOS kernel for various architectures
+//! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
+//!
+//! This program is free software: you can redistribute it and/or modify
+//! it under the terms of the GNU General Public License as published by
+//! the Free Software Foundation, either version 3 of the License, or
+//! (at your option) any later version.
+//!
+//! This program is distributed in the hope that it will be useful,
+//! but WITHOUT ANY WARRANTY; without even the implied warranty of
+//! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//! GNU General Public License for more details.
+//!
+//! You should have received a copy of the GNU General Public License
+//! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_helpers = @import("build_helpers/root.zig");
 
-const BuildOptions = struct {
-    default_run_target: SupportedTarget,
-    boot_specification: BootSpecification,
-    boot_loader: BootLoader,
-    emulator: Emulator,
-    test_panic: bool,
-    test_illegal_instruction: bool,
-    build_bochs: bool,
-    use_debugger: bool,
-    build_schilytools: bool,
-
-    pub fn init(b: *std.Build) BuildOptions {
-        return .{
-            .default_run_target = b.option(
-                SupportedTarget,
-                "arch",
-                "Target Architecture",
-            ) orelse .x86,
-            .boot_specification = b.option(
-                BootSpecification,
-                "boot_specification",
-                "Boot specification to boot the kernel with",
-            ) orelse .MultibootOne,
-            .test_panic = b.option(
-                bool,
-                "test_panic",
-                "Test the panic handler in kmain",
-            ) orelse false,
-            .test_illegal_instruction = b.option(
-                bool,
-                "test_ill",
-                "Test the runtime illegal CPU instruction handler",
-            ) orelse false,
-            .boot_loader = b.option(
-                BootLoader,
-                "bootloader",
-                "Boot loader to build into image (only on x86)",
-            ) orelse .limine,
-            .build_bochs = b.option(
-                bool,
-                "build_bochs",
-                "Build bochs from source",
-            ) orelse true,
-            .emulator = b.option(
-                Emulator,
-                "emulator",
-                "Emulator to use when running the OS",
-            ) orelse .qemu,
-            .use_debugger = b.option(
-                bool,
-                "debugger",
-                "Enable usage of the debugger associated with the selected emulator",
-            ) orelse false,
-            .build_schilytools = b.option(
-                bool,
-                "build_schilytools",
-                "Build schilytools for iso creation from source",
-            ) orelse (builtin.os.tag == .linux),
-        };
-    }
-
-    pub fn bootBinary(self: BuildOptions) []const u8 {
-        return switch (self.boot_loader) {
-            .grub_legacy => "boot/grub/stage2_eltorito",
-            .limine => "boot/limine/limine-bios-cd.bin",
-        };
-    }
-};
-
-const Emulator = enum {
-    qemu,
-    bochs,
-};
-
-const SupportedTarget = enum {
-    x86,
-    riscv32,
-};
-
-const BootSpecification = enum {
-    MultibootOne,
-    MultibootTwo,
-    Limine,
-};
-
-const BootLoader = enum {
-    grub_legacy,
-    limine,
-};
-
-const CommonModule = struct {
-    name: []const u8,
-    module: *std.Build.Module,
-
-    // Some tests are not yet supported to run on my OS just yet, and need
-    // to happen on the native target.
-    test_artifact: *std.Build.Step.Compile,
-
-    doc_artifact: *std.Build.Step.Compile,
-    emitted_doc_directory: std.Build.LazyPath,
-
-    pub fn create(
-        b: *std.Build,
-        name: []const u8,
-        root_source_file: []const u8,
-        test_target: std.Build.ResolvedTarget,
-    ) CommonModule {
-        const root = b.path(root_source_file);
-        const actual_module = b.createModule(.{
-            .root_source_file = root,
-        });
-        const doc_directory, const doc_artifact, const test_artifact = doc: {
-            const native_target = builtin.target;
-            const native_target_query = std.Target.Query.fromTarget(
-                &native_target,
-            );
-            const resolved_native_target = b.resolveTargetQuery(
-                native_target_query,
-            );
-            // The library object shouldn't be used by anyone, so encapsulate
-            // it here
-            const doc_mod = b.createModule(.{
-                .root_source_file = root,
-                .target = resolved_native_target,
-            });
-            const doc_lib = b.addLibrary(.{
-                .name = name,
-                .root_module = doc_mod,
-            });
-
-            const test_mod = b.createModule(.{
-                .root_source_file = root,
-                .target = test_target,
-            });
-
-            break :doc .{
-                doc_lib.getEmittedDocs(),
-                doc_lib,
-                b.addTest(.{
-                    .root_module = test_mod,
-                }),
-            };
-        };
-
-        return .{
-            .name = name,
-            .module = actual_module,
-            .doc_artifact = doc_artifact,
-            .emitted_doc_directory = doc_directory,
-            .test_artifact = test_artifact,
-        };
-    }
-};
+const BuildTool = build_helpers.BuildTool;
+const OsModule = build_helpers.OsModule;
+const RiscV32Modules = build_helpers.RiscV32Modules;
+const X86Modules = build_helpers.X86Moudles;
+const ArchAgnosticKernelModules = build_helpers.ArchAgnosticKernelModules;
+const Steps = build_helpers.Steps;
+const Targets = build_helpers.Targets;
+const BuildTimeTools = build_helpers.BuildTimeTools;
+const UserlandModules = build_helpers.UserlandModules;
+const OutputDirs = build_helpers.OutputDirs;
 
 const FileErrors = std.Io.File.OpenError || std.Io.File.Writer.EndError;
 const IoErrors = std.Io.Writer.Error || FileErrors;
@@ -183,22 +41,36 @@ const autogen_lines = [_][]const u8{
     "// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n",
 };
 
+const kernel_name = "osOS.elf";
+
+const output_dirs: OutputDirs = .init();
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
 pub fn build(b: *std.Build) Err!void {
+    const optimize = b.standardOptimizeOption(.{});
+    const test_target = b.standardTargetOptions(.{});
+
+    const target_info: Targets = .init();
+    const x86_target = b.resolveTargetQuery(target_info.x86);
+    const riscv32_target = b.resolveTargetQuery(target_info.riscv32);
+
     var threaded_io: std.Io.Threaded = .init(b.allocator, .{});
     const io: std.Io = threaded_io.io();
 
-    const zigver = builtin.zig_version;
     std.debug.print(
         "building with zig version: {}.{}.{}\n",
-        .{ zigver.major, zigver.minor, zigver.patch },
+        .{
+            builtin.zig_version.major,
+            builtin.zig_version.minor,
+            builtin.zig_version.patch,
+        },
     );
 
     std.debug.print("*************** Build time options **************\n", .{});
-    const build_options: BuildOptions = .init(b);
-    inline for (comptime std.meta.fieldNames(BuildOptions)) |option_name| {
+    const build_options: build_helpers.BuildOptions = .init(b);
+    inline for (comptime std.meta.fieldNames(build_helpers.BuildOptions)) |option_name| {
         const option = @field(build_options, option_name);
         std.debug.print("Option: {s}\n", .{option_name});
         std.debug.print("\tValue: {}\n\n", .{option});
@@ -208,41 +80,24 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                               Option Setup                              *
     //**************************************************************************
-    const optimize = b.standardOptimizeOption(.{});
-    const test_target = b.standardTargetOptions(.{});
-
-    const kernel_name = "osOS.elf";
-
-    const x86_target = b.resolveTargetQuery(.{
-        .cpu_arch = .x86,
-        .os_tag = .freestanding,
-        .abi = .none,
-        // remove features not guaranteed to exist on the original i386
-        .cpu_features_sub = std.Target.x86.featureSet(&.{
-            .mmx,
-            .sse,
-            .sse2,
-            .sse3,
-            .sse4_1,
-            .sse4_2,
-            .sse4a,
-            .sse_unaligned_mem,
-            .ssse3,
-            .avx,
-        }),
-    });
-    const riscv32_target = b.resolveTargetQuery(.{
-        .cpu_arch = .riscv32,
-        .os_tag = .freestanding,
-        .abi = .none,
-    });
 
     const boot_options = b.addOptions();
-    boot_options.addOption(
-        BootSpecification,
-        "boot_specification",
-        build_options.boot_specification,
-    );
+    switch (build_options.boot_info) {
+        .limine => |limine_boot| {
+            boot_options.addOption(
+                @TypeOf(limine_boot),
+                "boot_specification",
+                limine_boot,
+            );
+        },
+        .grub_legacy => |grub_boot| {
+            boot_options.addOption(
+                @TypeOf(grub_boot),
+                "boot_specification",
+                grub_boot,
+            );
+        },
+    }
 
     const test_options = b.addOptions();
     test_options.addOption(bool, "test_panic", build_options.test_panic);
@@ -254,7 +109,8 @@ pub fn build(b: *std.Build) Err!void {
                 "bochs_zig",
                 .{
                     .optimize = std.builtin.OptimizeMode.ReleaseFast,
-                    .@"with-x11" = true,
+                    .@"with-sdl2" = true,
+                    .@"enable-debugger" = build_options.use_debugger,
                 },
             );
         } else {
@@ -275,40 +131,93 @@ pub fn build(b: *std.Build) Err!void {
         }
     };
 
+    const build_steps: Steps = .init(b);
+
     //**************************************************************************
     //                               Module Setup                              *
     //**************************************************************************
 
     //* ******************************* Shared ******************************* *
 
-    const SharedModules = struct {
-        osformat: CommonModule,
-        osmemory: CommonModule,
-        osprocess: CommonModule,
-        osboot: CommonModule,
-        oshal: CommonModule,
-        osshell: CommonModule,
-        osstdlib: CommonModule,
-
-        /// This is special
-        kmain: CommonModule,
+    const build_time_tools: BuildTimeTools = .{
+        .setup_iso = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/build_iso/main.zig"),
+                .name = "build_iso",
+            },
+        ),
+        .setup_bochs = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("build_time_tools/setup_bochs/main.zig"),
+                .name = "setup_bochs",
+            },
+        ),
+        .doccopy = .init(
+            .{
+                .b = b,
+                .root_source_file = b.path("docs/main.zig"),
+                .name = "doccopy",
+            },
+        ),
     };
 
-    const shared_modules: SharedModules = .{
-        .osformat = .create(b, "osformat", "format/root.zig", test_target),
-        .osmemory = .create(b, "osmemory", "memory/root.zig", test_target),
-        .osprocess = .create(b, "osprocess", "process/root.zig", test_target),
-        .osboot = .create(b, "osboot", "boot_utilities/bootutils.zig", test_target),
-        .oshal = .create(b, "oshal", "HAL/root.zig", test_target),
-        .osshell = .create(b, "osshell", "userland/shell/shell.zig", test_target),
-        .osstdlib = .create(b, "osstdlib", "userland/stdlib/root.zig", test_target),
-        .kmain = .create(b, "kmain", "kmain/kmain.zig", test_target),
+    build_time_tools.doccopy.exe.addArg(b.install_prefix);
+
+    var shared_modules: ArchAgnosticKernelModules = .{
+        .osformat = .init(.{
+            .b = b,
+            .name = "osformat",
+            .root_source_file = b.path("format/root.zig"),
+            .test_target = test_target,
+        }),
+        .osmemory = .init(.{
+            .b = b,
+            .name = "osmemory",
+            .root_source_file = b.path("memory/root.zig"),
+            .test_target = test_target,
+        }),
+        .osprocess = .init(.{
+            .b = b,
+            .name = "osprocess",
+            .root_source_file = b.path("process/root.zig"),
+            .test_target = test_target,
+        }),
+        .osboot = .init(.{
+            .b = b,
+            .name = "osboot",
+            .root_source_file = b.path("boot_utilities/bootutils.zig"),
+            .test_target = test_target,
+        }),
+        .oshal = .init(.{
+            .b = b,
+            .name = "oshal",
+            .root_source_file = b.path("HAL/root.zig"),
+            .test_target = test_target,
+        }),
+        .oscontainers = .init(.{
+            .b = b,
+            .name = "oscontainers",
+            .root_source_file = b.path("containers/root.zig"),
+            .test_target = test_target,
+        }),
+        .osdtb = .init(.{
+            .b = b,
+            .name = "osdtb",
+            .root_source_file = b.path("dtb/root.zig"),
+            .test_target = test_target,
+        }),
+        .kmain = .init(.{
+            .b = b,
+            .name = "kmain",
+            .root_source_file = b.path("kmain/kmain.zig"),
+            .test_target = test_target,
+        }),
     };
 
-    shared_modules.oshal.module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
+    shared_modules.oshal.addImportToAll(&shared_modules.osformat);
+    shared_modules.oshal.addImportToAll(&shared_modules.osprocess);
 
     const exebochs: ?*std.Build.Step.Compile = bochs: {
         if (!build_options.build_bochs) {
@@ -332,246 +241,183 @@ pub fn build(b: *std.Build) Err!void {
         }
     };
 
+    var userland_modules: UserlandModules = .{
+        .sys = .init(.{
+            .b = b,
+            .name = "sys",
+            .root_source_file = b.path("userland/stdlib/root.zig"),
+            .test_target = test_target,
+        }),
+        .shell = .init(.{
+            .b = b,
+            .name = null,
+            .root_source_file = b.path("userland/shell/main.zig"),
+            .test_target = test_target,
+            .run_target = b.resolveTargetQuery(.{
+                .cpu_arch = switch (build_options.default_run_target) {
+                    .x86 => .x86,
+                    .riscv32 => .riscv32,
+                },
+                .os_tag = .freestanding,
+                .abi = .none,
+            }),
+            .optimize = optimize,
+        }),
+    };
+    userland_modules.shell.addImportToAll(&userland_modules.sys);
+    userland_modules.sys.addAnonymousImportToAll(
+        "syscall_table",
+        .{
+            .root_source_file = switch (build_options.default_run_target) {
+                .x86 => b.path("arch/x86/interrupts/syscall.zon"),
+                else => b.path("arch/riscv32/interrupts/syscall.zon"),
+            },
+        },
+    );
+
     //* *************************** RISC Specific **************************** *
-    const RiscV32Modules = struct {
-        asm_module: CommonModule,
-        tty_module: CommonModule,
-    };
-    const riscv32_modules: RiscV32Modules = .{
-        .asm_module = .create(b, "riscv32asm", "arch/riscv32/asm/root.zig", test_target),
-        .tty_module = .create(b, "riscv32tty", "arch/riscv32/tty/root.zig", test_target),
+    var riscv32_modules: RiscV32Modules = .{
+        .asm_module = .init(.{
+            .b = b,
+            .name = "riscv32asm",
+            .root_source_file = b.path("arch/riscv32/asm/root.zig"),
+            .test_target = test_target,
+        }),
+        .tty_module = .init(.{
+            .b = b,
+            .name = "riscv32tty",
+            .root_source_file = b.path("arch/riscv32/tty/root.zig"),
+            .test_target = test_target,
+        }),
+        .boot_info = .init(.{
+            .b = b,
+            .name = "riscv32BootInfo",
+            .root_source_file = b.path("arch/riscv32/boot_info/root.zig"),
+            .test_target = test_target,
+        }),
+        .kernel_entry = .init(.{
+            .b = b,
+            .name = null,
+            .root_source_file = b.path("arch/riscv32/entry.zig"),
+            .test_target = test_target,
+            .run_target = riscv32_target,
+            .optimize = optimize,
+        }),
     };
 
-    riscv32_modules.tty_module.module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
+    riscv32_modules.tty_module.addImportToAll(&shared_modules.osformat);
+    riscv32_modules.boot_info.addImportToAll(&shared_modules.osprocess);
 
-    const riscv32_module = b.createModule(.{
-        .root_source_file = b.path("arch/riscv32/entry.zig"),
-        .target = riscv32_target,
-        .optimize = optimize,
-        .strip = false,
-    });
-    riscv32_module.addImport(
-        riscv32_modules.tty_module.name,
-        riscv32_modules.tty_module.module,
-    );
-    riscv32_module.addImport(
-        riscv32_modules.asm_module.name,
-        riscv32_modules.asm_module.module,
-    );
-    riscv32_module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
-    riscv32_module.addImport(
-        shared_modules.osmemory.name,
-        shared_modules.osmemory.module,
-    );
-    riscv32_module.addImport(
-        shared_modules.osprocess.name,
-        shared_modules.osprocess.module,
-    );
-    riscv32_module.addImport(
-        shared_modules.oshal.name,
-        shared_modules.oshal.module,
-    );
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.osdtb);
+    riscv32_modules.kernel_entry.addImportToAll(&riscv32_modules.tty_module);
+    riscv32_modules.kernel_entry.addImportToAll(&riscv32_modules.boot_info);
+    riscv32_modules.kernel_entry.addImportToAll(&riscv32_modules.asm_module);
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.osformat);
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.osmemory);
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.osprocess);
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.oshal);
 
     //* *************************** x86 Specific ***************************** *
-    const X86Modules = struct {
-        asm_module: CommonModule,
-        io_module: CommonModule,
-        memory_module: CommonModule,
-        interrupts_module: CommonModule,
-        boot_info: CommonModule,
+    var x86_modules: X86Modules = .{
+        .asm_module = .init(.{
+            .b = b,
+            .name = "x86asm",
+            .root_source_file = b.path("arch/x86/asm/root.zig"),
+            .test_target = test_target,
+        }),
+        .io_module = .init(.{
+            .b = b,
+            .name = "x86io",
+            .root_source_file = b.path("arch/x86/io/root.zig"),
+            .test_target = test_target,
+        }),
+        .memory_module = .init(.{
+            .b = b,
+            .name = "x86memory",
+            .root_source_file = b.path("arch/x86/memory/root.zig"),
+            .test_target = test_target,
+        }),
+        .interrupts_module = .init(.{
+            .b = b,
+            .name = "x86interrupts",
+            .root_source_file = b.path("arch/x86/interrupts/root.zig"),
+            .test_target = test_target,
+        }),
+        .boot_info = .init(.{
+            .b = b,
+            .name = "x86BootInfo",
+            .root_source_file = b.path("arch/x86/boot_info/root.zig"),
+            .test_target = test_target,
+        }),
+        .kernel_entry = .init(.{
+            .b = b,
+            .name = null,
+            .root_source_file = b.path("arch/x86/entry.zig"),
+            .test_target = test_target,
+            .run_target = x86_target,
+            .optimize = optimize,
+        }),
     };
-    const x86_modules: X86Modules = .{
-        .asm_module = .create(b, "x86asm", "arch/x86/asm/root.zig", test_target),
-        .io_module = .create(b, "x86io", "arch/x86/io/root.zig", test_target),
-        .memory_module = .create(b, "x86memory", "arch/x86/memory/root.zig", test_target),
-        .interrupts_module = .create(b, "x86interrupts", "arch/x86/interrupts/root.zig", test_target),
-        .boot_info = .create(b, "BootInfo", "arch/x86/BootInfo.zig", test_target),
-    };
 
-    shared_modules.osboot.module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.module,
-    );
+    x86_modules.boot_info.addImportToAll(&x86_modules.memory_module);
+    x86_modules.boot_info.addImportToAll(&shared_modules.osprocess);
+    x86_modules.boot_info.addImportToAll(&shared_modules.osmemory);
 
-    x86_modules.boot_info.module.addImport(
-        x86_modules.memory_module.name,
-        x86_modules.memory_module.module,
-    );
-    x86_modules.boot_info.test_artifact.root_module.addImport(
-        x86_modules.memory_module.name,
-        x86_modules.memory_module.test_artifact.root_module,
-    );
-    x86_modules.boot_info.doc_artifact.root_module.addImport(
-        x86_modules.memory_module.name,
-        x86_modules.memory_module.doc_artifact.root_module,
-    );
+    x86_modules.io_module.addImportToAll(&x86_modules.asm_module);
+    x86_modules.io_module.addImportToAll(&shared_modules.osformat);
 
-    x86_modules.io_module.module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.module,
-    );
-    x86_modules.io_module.module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
+    x86_modules.memory_module.addImportToAll(&x86_modules.asm_module);
+    x86_modules.memory_module.addImportToAll(&x86_modules.boot_info);
+    x86_modules.memory_module.addImportToAll(&shared_modules.osmemory);
 
-    x86_modules.memory_module.module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.module,
-    );
-    x86_modules.memory_module.test_artifact.root_module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.test_artifact.root_module,
-    );
-    x86_modules.memory_module.module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.module,
-    );
-    x86_modules.memory_module.test_artifact.root_module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.test_artifact.root_module,
-    );
+    x86_modules.interrupts_module.addImportToAll(&x86_modules.asm_module);
+    x86_modules.interrupts_module.addImportToAll(&x86_modules.io_module);
+    x86_modules.interrupts_module.addImportToAll(&shared_modules.osformat);
+    x86_modules.interrupts_module.addImportToAll(&x86_modules.memory_module);
+    x86_modules.interrupts_module.addImportToAll(&shared_modules.oscontainers);
 
-    x86_modules.interrupts_module.module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.module,
-    );
-    x86_modules.interrupts_module.module.addImport(
-        x86_modules.io_module.name,
-        x86_modules.io_module.module,
-    );
-    x86_modules.interrupts_module.module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
-    x86_modules.interrupts_module.module.addImport(
-        x86_modules.memory_module.name,
-        x86_modules.memory_module.module,
-    );
-
-    const x86_module = b.createModule(.{
-        .root_source_file = b.path("arch/x86/entry.zig"),
-        .target = x86_target,
-        .optimize = optimize,
-        .strip = false,
-    });
-    x86_module.addImport(
-        x86_modules.boot_info.name,
-        x86_modules.boot_info.module,
-    );
-    x86_module.addImport(
-        x86_modules.asm_module.name,
-        x86_modules.asm_module.module,
-    );
-    x86_module.addImport(
-        x86_modules.memory_module.name,
-        x86_modules.memory_module.module,
-    );
-    x86_module.addImport(
-        x86_modules.interrupts_module.name,
-        x86_modules.interrupts_module.module,
-    );
-    x86_module.addImport(
-        x86_modules.io_module.name,
-        x86_modules.io_module.module,
-    );
-    x86_module.addImport(
-        shared_modules.osboot.name,
-        shared_modules.osboot.module,
-    );
-    x86_module.addImport(
-        shared_modules.osprocess.name,
-        shared_modules.osprocess.module,
-    );
-    x86_module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
-    x86_module.addImport(
-        shared_modules.oshal.name,
-        shared_modules.oshal.module,
-    );
-    x86_module.addOptions("bootoptions", boot_options);
+    x86_modules.kernel_entry.addImportToAll(&x86_modules.boot_info);
+    x86_modules.kernel_entry.addImportToAll(&x86_modules.asm_module);
+    x86_modules.kernel_entry.addImportToAll(&x86_modules.memory_module);
+    x86_modules.kernel_entry.addImportToAll(&x86_modules.interrupts_module);
+    x86_modules.kernel_entry.addImportToAll(&x86_modules.io_module);
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.osboot);
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.osprocess);
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.osformat);
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.oshal);
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.osmemory);
+    x86_modules.kernel_entry.addOptionsToAll("bootoptions", boot_options);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make
     // dummy objects for freestanding modules.
 
     //* ******************************* kmain ******************************** *
-    shared_modules.kmain.module.addImport(
-        shared_modules.oshal.name,
-        shared_modules.oshal.module,
-    );
-    shared_modules.kmain.module.addImport(
-        shared_modules.osshell.name,
-        shared_modules.osshell.module,
-    );
-    shared_modules.kmain.module.addImport(
-        shared_modules.osstdlib.name,
-        shared_modules.osstdlib.module,
-    );
-    shared_modules.kmain.module.addImport(
-        shared_modules.osprocess.name,
-        shared_modules.osprocess.module,
-    );
-    shared_modules.kmain.module.addImport(
-        shared_modules.osformat.name,
-        shared_modules.osformat.module,
-    );
-    shared_modules.kmain.module.addOptions(
-        "testoptions",
-        test_options,
-    );
+    shared_modules.kmain.addImportToAll(&shared_modules.oshal);
+    shared_modules.kmain.addImportToAll(&shared_modules.osprocess);
+    shared_modules.kmain.addImportToAll(&shared_modules.osformat);
+    shared_modules.kmain.addOptionsToAll("testoptions", test_options);
 
-    x86_module.addImport(
-        shared_modules.kmain.name,
-        shared_modules.kmain.module,
-    );
-    riscv32_module.addImport(
-        shared_modules.kmain.name,
-        shared_modules.kmain.module,
-    );
+    x86_modules.kernel_entry.addImportToAll(&shared_modules.kmain);
+    riscv32_modules.kernel_entry.addImportToAll(&shared_modules.kmain);
 
     //**************************************************************************
     //                           Compile Step Setup                            *
     //**************************************************************************
 
-    const Outputs = struct {
-        const Self = @This();
-        riscv32: std.Build.Step.InstallArtifact.Options,
-        x86: std.Build.Step.InstallArtifact.Options,
-
-        fn init() Self {
-            return .{
-                .riscv32 = .{
-                    .dest_dir = .{
-                        .override = .{
-                            .custom = @tagName(std.Target.Cpu.Arch.riscv32),
-                        },
-                    },
-                },
-                .x86 = .{
-                    .dest_dir = .{
-                        .override = .{
-                            .custom = @tagName(std.Target.Cpu.Arch.x86),
-                        },
-                    },
-                },
-            };
-        }
-    };
-    const output_dirs: Outputs = comptime .init();
+    //* ******************************* Shared ******************************* *
+    const shell_exe = b.addExecutable(.{
+        .name = "init",
+        .root_module = userland_modules.shell.module,
+    });
+    shell_exe.entry = .{ .symbol_name = "main" };
+    shell_exe.setLinkerScript(b.path("userland/shell/link.ld"));
+    build_steps.build_shell.dependOn(&shell_exe.step);
 
     //* *************************** RISC Specific **************************** *
     const riscv32_exe = b.addExecutable(.{
         .name = kernel_name,
-        .root_module = riscv32_module,
+        .root_module = riscv32_modules.kernel_entry.module,
     });
     riscv32_exe.entry = .disabled;
     riscv32_exe.setLinkerScript(b.path("arch/riscv32/link.ld"));
@@ -579,7 +425,7 @@ pub fn build(b: *std.Build) Err!void {
     //* *************************** x86 Specific ***************************** *
     const x86_exe = b.addExecutable(.{
         .name = kernel_name,
-        .root_module = x86_module,
+        .root_module = x86_modules.kernel_entry.module,
     });
     x86_exe.entry = .disabled;
     x86_exe.setLinkerScript(b.path("arch/x86/link.ld"));
@@ -587,18 +433,25 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
     //                          Install Artifact Setup                         *
     //**************************************************************************
-    const all_step = b.step(
-        "all",
-        "Build the Kernel for all supported architectures",
+
+    //* ******************************* Shared ******************************* *
+    const shell_out = b.addInstallArtifact(
+        shell_exe,
+        switch (build_options.default_run_target) {
+            .x86 => output_dirs.x86,
+            .riscv32 => output_dirs.riscv32,
+        },
     );
+    build_steps.build_all.dependOn(&shell_out.step);
+    b.getInstallStep().dependOn(&shell_out.step);
 
     //* *************************** RISC Specific **************************** *
     const riscv32_out = b.addInstallArtifact(riscv32_exe, output_dirs.riscv32);
-    all_step.dependOn(&riscv32_out.step);
+    build_steps.build_all.dependOn(&riscv32_out.step);
 
     //* *************************** x86 Specific ***************************** *
     const x86_out = b.addInstallArtifact(x86_exe, output_dirs.x86);
-    all_step.dependOn(&x86_out.step);
+    build_steps.build_all.dependOn(&x86_out.step);
 
     //* *************************** Doc Specific ***************************** *
 
@@ -627,7 +480,7 @@ pub fn build(b: *std.Build) Err!void {
 
         const arch_info = .{
             .{
-                .name = @tagName(SupportedTarget.x86),
+                .name = @tagName(build_helpers.enums.SupportedTarget.x86),
                 .label = "x86 Documentation",
                 .index_path = "x86/index.html",
                 .submod_root_path = "x86modules/",
@@ -635,7 +488,7 @@ pub fn build(b: *std.Build) Err!void {
                 .modules = x86_modules,
             },
             .{
-                .name = @tagName(SupportedTarget.riscv32),
+                .name = @tagName(build_helpers.enums.SupportedTarget.riscv32),
                 .label = "Risc-V32 Documentation",
                 .index_path = "riscv32/index.html",
                 .submod_root_path = "riscv32modules/",
@@ -661,17 +514,21 @@ pub fn build(b: *std.Build) Err!void {
                 .{},
             );
             inline for (comptime std.meta.fieldNames(single_arch_info.mod_type)) |field| {
-                const mod: CommonModule = @field(single_arch_info.modules, field);
-                var sub_module_struct = try sub_modules.beginStructField(.{});
-                try sub_module_struct.field("index_path", path: {
-                    var path_buf: std.ArrayList(u8) = .empty;
-                    try path_buf.appendSlice(b.allocator, single_arch_info.submod_root_path);
-                    try path_buf.appendSlice(b.allocator, mod.name);
-                    try path_buf.appendSlice(b.allocator, "/index.html");
-                    break :path path_buf.items;
-                }, .{});
-                try sub_module_struct.field("label", mod.name, .{});
-                try sub_module_struct.end();
+                const mod: OsModule = @field(single_arch_info.modules, field);
+                if (mod.name) |name| {
+                    var sub_module_struct = try sub_modules.beginStructField(.{});
+                    const path: []const u8 = std.fmt.allocPrint(
+                        b.allocator,
+                        "{s}{s}/index.html",
+                        .{
+                            single_arch_info.submod_root_path,
+                            name,
+                        },
+                    ) catch @panic("OOM");
+                    try sub_module_struct.field("index_path", path, .{});
+                    try sub_module_struct.field("label", name, .{});
+                    try sub_module_struct.end();
+                }
             }
             try sub_modules.end();
             try single_arch_field.end();
@@ -680,38 +537,25 @@ pub fn build(b: *std.Build) Err!void {
 
         {
             var common = try obj.beginTupleField("common", .{});
-            inline for (comptime std.meta.fieldNames(SharedModules)) |field| {
-                const mod: CommonModule = @field(shared_modules, field);
-                var common_submodule = try common.beginStructField(.{});
-                try common_submodule.field("index_path", path: {
-                    var path_buf: std.ArrayList(u8) = .empty;
-                    try path_buf.appendSlice(b.allocator, "shared_modules/");
-                    try path_buf.appendSlice(b.allocator, mod.name);
-                    try path_buf.appendSlice(b.allocator, "/index.html");
-                    break :path path_buf.items;
-                }, .{});
-                try common_submodule.field("label", mod.name, .{});
-                try common_submodule.end();
+            inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field| {
+                const mod: OsModule = @field(shared_modules, field);
+                if (mod.name) |name| {
+                    var common_submodule = try common.beginStructField(.{});
+                    const path: []const u8 = std.fmt.allocPrint(
+                        b.allocator,
+                        "shared_modules/{s}/index.html",
+                        .{
+                            name,
+                        },
+                    ) catch @panic("OOM");
+                    try common_submodule.field("index_path", path, .{});
+                    try common_submodule.field("label", mod.name, .{});
+                    try common_submodule.end();
+                }
             }
             try common.end();
         }
     }
-    const doc_page_step = b.step(
-        "doc_site",
-        "Build all docs and tie them together with the landing page",
-    );
-    const moddoccopy = b.createModule(.{
-        .root_source_file = b.path("docs/main.zig"),
-        .optimize = .Debug,
-        .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
-    });
-    const exedoccopy = b.addExecutable(.{
-        .name = "doccopy",
-        .root_module = moddoccopy,
-    });
-    const rundoccopy = b.addRunArtifact(exedoccopy);
-    rundoccopy.addArg(b.install_prefix);
-    rundoccopy.step.dependOn(b.getInstallStep());
 
     // build all module docs before copying index.html
     const x86_install_doc = b.addInstallDirectory(.{
@@ -720,19 +564,20 @@ pub fn build(b: *std.Build) Err!void {
         .install_subdir = "docs/x86",
     });
     inline for (comptime std.meta.fieldNames(X86Modules)) |field| {
-        const member = @field(x86_modules, field);
-        const install_directory = b.addInstallDirectory(.{
-            .source_dir = member.emitted_doc_directory,
-            .install_dir = .prefix,
-            .install_subdir = buf_calc: {
-                var buf: std.ArrayList(u8) = .empty;
-                try buf.appendSlice(b.allocator, "docs/x86modules/");
-                try buf.appendSlice(b.allocator, member.name);
-
-                break :buf_calc buf.items;
-            },
-        });
-        rundoccopy.step.dependOn(&install_directory.step);
+        const member: OsModule = @field(x86_modules, field);
+        if (member.name) |name| {
+            const path = std.fmt.allocPrint(
+                b.allocator,
+                "docs/x86modules/{s}",
+                .{name},
+            ) catch @panic("OOM");
+            const install_directory = b.addInstallDirectory(.{
+                .source_dir = member.emitted_doc_directory,
+                .install_dir = .prefix,
+                .install_subdir = path,
+            });
+            build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
+        }
     }
 
     const riscv32_install_doc = b.addInstallDirectory(.{
@@ -741,36 +586,37 @@ pub fn build(b: *std.Build) Err!void {
         .install_subdir = "docs/" ++ @tagName(std.Target.Cpu.Arch.riscv32),
     });
     inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field| {
-        const member = @field(riscv32_modules, field);
-        const install_directory = b.addInstallDirectory(.{
-            .source_dir = member.emitted_doc_directory,
-            .install_dir = .prefix,
-            .install_subdir = buf_calc: {
-                var buf: std.ArrayList(u8) = .empty;
-                try buf.appendSlice(b.allocator, "docs/riscv32modules/");
-                try buf.appendSlice(b.allocator, member.name);
-
-                break :buf_calc buf.items;
-            },
-        });
-        rundoccopy.step.dependOn(&install_directory.step);
+        const member: OsModule = @field(riscv32_modules, field);
+        if (member.name) |name| {
+            const path = std.fmt.allocPrint(
+                b.allocator,
+                "docs/riscv32modules/{s}",
+                .{name},
+            ) catch @panic("OOM");
+            const install_directory = b.addInstallDirectory(.{
+                .source_dir = member.emitted_doc_directory,
+                .install_dir = .prefix,
+                .install_subdir = path,
+            });
+            build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
+        }
     }
 
-    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
-        const member = @field(shared_modules, field_name);
+    inline for (comptime std.meta.fieldNames(ArchAgnosticKernelModules)) |field_name| {
+        const member: OsModule = @field(shared_modules, field_name);
         const install_directory = b.addInstallDirectory(.{
             .source_dir = member.emitted_doc_directory,
             .install_dir = .prefix,
             .install_subdir = "docs/shared_modules/" ++ field_name,
         });
-        rundoccopy.step.dependOn(&install_directory.step);
+        build_time_tools.doccopy.exe.step.dependOn(&install_directory.step);
     }
 
-    rundoccopy.step.dependOn(&x86_install_doc.step);
-    rundoccopy.step.dependOn(&riscv32_install_doc.step);
+    build_time_tools.doccopy.exe.step.dependOn(&x86_install_doc.step);
+    build_time_tools.doccopy.exe.step.dependOn(&riscv32_install_doc.step);
 
-    doc_page_step.dependOn(&rundoccopy.step);
-    all_step.dependOn(doc_page_step);
+    build_steps.build_docs.dependOn(&build_time_tools.doccopy.exe.step);
+    build_steps.build_all.dependOn(build_steps.build_docs);
 
     //**************************************************************************
     //                             Run Step Setup                              *
@@ -792,94 +638,54 @@ pub fn build(b: *std.Build) Err!void {
     run_riscv32.addArtifactArg(riscv32_exe);
     run_riscv32.step.dependOn(&riscv32_out.step);
 
-    //* *************************** x86 Specific ***************************** *
-    const isooptions = b.addOptions();
-    var buf: [4096]u8 = undefined;
-    var dir: std.Io.Dir = std.Io.Dir.cwd();
-    var output: std.Io.File = try dir.createFile(
-        io,
-        b.pathResolve(&.{ "build_iso", "zon", "limine.zon" }),
-        .{},
-    );
-    var file_writer = output.writer(io, &buf);
-    defer file_writer.end() catch {};
-
-    for (autogen_lines) |line| {
-        try file_writer.interface.writeAll(line);
-    }
-
-    var zon_serializer: std.zon.Serializer = .{
-        .writer = &file_writer.interface,
-    };
-
-    // Top level zon object
-    var obj = try zon_serializer.beginStruct(.{});
-    if (build_options.boot_loader == .limine) {
-        if (b.lazyDependency("limine", .{})) |limine| {
-            {
-                var to_create = try obj.beginTupleField("to_create", .{});
-                try to_create.field("zig-out/x86/iso/boot/limine", .{});
-                try to_create.end();
-            }
-
-            {
-                const pairs = .{
-                    .{
-                        .src = "arch/x86/limine/limine.conf",
-                        .dest = "zig-out/x86/iso/boot/limine/limine.conf",
-                    },
-                    .{
-                        .src = limine.builder.pathResolve(&.{
-                            limine.builder.build_root.path.?,
-                            "limine-bios-cd.bin",
-                        }),
-                        .dest = "zig-out/x86/iso/boot/limine/limine-bios-cd.bin",
-                    },
-                    .{
-                        .src = limine.builder.pathResolve(&.{
-                            limine.builder.build_root.path.?,
-                            "limine-bios.sys",
-                        }),
-                        .dest = "zig-out/x86/iso/boot/limine/limine-bios.sys",
-                    },
-                };
-                var to_copy = try obj.beginTupleField("to_copy", .{});
-
-                inline for (pairs) |pair| {
-                    var pair_field = try to_copy.beginStructField(.{});
-                    try pair_field.field("src", pair.src, .{});
-                    try pair_field.field("dest", pair.dest, .{});
-                    try pair_field.end();
-                }
-
-                try to_copy.end();
-            }
-
-            {
-                try obj.field(
-                    "kernel_destination",
-                    "zig-out/x86/iso/boot/",
-                    .{},
-                );
-            }
-        } else {}
-    }
-    try obj.end();
-    isooptions.addOption(BootLoader, "bootloader", build_options.boot_loader);
-    const modiso = b.createModule(.{
-        .root_source_file = b.path("build_iso/main.zig"),
-        .optimize = .Debug,
-        .target = b.resolveTargetQuery(std.Target.Query.fromTarget(&builtin.target)),
+    build_time_tools.setup_iso.exe.addFileArg(b.path(""));
+    build_time_tools.setup_iso.exe.addArg("--kernel-src");
+    build_time_tools.setup_iso.exe.addArtifactArg(x86_exe);
+    build_time_tools.setup_iso.exe.addArg("--kernel-dest");
+    build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/"); // TODO(SEP): use special API?
+    build_time_tools.setup_iso.exe.addArg("--to-create");
+    build_time_tools.setup_iso.exe.addArgs(switch (build_options.boot_info) {
+        .limine => &.{
+            "zig-out/x86/iso/boot/limine/",
+            "zig-out/x86/iso/modules/",
+        },
+        .grub_legacy => &.{
+            "zig-out/x86/iso/boot/grub/",
+            "zig-out/x86/iso/modules/",
+        },
     });
-    modiso.addOptions("isooptions", isooptions);
-    const exeiso = b.addExecutable(.{
-        .name = "build_iso",
-        .root_module = modiso,
-    });
-    const runiso = b.addRunArtifact(exeiso);
-    runiso.addFileArg(b.path(""));
-    runiso.addArtifactArg(x86_exe);
-    runiso.step.dependOn(b.getInstallStep());
+    switch (build_options.boot_info) {
+        .limine => {
+            if (b.lazyDependency("limine", .{})) |limine| {
+                build_time_tools.setup_iso.exe.addArgs(&.{
+                    "--copy",
+                    "arch/x86/limine/limine.conf",
+                    "zig-out/x86/iso/boot/limine/limine.conf",
+                });
+
+                build_time_tools.setup_iso.exe.addArg("--copy");
+                build_time_tools.setup_iso.exe.addFileArg(limine.path("limine-bios-cd.bin"));
+                build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/limine/limine-bios-cd.bin");
+
+                build_time_tools.setup_iso.exe.addArg("--copy");
+                build_time_tools.setup_iso.exe.addFileArg(limine.path("limine-bios.sys"));
+                build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/boot/limine/limine-bios.sys");
+            }
+        },
+        .grub_legacy => {
+            build_time_tools.setup_iso.exe.addArgs(&.{
+                "--copy",
+                "arch/x86/grub/stage2_eltorito",
+                "zig-out/x86/iso/boot/grub/stage2_eltorito",
+                "--copy",
+                "arch/x86/grub/menu.lst",
+                "zig-out/x86/iso/boot/grub/menu.lst",
+            });
+        },
+    }
+    build_time_tools.setup_iso.exe.addArg("--copy");
+    build_time_tools.setup_iso.exe.addArtifactArg(shell_exe);
+    build_time_tools.setup_iso.exe.addArg("zig-out/x86/iso/modules/");
 
     const create_x86_iso: *std.Build.Step.Run = .create(b, "run_genisoimage");
     if (exe_mkisofs) |exe| {
@@ -914,13 +720,27 @@ pub fn build(b: *std.Build) Err!void {
         "zig-out/x86/osOS.iso",
         "zig-out/x86/iso/",
     });
-    create_x86_iso.step.dependOn(&runiso.step);
+    create_x86_iso.step.dependOn(&build_time_tools.setup_iso.exe.step);
+    if (build_options.emulator == .bochs) {
+        build_time_tools.setup_bochs.exe.addArgs(&.{
+            "--dest_dir",
+            "zig-out/x86/",
+            "--default_config",
+        });
+        build_time_tools.setup_bochs.exe.addFileArg(b.path("arch/x86/bochs/bochs.config"));
+        if (depbochs) |dep| {
+            build_time_tools.setup_bochs.exe.addArg("--vgaromimage");
+            build_time_tools.setup_bochs.exe.addFileArg(dep.path("bochs/bios/VGABIOS-lgpl-latest"));
+            build_time_tools.setup_bochs.exe.addArg("--romimage");
+            build_time_tools.setup_bochs.exe.addFileArg(dep.path("bochs/bios/BIOS-bochs-latest"));
+        }
 
-    const x86_iso_step = b.step("iso", "Build the x86 ISO disc image");
+        create_x86_iso.step.dependOn(&build_time_tools.setup_bochs.exe.step);
+    }
+
     switch (build_options.default_run_target) {
         .x86 => {
-            x86_iso_step.dependOn(&create_x86_iso.step);
-            x86_iso_step.dependOn(&runiso.step);
+            build_steps.build_iso.dependOn(&create_x86_iso.step);
         },
         .riscv32 => {
             // riscv32 currently doesn't make an iso
@@ -943,7 +763,6 @@ pub fn build(b: *std.Build) Err!void {
     };
 
     const x86_run_qemu = b.addSystemCommand(&common_x86_qemu_flags);
-    x86_run_qemu.step.dependOn(&runiso.step);
     x86_run_qemu.step.dependOn(&create_x86_iso.step);
 
     const x86_run_qemu_debugger = b.addSystemCommand(add_debug_flags: {
@@ -953,7 +772,6 @@ pub fn build(b: *std.Build) Err!void {
         try flag_buf.append(b.allocator, "-S");
         break :add_debug_flags flag_buf.items;
     });
-    x86_run_qemu_debugger.step.dependOn(&runiso.step);
     x86_run_qemu_debugger.step.dependOn(&create_x86_iso.step);
 
     const x86_run_bochs: *std.Build.Step.Run = .create(b, "runbochs");
@@ -966,52 +784,25 @@ pub fn build(b: *std.Build) Err!void {
             x86_run_bochs.addArg("bochs"); // use system installation
         }
         x86_run_bochs.addArg("-f");
-        x86_run_bochs.addFileArg(b.path("arch/x86/bochs/bochs.config"));
+        x86_run_bochs.addFileArg(b.path("zig-out/x86/bochs.config"));
         x86_run_bochs.addArg("-q");
     }
 
-    // const x86_run_bochs = b.addSystemCommand(&.{
-    // "bochs",
-    // "-f",
-    // "zig-out/x86/bochs.config",
-    // "-q",
-    // });
-    x86_run_bochs.step.dependOn(&runiso.step);
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
 
-    const x86_run_bochs_debugger = b.addSystemCommand(&.{
-        "bochs",
-        "-f",
-        "zig-out/x86/bochs.config",
-        "-q",
-        // "-debugger",
-    });
-    x86_run_bochs_debugger.step.dependOn(&runiso.step);
-    x86_run_bochs_debugger.step.dependOn(&create_x86_iso.step);
-    all_step.dependOn(x86_iso_step);
+    build_steps.build_all.dependOn(build_steps.build_iso);
 
     //* ************************* Generic Run Target ************************* *
-    const generic_build_step = b.step(
-        "kernel",
-        "Build the kernel for just the specified target",
-    );
-    generic_build_step.dependOn(switch (build_options.default_run_target) {
+    build_steps.build_kernel.dependOn(switch (build_options.default_run_target) {
         .x86 => &x86_out.step,
         .riscv32 => &riscv32_out.step,
     });
-    b.getInstallStep().dependOn(generic_build_step);
+    b.getInstallStep().dependOn(build_steps.build_kernel);
 
-    const generic_run_step = b.step(
-        "run",
-        "Boot kernel for specified target (x86 by default)",
-    );
     switch (build_options.default_run_target) {
         .x86 => {
-            generic_run_step.dependOn(switch (build_options.emulator) {
-                .bochs => switch (build_options.use_debugger) {
-                    false => &x86_run_bochs.step,
-                    true => &x86_run_bochs_debugger.step,
-                },
+            build_steps.run.dependOn(switch (build_options.emulator) {
+                .bochs => &x86_run_bochs.step,
                 .qemu => switch (build_options.use_debugger) {
                     false => &x86_run_qemu.step,
                     true => &x86_run_qemu_debugger.step,
@@ -1019,33 +810,31 @@ pub fn build(b: *std.Build) Err!void {
             });
         },
         .riscv32 => {
-            generic_run_step.dependOn(&run_riscv32.step);
+            build_steps.run.dependOn(&run_riscv32.step);
         },
     }
 
     //* ***************************** Unit Tests ***************************** *
 
-    const arch_agnostic_test_step = b.step(
-        "test",
-        "Run arch-agnostic unit tests (Runnable from any host)",
-    );
+    const testables = .{
+        .{ ArchAgnosticKernelModules, &shared_modules },
+        .{ X86Modules, &x86_modules },
+        .{ RiscV32Modules, &riscv32_modules },
+    };
 
-    inline for (comptime std.meta.fieldNames(SharedModules)) |field_name| {
-        const run_test = b.addRunArtifact(
-            @field(shared_modules, field_name).test_artifact,
-        );
-        arch_agnostic_test_step.dependOn(&run_test.step);
+    inline for (testables) |testable| {
+        const Container: type, const instance = testable;
+        inline for (comptime std.meta.fieldNames(Container)) |field_name| {
+            const mod: OsModule = @field(instance.*, field_name);
+            if (mod.name) |_| {
+                build_steps.test_.dependOn(&mod.test_artifact.run.step);
+            }
+        }
     }
-    inline for (comptime std.meta.fieldNames(X86Modules)) |field_name| {
-        const run_test = b.addRunArtifact(
-            @field(x86_modules, field_name).test_artifact,
-        );
-        arch_agnostic_test_step.dependOn(&run_test.step);
-    }
-    inline for (comptime std.meta.fieldNames(RiscV32Modules)) |field_name| {
-        const run_test = b.addRunArtifact(
-            @field(riscv32_modules, field_name).test_artifact,
-        );
-        arch_agnostic_test_step.dependOn(&run_test.step);
+    inline for (comptime std.meta.fieldNames(BuildTimeTools)) |field_name| {
+        const tool: BuildTool = @field(build_time_tools, field_name);
+        if (tool.test_exe) |test_exe| {
+            build_steps.test_.dependOn(&test_exe.step);
+        }
     }
 }

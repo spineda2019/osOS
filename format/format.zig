@@ -115,9 +115,9 @@ pub fn StringFromDecimal(comptime T: type) type {
     return StringFromInt(T, 10);
 }
 
-pub const AddressString = StringFromInt(u32, 16);
+pub const AddressString = StringFromInt(usize, 16);
 
-pub const DecimalString = StringFromInt(u32, 10);
+pub const DecimalString = StringFromInt(usize, 10);
 
 test numberBufSize {
     const expect = @import("std").testing.expect;

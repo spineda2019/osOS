@@ -68,7 +68,7 @@ pub const PageDirectoryEntry = packed struct(u32) {
         return (index << 22) & 0b1111111111_0000000000000000000000;
     }
 
-    pub fn basicInit(
+    pub fn init(
         self: *PageDirectoryEntry,
         pt_to_use: *align(PAGE_SIZE) PageTable,
     ) void {
@@ -80,6 +80,39 @@ pub const PageDirectoryEntry = packed struct(u32) {
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
+
+/// Fill a single page table with coherent default values depending on the
+/// desired physical base address
+///
+/// `table`: The table to fill
+///
+/// `physical_base`: The page-aligned _physical_ address of the first frame in
+/// `table`
+pub fn fillTable(
+    table: *align(PAGE_SIZE) PageTable,
+    physical_base: [*]allowzero align(PAGE_SIZE) const u8,
+    map_immediately: bool,
+) void {
+    const base: usize = @intFromPtr(physical_base);
+    for (table, 0..) |*entry, scale| {
+        entry.*.writeable = true;
+        entry.*.in_physical_memory = map_immediately;
+        entry.*.page_frame_address = @truncate((base + (PAGE_SIZE * scale)) >> 12);
+    }
+}
+
+pub fn mapFrame(
+    table: *align(PAGE_SIZE) PageTable,
+    index: usize,
+    physical_addr: [*]allowzero align(PAGE_SIZE) const u8,
+) void {
+    if (index < table.len) {
+        table[index].page_frame_address = @truncate(@intFromPtr(physical_addr) >> 12);
+        table[index].writeable = true;
+        table[index].cache_disable = true;
+        table[index].in_physical_memory = true;
+    }
+}
 
 /// Must be aligned to 4KiB, or 4096 bytes.
 pub const PageTableEntry = packed struct(u32) {
@@ -148,6 +181,21 @@ pub const Info = struct {
         }
     }
 
+    pub fn mapTable(
+        self: *const Info,
+        pt_to_use: *align(PAGE_SIZE) PageTable,
+        virtual_address: usize,
+        comptime inline_options: InlineOptions,
+    ) void {
+        const pd_idx: u32 = @call(
+            inline_options.mode,
+            PageDirectoryEntry.indexFromVirtual,
+            .{virtual_address},
+        );
+        const pde: *PageDirectoryEntry = &self.page_directory[pd_idx];
+        @call(inline_options.mode, PageDirectoryEntry.init, .{ pde, pt_to_use });
+    }
+
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
     pub fn initHigherHalfPages(
@@ -168,26 +216,18 @@ pub const Info = struct {
         // Will map starting physical addresses 0x0 through
         // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
         // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
-        for (pt_to_use, 0..) |*entry, idx| {
-            const scale: u32 = (idx);
-            entry.*.writeable = true;
-            entry.*.in_physical_memory = true;
-            entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
-        }
+        @call(
+            inline_options.mode,
+            fillTable,
+            .{ pt_to_use, @as([*]allowzero align(PAGE_SIZE) const u8, @ptrFromInt(0)), true },
+        );
 
-        const pd_index: u32 = PageDirectoryEntry.indexFromVirtual(self.virtual_kernel_base);
-        const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
-        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ pde, pt_to_use });
-        // pde.basicInit(pt_to_use);
-
-        // We also have to identity map the first 4mb to make the kernel not crash
-        // when paging is turned on.
-        const first_pde: *PageDirectoryEntry = &self.page_directory[0];
-        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ first_pde, pt_to_use });
-        // first_pde.basicInit(pt_to_use);
+        // identity maps first 4 MiB
+        @call(inline_options.mode, mapTable, .{ self, pt_to_use, 0, inline_options });
     }
 
-    pub fn unmap(self: *const Info, at: u32) void {
+    /// Unmaps the PDE at index `at`
+    pub fn unmapTable(self: *const Info, at: u32) void {
         if (at < self.page_directory.len) {
             self.page_directory[at].in_physical_memory = false;
         }
@@ -292,6 +332,10 @@ pub const Info = struct {
 };
 
 test Info {
+    if (@sizeOf(usize) != 4) {
+        return;
+    }
+
     const std = @import("std");
 
     const physical_framebuffer_start = 0x00_0B_80_00;

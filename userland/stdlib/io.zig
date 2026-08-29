@@ -1,9 +1,14 @@
 pub const console = struct {
-    pub fn readChar() u8 {}
+    pub fn readLine() []const u8 {
+        @panic("TODO");
+    }
 
-    pub fn readLine() []const u8 {}
+    pub fn writeLine(buf: []const u8) void {
+        write(buf);
+        write("\n");
+    }
 
-    pub fn print(_: []const u8) void {}
-
-    pub fn printLine(_: []const u8) void {}
+    pub fn write(buf: []const u8) void {
+        _ = buf;
+    }
 };

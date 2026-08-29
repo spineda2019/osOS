@@ -1,5 +1,8 @@
 const CtHAL = @This();
 
-pub const IAsm = @import("IAsm.zig");
+const IAsm = @import("IAsm.zig");
+const ContextTools = @import("osprocess").ContextTools;
 
 assembly_wrappers: IAsm,
+
+ctx_tools: ContextTools,

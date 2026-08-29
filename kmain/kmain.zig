@@ -19,48 +19,85 @@ const process = @import("osprocess");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
 const testoptions = @import("testoptions");
-const osshell = @import("osshell");
 
-pub fn kmain(
-    rt_hal: oshal.RtHAL,
-    comptime ct_hal: oshal.CtHal,
-) noreturn {
-    var terminal = rt_hal.terminal;
-    var serial = rt_hal.serial_io;
+/// Ideally the beginning of true arch agnostic osOS logic, like where the
+/// scheduler will start and where pretty much everything that need not know
+/// about CPU architecture (mostly) will be initialized.
+///
+/// Universally common CPU instructions (like jumping to an address, executing
+/// and arbitrary illegal instruction for testing, etc) will be provided via
+/// functions in `ct_hal`. Might be an escape hatch, but I like the abstraction.
+pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
+    const Logger = struct {
+        serial: osformat.IWriter,
+        terminal: osformat.IWriter,
 
+        const Logger = @This();
+        fn writef(self: *Logger, comptime format: []const u8, args: anytype) void {
+            self.serial.writef(format, args);
+            self.terminal.writef(format, args);
+        }
+        fn flush(self: *Logger) void {
+            self.serial.flush();
+            self.terminal.flush();
+        }
+    };
+    var logger: Logger = .{
+        .serial = rt_hal.serial_io,
+        .terminal = rt_hal.terminal,
+    };
+
+    logger.writef("********************* kmain *********************\r\n", .{});
     for (0..12) |_| {
-        terminal.writef("Foo " ** 20, .{});
-        terminal.writef("Bar " ** 20, .{});
-        terminal.writef("Baz " ** 20, .{});
+        logger.writef("Foo " ** 20, .{});
+        logger.writef("Bar " ** 20, .{});
+        logger.writef("Baz " ** 20, .{});
     }
 
-    terminal.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});
-    terminal.writef("Testing writeLine...\r\n", .{});
-    terminal.writef("Hi there from a new line!\r\n", .{});
-    terminal.writef("Hi there from a new line again!\r\n", .{});
+    logger.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});
+    logger.writef("Testing writeLine...\r\n", .{});
+    logger.writef("Hi there from a new line!\r\n", .{});
+    logger.writef("Hi there from a new line again!\r\n", .{});
 
     if (testoptions.test_panic) {
-        terminal.writef("Testing Panic\r\n", .{});
+        logger.writef("Testing Panic\r\n", .{});
         @panic("Testing Panic");
     }
 
     if (testoptions.test_ill) {
-        terminal.writef(
+        logger.writef(
             "Purposefully performing an illegal instruction...\r\n",
             .{},
         );
         ct_hal.assembly_wrappers.illegal_instruction();
     }
 
-    terminal.flush();
-    serial.flush();
+    logger.flush();
 
-    var process_pool: process.ProcessTable(8) = .init();
-    _ = &process_pool;
-    // TODO(SEP) somehow start shell proc in userland
-    // Userland semantics will likely need to be passed in via the RtHAL or CtHAL
+    const static_process_storage = struct {
+        var process_pool: process.ProcessTable(.{
+            .max_process_count = 8,
+            .context_tools = ct_hal.ctx_tools,
+            .stack_size = 1024 * 64,
+        }) = undefined;
+    };
+    static_process_storage.process_pool = .init();
+
+    var module_iterator = rt_hal.boot_module_info.iterator();
+    while (module_iterator.next()) |module| {
+        logger.writef(
+            "Initializing module: '{s}' at addr {*}\r\n",
+            .{ module.name, module.physical_address.ptr },
+        );
+    }
+    logger.writef("Beginning to schedule from the process pool\r\n", .{});
+    logger.flush();
+    // TODO(SEP) somehow call schedule?
 
     while (true) {
-        asm volatile ("");
+        if (rt_hal.char_buf.vtable.getChar(rt_hal.char_buf.impl)) |scan| {
+            logger.writef("Received scan code: {d}\r\n", .{scan});
+            logger.flush(); // not needed but good to observe correctness for now
+        }
     }
 }

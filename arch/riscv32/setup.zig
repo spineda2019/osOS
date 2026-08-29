@@ -1,3 +1,4 @@
+const std = @import("std");
 const exception = @import("exception.zig");
 const tty = @import("riscv32tty");
 const riscv32asm = @import("riscv32asm");
@@ -7,6 +8,8 @@ const oshal = @import("oshal");
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 const serial = @import("serial/serial.zig");
+const BootInfo = @import("riscv32BootInfo");
+const dtb = @import("osdtb");
 
 /// BSS Start
 const bss = @extern([*]u8, .{ .name = "__bss" });
@@ -20,37 +23,7 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 /// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
-pub fn handlePanic(message: []const u8, start_address: ?usize) noreturn {
-    // TODO: Disable interrupts (once I have them working)
-    var terminal = tty.Terminal.init();
-
-    terminal.writeLine("Kernel Panic!!!");
-    terminal.write("Panic Message: ");
-    terminal.writeLine(message);
-
-    const return_addr = @returnAddress();
-    const return_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
-        return_addr,
-    );
-    terminal.write("@returnAddress: 0x");
-    terminal.writeLine(return_addr_str.getStr());
-
-    if (start_address) |start| {
-        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
-            start,
-        );
-        terminal.write("Start Address: 0x");
-        terminal.writeLine(start_addr_str.getStr());
-    } else {
-        terminal.writeLine("No Start Address reported");
-    }
-
-    while (true) {
-        asm volatile ("");
-    }
-}
-
-pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
+pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
 
@@ -69,7 +42,53 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
 
     terminal_writer.writef("Hello RISC-V32 osOS!\n", .{});
     terminal_writer.writef("Hart ID: {d}\n", .{hart_id});
-    terminal_writer.writef("DTB Address: 0x{d}\n", .{dtb_address});
+    terminal_writer.writef("DTB Address: {*}\n", .{dtb_address});
+
+    const fdt: *const dtb.FdtHeader = @ptrCast(@alignCast(dtb_address));
+    terminal_writer.writef("FDT Address: {*}\n", .{fdt});
+    terminal_writer.writef("FDT info:\n", .{});
+    inline for (comptime std.meta.fieldNames(dtb.FdtHeader)) |field_name| {
+        const val: dtb.BEU32 = @field(fdt, field_name);
+        const little: u32 = val.toNative();
+        const format = comptime blk: {
+            if (std.mem.eql(u8, field_name, "magic")) {
+                break :blk "    ({s}): 0x{x}\n";
+            } else {
+                break :blk "    ({s}): {d}\n";
+            }
+        };
+        terminal_writer.writef(format, .{ field_name, little });
+    }
+
+    const mem_block: []const dtb.MemoryReservationBlock = fdt.getMemEntries();
+    terminal_writer.writef("Block start addr: {*}\n", .{mem_block.ptr});
+    terminal_writer.writef("Block count: {d}\n", .{mem_block.len});
+
+    terminal_writer.flush();
+
+    var string_block: dtb.StringBlockIterator = fdt.stringBlockIter();
+    terminal_writer.writef("String block start addr: {*}\n", .{string_block.begin});
+    var string_cnt: usize = 0;
+    while (string_block.next()) |block| {
+        string_cnt += 1;
+        terminal_writer.writef("    String #{d}: {s}\n", .{ string_cnt, block });
+    }
+
+    var struct_iter: dtb.StructureBlock.Node.Iterator = fdt.getStructureIter();
+    terminal_writer.writef("First Token addr: {*}\n", .{struct_iter.head});
+    terminal_writer.writef("First Token val: {d}\n", .{struct_iter.head[0].toNative()});
+    terminal_writer.flush();
+
+    // while (struct_iter.next() catch |err| val: {
+    // terminal_writer.writef("    struct iter error: {s}\n", .{@errorName(err)});
+    // break :val null;
+    // }) |node| {
+    // terminal_writer.writef("    Unit name: {s}\n", .{node.unit_name});
+    // if (node.unit_address) |addr| {
+    // terminal_writer.writef("    Unit addr: {s}\n", .{addr});
+    // }
+    // terminal_writer.writef("    Prop info:\n", .{});
+    // }
 
     const sbi_spec_version = sbi.getSpecVersion();
     terminal_writer.writef(
@@ -89,11 +108,27 @@ pub fn setup(hart_id: u32, dtb_address: u32) callconv(.c) noreturn {
         .{
             .terminal = terminal_writer,
             .serial_io = serial_stub.writer(&serial_buffer),
+            .boot_module_info = BootInfo.ModuleInfo.moduleProber(),
+            .char_buf = .{
+                .impl = null,
+                .vtable = &.{
+                    .getChar = &struct {
+                        fn impl(_: ?*anyopaque) ?u8 {
+                            return null;
+                        }
+                    }.impl,
+                },
+            },
         },
         .{
             .assembly_wrappers = .{
                 .jump = riscv32asm.assembly_wrappers.jump,
                 .illegal_instruction = riscv32asm.assembly_wrappers.illegal_instruction,
+                .wait_for_interrupt = riscv32asm.assembly_wrappers.waitForInterrupt,
+            },
+            .ctx_tools = .{
+                .enableInterrupts = riscv32asm.assembly_wrappers.enableInterrupts,
+                .disableInterrupts = riscv32asm.assembly_wrappers.disableInterrupts,
             },
         },
     );
