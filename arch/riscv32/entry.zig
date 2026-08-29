@@ -21,7 +21,7 @@
 const stack_top = @extern([*]u8, .{ .name = "__stack_top" });
 
 const PanicNamespace = @import("std").debug.FullPanic;
-pub const panic = PanicNamespace(@import("setup.zig").handlePanic);
+pub const panic = PanicNamespace(@import("panic/root.zig").handlePanic);
 
 /// The entry point of our kernel. This is defined as the entry point of the
 /// executable in the linker script. It's only job is to set up the stack
