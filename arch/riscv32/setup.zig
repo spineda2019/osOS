@@ -23,36 +23,6 @@ pub const free_ram_start: [*]u8 = @extern([*]u8, .{ .name = "__free_ram" });
 /// Also defined externally by the linker script.
 pub const free_ram_end: [*]u8 = @extern([*]u8, .{ .name = "__free_ram_end" });
 
-pub fn handlePanic(message: []const u8, start_address: ?usize) noreturn {
-    // TODO: Disable interrupts (once I have them working)
-    var terminal = tty.Terminal.init();
-
-    terminal.writeLine("Kernel Panic!!!");
-    terminal.write("Panic Message: ");
-    terminal.writeLine(message);
-
-    const return_addr = @returnAddress();
-    const return_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
-        return_addr,
-    );
-    terminal.write("@returnAddress: 0x");
-    terminal.writeLine(return_addr_str.getStr());
-
-    if (start_address) |start| {
-        const start_addr_str: osformat.format.StringFromInt(usize, 16) = .init(
-            start,
-        );
-        terminal.write("Start Address: 0x");
-        terminal.writeLine(start_addr_str.getStr());
-    } else {
-        terminal.writeLine("No Start Address reported");
-    }
-
-    while (true) {
-        asm volatile ("");
-    }
-}
-
 pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
     const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
     @memset(bss[0..bssSize], 0);
