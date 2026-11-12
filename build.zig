@@ -163,7 +163,10 @@ pub fn build(b: *std.Build) Err!void {
         ),
     };
 
-    build_time_tools.doccopy.exe.addArg(b.install_prefix);
+    build_time_tools.doccopy.exe.addDirectoryArg2(
+        b.graph.path(.install_prefix, ""),
+        .{ .make_absolute = true },
+    );
 
     var shared_modules: ArchAgnosticKernelModules = .{
         .osformat = .init(.{
@@ -691,13 +694,13 @@ pub fn build(b: *std.Build) Err!void {
     if (exe_mkisofs) |exe| {
         create_x86_iso.addArtifactArg(exe);
     } else {
-        const prog: []const u8 = b.findProgram(&.{
+        const prog: []const u8 = b.findProgram(.{ .names = &.{
             "genisoimage",
             "mkisofs",
             "genisoimage.exe",
             "mkisofs.exe",
-        }, &.{}) catch |err| blk: {
-            std.debug.print("WARNING: {}\n", .{err});
+        } }) orelse blk: {
+            std.debug.print("WARNING: could not find genisoimage with build system\n", .{});
             break :blk "genisoimage";
         };
 

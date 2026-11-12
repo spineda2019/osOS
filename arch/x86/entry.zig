@@ -72,21 +72,21 @@ pub export const multiboot_header linksection(".multiboot") = switch (bootoption
     ),
 };
 
-pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+pub var kernel_page_directory: memory.paging.PageDirectory align(memory.paging.PAGE_SIZE) linksection(".pagedata") = @splat(
     memory.paging.PageDirectoryEntry.default,
-} ** memory.paging.ENTRY_COUNT;
+);
 
-pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+pub var kernel_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = @splat(
     memory.paging.PageTableEntry.default,
-} ** memory.paging.ENTRY_COUNT;
+);
 
-pub var higher_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+pub var higher_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = @splat(
     memory.paging.PageTableEntry.default,
-} ** memory.paging.ENTRY_COUNT;
+);
 
-pub var mmio_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = .{
+pub var mmio_page_table: memory.paging.PageTable align(memory.paging.PAGE_SIZE) linksection(".pagedata") = @splat(
     memory.paging.PageTableEntry.default,
-} ** memory.paging.ENTRY_COUNT;
+);
 
 const PanicNamespace = @import("std").debug.FullPanic;
 pub const panic = PanicNamespace(@import("panic/root.zig").handlePanic);
@@ -171,7 +171,7 @@ fn trampoline(
             .cmdline = if (mb_info.flags.cmdline) @ptrFromInt(mb_info.cmdline) else null,
             .valid = magic_match,
             .diagnostic = fill: {
-                var buf: [80]u8 = .{0} ** 80;
+                var buf: [80]u8 = @splat(0);
 
                 var idx: usize = 0;
 

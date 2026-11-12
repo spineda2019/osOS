@@ -324,8 +324,8 @@ const InterruptNumber = union(enum) {
             14 => .{ .pageFault = number },
             8, 10, 11, 12, 17 => .{ .withErrorCode = number },
             0x80 => .{ .syscall = number },
-            @intFromEnum(pic.irq.keyboard), @intFromEnum(pic.irq.timer) => .{
-                .picInterrupt = @enumFromInt(number),
+            @backingInt(pic.irq.keyboard), @backingInt(pic.irq.timer) => .{
+                .picInterrupt = @fromBackingInt(@intCast(number)),
             },
             else => .{ .withoutErrorCode = number },
         };
@@ -340,7 +340,7 @@ const InterruptNumber = union(enum) {
 
     pub fn get(this: InterruptNumber) u32 {
         return switch (this) {
-            .picInterrupt => |enumerator| @intFromEnum(enumerator),
+            .picInterrupt => |enumerator| @backingInt(enumerator),
             inline else => |el| el,
         };
     }
@@ -415,7 +415,7 @@ fn generateHandler(
 
                 if (free_page_list) |free_list_head| {
                     // limit to 4 lines
-                    var message: [80 * 4]u8 = .{0} ** (80 * 4);
+                    var message: [80 * 4]u8 = @splat(0);
                     const offending_address: osformat.format.AddressString = .init(asm volatile (
                         \\mov %cr2, %[out]
                         : [out] "=r" (-> u32),

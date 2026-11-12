@@ -49,9 +49,15 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
 
     logger.writef("********************* kmain *********************\r\n", .{});
     for (0..12) |_| {
-        logger.writef("Foo " ** 20, .{});
-        logger.writef("Bar " ** 20, .{});
-        logger.writef("Baz " ** 20, .{});
+        const foo_array: [20][4]u8 = comptime @splat("Foo ".*);
+        const foo_str: []const u8 = comptime @ptrCast(&foo_array);
+        logger.writef(foo_str, .{});
+        const bar_array: [20][4]u8 = comptime @splat("Bar ".*);
+        const bar_str: []const u8 = comptime @ptrCast(&bar_array);
+        logger.writef(bar_str, .{});
+        const baz_array: [20][4]u8 = comptime @splat("Baz ".*);
+        const baz_str: []const u8 = comptime @ptrCast(&baz_array);
+        logger.writef(baz_str, .{});
     }
 
     logger.writef("Hey there! We succesfully passed the HAL to kmain\r\n", .{});

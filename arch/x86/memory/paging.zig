@@ -282,7 +282,7 @@ pub const Info = struct {
 
         pub const empty: MappingInfo = .{
             .physical_address = 0,
-            .virtual_mappings = .{0} ** 16,
+            .virtual_mappings = @splat(0),
             .map_count = 0,
         };
     };
@@ -341,12 +341,12 @@ test Info {
     const physical_framebuffer_start = 0x00_0B_80_00;
     const virtual_framebuffer_start = 0xC0_0B_80_00;
 
-    var page_directory: PageDirectory align(PAGE_SIZE) = .{
+    var page_directory: PageDirectory align(PAGE_SIZE) = @splat(.{
         PageDirectoryEntry.default,
-    } ** ENTRY_COUNT;
-    var kernel_page_table: PageTable align(PAGE_SIZE) = .{
+    });
+    var kernel_page_table: PageTable align(PAGE_SIZE) = @splat(.{
         PageTableEntry.default,
-    } ** ENTRY_COUNT;
+    });
 
     const page_info: Info = .{
         .page_directory = &page_directory,
