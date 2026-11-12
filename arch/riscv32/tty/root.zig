@@ -16,7 +16,7 @@ pub const Terminal = struct {
 
     pub fn init() Terminal {
         return .{
-            .buffer = .{0} ** 32,
+            .buffer = @splat(0),
             .internal_sentinel = 0,
             .arg_sentinel = 0,
             .current_column = 0,
@@ -184,7 +184,7 @@ pub const SbiWriter = struct {
 
     pub fn init() SbiWriter {
         return .{
-            .buffer = .{0} ** 32,
+            .buffer = @splat(0),
             .internal_sentinel = 0,
             .arg_sentinel = 0,
         };
