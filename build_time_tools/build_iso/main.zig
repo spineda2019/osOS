@@ -6,7 +6,8 @@ const ArgError = error{
 };
 
 fn createDirectories(args: *const Args, io: std.Io) !void {
-    var root_dir: std.Io.Dir = try std.Io.Dir.openDirAbsolute(
+    var cwd: std.Io.Dir = .cwd();
+    var root_dir: std.Io.Dir = try cwd.openDir(
         io,
         args.repo_root,
         .{},
@@ -71,7 +72,21 @@ fn copyFiles(args: *const Args, allocator: std.mem.Allocator, io: std.Io) !void 
             }
         }
         std.debug.print("Copying {s} to {s} ...\n", .{ source, destination });
-        try std.Io.Dir.copyFileAbsolute(source, destination, io, .{});
+        var cwd: std.Io.Dir = .cwd();
+        var source_file: std.Io.File = try cwd.openFile(io, source, .{});
+        defer source_file.close(io);
+        var dest_file: std.Io.File = try cwd.createFile(io, destination, .{});
+        defer dest_file.close(io);
+
+        var reader_buf: [256]u8 = undefined;
+        var file_reader: std.Io.File.Reader = source_file.reader(io, &reader_buf);
+        var reader: *std.Io.Reader = &file_reader.interface;
+
+        var writer_buf: [256]u8 = undefined;
+        var file_writer: std.Io.File.Writer = dest_file.writer(io, &writer_buf);
+        const writer: *std.Io.Writer = &file_writer.interface;
+
+        _ = try reader.streamRemaining(writer);
     }
 }
 
@@ -91,9 +106,17 @@ fn copyKernel(
         std.Io.Dir.path.basename(args.kernel.kernel_image_src),
     });
     defer allocator.free(destination);
-    try std.Io.Dir.copyFileAbsolute(
+
+    var cwd: std.Io.Dir = .cwd();
+    const dest_dir: std.Io.Dir = try cwd.openDir(
+        io,
+        args.kernel.kernel_image_dest,
+        .{},
+    );
+    try cwd.copyFile(
         args.kernel.kernel_image_src,
-        destination,
+        dest_dir,
+        "osOS.elf",
         io,
         .{},
     );
