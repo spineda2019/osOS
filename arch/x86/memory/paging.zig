@@ -341,12 +341,12 @@ test Info {
     const physical_framebuffer_start = 0x00_0B_80_00;
     const virtual_framebuffer_start = 0xC0_0B_80_00;
 
-    var page_directory: PageDirectory align(PAGE_SIZE) = @splat(.{
+    var page_directory: PageDirectory align(PAGE_SIZE) = @splat(
         PageDirectoryEntry.default,
-    });
-    var kernel_page_table: PageTable align(PAGE_SIZE) = @splat(.{
+    );
+    var kernel_page_table: PageTable align(PAGE_SIZE) = @splat(
         PageTableEntry.default,
-    });
+    );
 
     const page_info: Info = .{
         .page_directory = &page_directory,
