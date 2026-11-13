@@ -22,67 +22,43 @@ const interrupts = @import("x86interrupts");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
-const BootInfo = @import("BootInfo");
+const BootInfo = @import("x86BootInfo");
+const panic = @import("panic/root.zig");
 
-pub fn handlePanic(msg: []const u8, start_address: ?usize) noreturn {
-    @branchHint(.cold);
-    as.assembly_wrappers.disable_x86_interrupts();
+/// BSS Start
+const bss = @extern([*]u8, .{ .name = "__bss" });
 
-    // Assuming we have the higherhalf address. Otherwise, we're boned
-    var framebuffer: io.FrameBuffer = .init(.Black, .White, 0xC00B8000);
-    framebuffer.clear();
+/// BSS End
+const bss_end = @extern([*]u8, .{ .name = "__bss_end" });
 
-    var writer_buf: [256]u8 = undefined;
-    var fb_writer = framebuffer.writer(&writer_buf);
+const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
+var gdt_descriptor: memory.gdt.GDTDescriptor = .{ .size = 0, .address = 0 };
 
-    fb_writer.writef("Kernel Panic! Message: {s}\n", .{msg});
-
-    // subtract to get the previous address, i.e. the caller of panic
-    const call_instruction_size = comptime 5;
-    const return_addr = @returnAddress() - call_instruction_size;
-
-    fb_writer.writef("Suspected panic-caller address: 0x{x}\n", .{return_addr});
-
-    const start: usize = start_address orelse return_addr;
-    _ = start;
-
-    const si = std.debug.getSelfDebugInfo() catch {
-        fb_writer.writef("Could not get SelfInfo\n", .{});
-    };
-    fb_writer.writef("SelfInfo address: 0x{x}\n", .{@intFromPtr(si)});
-
-    fb_writer.flush();
-    while (true) {
-        asm volatile ("");
-    }
-}
+var idt: [256]interrupts.idt.InterruptDescriptor = undefined;
+var idt_descriptor: interrupts.idt.IDTDescriptor = undefined;
 
 /// Hardware setup; jumped to from the boot routine
 /// At this point, paging should be enabled, and we should be in the higher
-/// half.
+/// half and using a virtual stack.
 pub fn setup(boot_info: BootInfo) noreturn {
-    // Switch to the virtual stack
     as.assembly_wrappers.disable_x86_interrupts();
     // as.assembly_wrappers.enableSSE();
-    const gdt: [5]memory.gdt.SegmentDescriptor = memory.gdt.createDefaultGDT();
+    const bssSize = @intFromPtr(bss_end) - @intFromPtr(bss);
+    @memset(bss[0..bssSize], 0);
 
-    const gdt_descriptor: memory.gdt.GDTDescriptor = .defaultInit(&gdt);
+    panic.virt_fb_addr = boot_info.framebuffer.virtual_addr;
+
+    gdt_descriptor = .defaultInit(&gdt);
     gdt_descriptor.loadGDT(memory.gdt.SegmentRegisterConfiguration.default);
 
-    const idt = interrupts.idt.createDefaultIDT();
-    const idt_descriptor: interrupts.idt.IDTDescriptor = .init(&idt);
+    idt = interrupts.idt.createDefaultIDT();
+    idt_descriptor = .init(&idt);
     idt_descriptor.loadIDT();
 
     var framebuffer: io.FrameBuffer = .init(
         .LightBrown,
         .DarkGray,
-        fb_start: {
-            if (boot_info.framebuffer.addr) |addr| {
-                break :fb_start addr + boot_info.paging.virtual_kernel_base;
-            } else {
-                break :fb_start 0xC00B8000;
-            }
-        },
+        boot_info.framebuffer.virtual_addr,
     );
     var serial_port = io.SerialPort.defaultInit();
 
@@ -105,31 +81,110 @@ pub fn setup(boot_info: BootInfo) noreturn {
         .serial_port_writer = &sp_writer,
     };
 
-    logger.log("Trying to write out of COM port 1...\r\n", .{});
+    logger.log("******* Beginning x86 specific reporting *******\r\n\r\n", .{});
 
+    reportMemoryInfo(&logger, &boot_info);
+    reportSpecialRegInfo(&logger);
+    reportPagingInfo(&logger, &boot_info);
+    reportBootloaderInfo(&logger, &boot_info);
+    reportFramebufferInfo(&logger, &boot_info);
+    reportBootModuleInfo(&logger, &boot_info);
+
+    var page_iter = blk: {
+        var iter = boot_info.memory.iterator();
+        const kernel_end: usize = @intFromPtr(boot_info.memory.kernel_end);
+        while (iter.peek()) |chunk| {
+            const ptr: usize = @intFromPtr(chunk.ptr);
+            const region_end = ptr + chunk.len;
+
+            if (region_end > kernel_end) {
+                break;
+            } else {
+                _ = iter.next();
+            }
+        }
+
+        break :blk iter;
+    };
+
+    var page_allocator = memory.PageAllocator.init(
+        &page_iter,
+        boot_info.memory.kernel_end,
+    ) catch |err| {
+        @panic(@errorName(err));
+    };
+    interrupts.idt.free_page_list = page_allocator.head.first;
+
+    logger.log("allocator address: {*}\r\n", .{&page_allocator});
+
+    {
+        var iter = page_allocator.iterator();
+        while (iter.next()) |chunk| {
+            logger.log("Free Chunk at: {*}\r\n", .{chunk});
+            logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
+        }
+    }
+
+    logger.log("COM1 succesfully written to! Testing cursor movement...\r\n", .{});
+    logger.log("x86: Activating PIC...\r\n", .{});
+    interrupts.pic.init();
+
+    // undo first 4MB identity mapping to finish higher half jump.
+    boot_info.paging.unmapTable(0);
+    as.assembly_wrappers.enable_x86_interrupts();
+
+    kmain.kmain(
+        .{
+            .terminal = fb_writer,
+            .serial_io = sp_writer,
+            .boot_module_info = boot_info.module_info,
+            .char_buf = .{
+                .impl = null,
+                .vtable = &.{
+                    .getChar = &struct {
+                        fn impl(_: ?*anyopaque) ?u8 {
+                            return interrupts.pic.scan_code_buffer.pop();
+                        }
+                    }.impl,
+                },
+            },
+        },
+        .{
+            .assembly_wrappers = .{
+                .jump = as.assembly_wrappers.jump,
+                .illegal_instruction = as.assembly_wrappers.illegal_instruction,
+                .wait_for_interrupt = as.assembly_wrappers.haltUntilInterrupt,
+            },
+            .ctx_tools = .{
+                .enableInterrupts = as.assembly_wrappers.enable_x86_interrupts,
+                .disableInterrupts = as.assembly_wrappers.disable_x86_interrupts,
+            },
+        },
+    );
+}
+
+fn reportPagingInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
     const virtual_pd_address = boot_info.paging.virtualPD() catch |err| {
         @panic(@errorName(err));
     };
-
-    logger.log("Physical kernel end at {*}\r\n", .{boot_info.memory.kernel_end});
+    logger.log("******************* Paging info *******************\r\n", .{});
+    defer logger.log("************ Paging info END ************\r\n\r\n", .{});
     logger.log("Probing paging information...\r\n", .{});
     logger.log("    PD Address: {*}\r\n", .{boot_info.paging.page_directory});
     logger.log("    Virt Equivalent: {*}\r\n\r\n", .{virtual_pd_address});
     logger.log("    Checking VirtToPhy mappings...\r\n", .{});
 
-    const virt_addresses = comptime [_]u32{
-        0xC00B8000,
-        0xC0000000,
+    const virt_addresses = [_]u32{
+        boot_info.framebuffer.virtual_addr,
     };
-    inline for (virt_addresses) |addr| {
-        const str: []const u8 = comptime osformat.format.AddressString.init(addr).getStr();
+    for (virt_addresses) |addr| {
         if (boot_info.paging.virtualToPhysical(addr)) |mapped| {
             logger.log(
-                "    Virt address (0x" ++ str ++ ") maps to physical address: (0x{x})\r\n",
-                .{mapped},
+                "    Virt address (0x{x}) maps to physical address: (0x{x})\r\n",
+                .{ addr, mapped },
             );
         } else {
-            logger.log("    Virt address (0x" ++ str ++ ") is unmapped\r\n", .{});
+            logger.log("    Virt address (0x{x}) is unmapped\r\n", .{addr});
         }
     }
 
@@ -160,8 +215,32 @@ pub fn setup(boot_info: BootInfo) noreturn {
             }
         }
     }
+}
 
-    logger.log("Dumping special register info...\r\n", .{});
+fn reportMemoryInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("******************* Memory info *******************\r\n", .{});
+    defer logger.log("************ Memory info END ************\r\n\r\n", .{});
+    logger.log("Setup fn linear address: {*}\r\n", .{&setup});
+    logger.log("GDT (array) linear address: {*}\r\n", .{&gdt});
+    logger.log("GDT Descriptor linear address: {*}\r\n", .{&gdt_descriptor});
+    logger.log("IDT (array) linear address: {*}\r\n", .{&idt});
+    {
+        var iter = boot_info.memory.iterator();
+        logger.log("Probing Available Memory...\r\n", .{});
+        logger.log("    Available Chunks: \r\n", .{});
+
+        while (iter.next()) |chunk| {
+            logger.log("        Addr: {*}\r\n", .{chunk.ptr});
+            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.len});
+
+            logger.flush();
+        }
+    }
+}
+
+fn reportSpecialRegInfo(logger: *io.Logger) void {
+    logger.log("************** Special register info **************\r\n", .{});
+    defer logger.log("******* Special register info END *******\r\n\r\n", .{});
     const cr0: as.control_registers.CR0 = as.assembly_wrappers.getCR0();
     inline for (comptime std.meta.fieldNames(@TypeOf(cr0))) |name| {
         const field = @field(cr0, name);
@@ -170,7 +249,11 @@ pub fn setup(boot_info: BootInfo) noreturn {
             logger.log("    " ++ name ++ ": {s}\r\n", .{bit});
         }
     }
+}
 
+fn reportBootloaderInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("***************** Bootloader info *****************\r\n", .{});
+    defer logger.log("********** Bootloader info END **********\r\n\r\n", .{});
     if (!boot_info.bootinfo.valid) {
         @panic(&boot_info.bootinfo.diagnostic);
     } else {
@@ -186,71 +269,49 @@ pub fn setup(boot_info: BootInfo) noreturn {
     } else {
         logger.log("Not found...", .{});
     }
+}
 
-    logger.log("Probing Framebuffer info...\r\n", .{});
+fn reportFramebufferInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("***************** Framebuffer info *****************\r\n", .{});
+    defer logger.log("********** Framebuffer info END **********\r\n\r\n", .{});
 
-    if (boot_info.framebuffer.addr) |address| {
-        logger.log("    Address: 0x{d}\r\n", .{address});
-    } else {
-        logger.log("    Address not found...\r\n", .{});
-    }
+    logger.log("    Address: 0x{d}\r\n", .{boot_info.framebuffer.virtual_addr});
+    logger.log("    Framebuffer Height: {d}\r\n", .{boot_info.framebuffer.height});
+    logger.log("    Framebuffer Width: {d}\r\n", .{boot_info.framebuffer.width});
+}
 
-    if (boot_info.framebuffer.height) |height| {
-        logger.log("    Framebuffer Height: {d}\r\n", .{height});
-    } else {
-        logger.log("    Framebuffer Height not found...\r\n", .{});
-    }
-
-    if (boot_info.framebuffer.width) |width| {
-        logger.log("    Framebuffer Width: {d}\r\n", .{width});
-    } else {
-        logger.log("    Framebuffer Width not found...\r\n", .{});
-    }
-
-    logger.log("Probing Available Memory...\r\n", .{});
-    logger.log("    Total Chunk Count: {d}\r\n", .{boot_info.memory.len});
-    logger.log("    Available Chunks: \r\n", .{});
-    for (0..boot_info.memory.len) |idx| {
-        if (boot_info.memory.availableMemChunkAt(idx)) |chunk| {
-            logger.log("        Addr: 0x{d}\r\n", .{chunk.address});
-            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.length});
+fn reportBootModuleInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
+    logger.log("******************* Mod info *******************\r\n", .{});
+    defer logger.log("************** Mod info END **************\r\n\r\n", .{});
+    var iter = boot_info.module_info.iterator();
+    while (iter.next()) |mod| {
+        logger.log(
+            "    Module (physical) address: {*}\r\n",
+            .{mod.physical_address.ptr},
+        );
+        logger.log(
+            "    Module size: {d}B\r\n",
+            .{mod.physical_address.len},
+        );
+        logger.log("    Module name: '{s}'\r\n", .{mod.name});
+        const virt = boot_info.paging.physicalToVirtual(
+            @intFromPtr(mod.physical_address.ptr),
+        ) catch memory.paging.Info.MappingInfo{
+            .physical_address = @intFromPtr(mod.physical_address.ptr),
+            .virtual_mappings = @as([16]u32, @splat(0)),
+            .map_count = 0,
+        };
+        for (virt.virtual_mappings[0..virt.map_count]) |mapped| {
+            if (boot_info.paging.virtualToPhysical(mapped)) |phy| {
+                logger.log(
+                    "    Potential Module (virtual) address: 0x{x}\r\n",
+                    .{mapped},
+                );
+                logger.log(
+                    "        Proof translating back to phys: 0x{x}\r\n",
+                    .{phy},
+                );
+            }
         }
     }
-
-    var page_allocator = memory.PageAllocator.init(boot_info.memory) catch |err| {
-        @panic(@errorName(err));
-    };
-    interrupts.idt.free_page_list = page_allocator.head.first;
-
-    logger.log("allocator address: {*}\r\n", .{&page_allocator});
-
-    var maybe_node = page_allocator.head.first;
-    while (maybe_node) |node| {
-        const chunk: *memory.PageAllocator.Chunk = @fieldParentPtr("node", node);
-
-        logger.log("Free Chunk at: {*}\r\n", .{chunk});
-        logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
-        maybe_node = node.next;
-    }
-
-    logger.log("COM1 succesfully written to! Testing cursor movement...\r\n", .{});
-    logger.log("x86: Activating PIC...\r\n", .{});
-    interrupts.pic.init(&framebuffer);
-
-    // undo first 4MB identity mapping to finish higher half jump.
-    boot_info.paging.unmap(0);
-    as.assembly_wrappers.enable_x86_interrupts();
-
-    kmain.kmain(
-        .{
-            .terminal = fb_writer,
-            .serial_io = sp_writer,
-        },
-        .{
-            .assembly_wrappers = .{
-                .jump = as.assembly_wrappers.jump,
-                .illegal_instruction = as.assembly_wrappers.illegal_instruction,
-            },
-        },
-    );
 }

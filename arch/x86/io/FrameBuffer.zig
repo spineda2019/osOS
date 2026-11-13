@@ -105,7 +105,7 @@ pub fn init(
     return .{
         .current_row = 0,
         .current_column = 0,
-        .buffer = .{.{0} ** 80} ** 25,
+        .buffer = @splat(@splat(0)),
         .letter_color = letter_color,
         .background_color = background_color,
         .frame_buffer_start = virtual_fb_start,
@@ -283,7 +283,7 @@ fn writeCell(
     const address_int: u32 = self.calculatedAddress(row, column);
     const ascii_address: *volatile u8 = @ptrFromInt(address_int);
     const metadata_address: *volatile u8 = @ptrFromInt(address_int + 1);
-    metadata_address.* = (@intFromEnum(cell_color) << 4) | @intFromEnum(letter_color);
+    metadata_address.* = (@backingInt(cell_color) << 4) | @backingInt(letter_color);
     ascii_address.* = character;
 
     // MMIO hackery?
@@ -342,12 +342,12 @@ pub fn printWelcomeScreen(self: *FrameBuffer) void {
     for (0..9) |_| {
         self.writeLine("");
     }
-    self.write(" " ** 32);
+    self.write(&@as([32]u8, @splat(' ')));
     self.writeLine(message);
 
     // needs to be inline since logo is comptime
     for (logo) |line| {
-        self.write(" " ** 20);
+        self.write(&@as([20]u8, @splat(' ')));
         self.writeLine(line);
     }
 }

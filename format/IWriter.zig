@@ -28,19 +28,19 @@ const Error = error{};
 const FormatSpecifier = union(enum) {
     fn init(char: u8) FormatSpecifier {
         return switch (char) {
-            's' => .{ .slice = void{} },
+            's' => .slice,
             'x', 'd' => |base| switch (base) {
                 'x' => .{ .number_with_base = 16 },
                 'd' => .{ .number_with_base = 10 },
                 else => @compileError("Unrecognized numeric base specifier: " ++ base),
             },
-            '*' => .{ .address = void{} },
+            '*' => .address,
             else => @compileError("Unrecognized format specifier: " ++ char),
         };
     }
 
-    slice: void,
-    address: void,
+    slice,
+    address,
     number_with_base: comptime_int,
 };
 
@@ -277,7 +277,7 @@ test IWriter {
     defer fake_writer.cleanup();
 
     {
-        var buffer: [1024]u8 = .{0} ** 1024;
+        var buffer: [1024]u8 = @splat(0);
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const to_write = comptime "I take no args";
@@ -313,7 +313,7 @@ test IWriter {
     fake_writer.reset();
 
     {
-        var buffer: [1024]u8 = .{0} ** 1024;
+        var buffer: [1024]u8 = @splat(0);
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const foo_slice: []const u8 = "foo";
@@ -334,7 +334,7 @@ test IWriter {
     }
 
     {
-        var buffer: [1024]u8 = .{0} ** 1024;
+        var buffer: [1024]u8 = @splat(0);
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const random_number: usize = 42;
@@ -355,7 +355,7 @@ test IWriter {
     }
 
     {
-        var buffer: [1024]u8 = .{0} ** 1024;
+        var buffer: [1024]u8 = @splat(0);
         var fake_interface: IWriter = fake_writer.writer(&buffer);
 
         const random_number: *anyopaque = comptime @ptrFromInt(0xff_ff_ff_ff);

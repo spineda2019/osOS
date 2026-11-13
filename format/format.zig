@@ -74,7 +74,7 @@ pub fn StringFromInt(comptime T: type, comptime base: comptime_int) type {
 
         pub fn init(number: T) Self {
             // 48 is '0' in ascii
-            var buffer: [array_size]u8 = .{48} ** array_size;
+            var buffer: [array_size]u8 = @splat(48);
             var ptr: usize = array_size;
             var remainder: T = number;
 
@@ -115,9 +115,9 @@ pub fn StringFromDecimal(comptime T: type) type {
     return StringFromInt(T, 10);
 }
 
-pub const AddressString = StringFromInt(u32, 16);
+pub const AddressString = StringFromInt(usize, 16);
 
-pub const DecimalString = StringFromInt(u32, 10);
+pub const DecimalString = StringFromInt(usize, 10);
 
 test numberBufSize {
     const expect = @import("std").testing.expect;

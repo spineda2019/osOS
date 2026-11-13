@@ -68,7 +68,7 @@ pub const PageDirectoryEntry = packed struct(u32) {
         return (index << 22) & 0b1111111111_0000000000000000000000;
     }
 
-    pub fn basicInit(
+    pub fn init(
         self: *PageDirectoryEntry,
         pt_to_use: *align(PAGE_SIZE) PageTable,
     ) void {
@@ -80,6 +80,39 @@ pub const PageDirectoryEntry = packed struct(u32) {
 };
 
 pub const PageTable = [ENTRY_COUNT]PageTableEntry;
+
+/// Fill a single page table with coherent default values depending on the
+/// desired physical base address
+///
+/// `table`: The table to fill
+///
+/// `physical_base`: The page-aligned _physical_ address of the first frame in
+/// `table`
+pub fn fillTable(
+    table: *align(PAGE_SIZE) PageTable,
+    physical_base: [*]allowzero align(PAGE_SIZE) const u8,
+    map_immediately: bool,
+) void {
+    const base: usize = @intFromPtr(physical_base);
+    for (table, 0..) |*entry, scale| {
+        entry.*.writeable = true;
+        entry.*.in_physical_memory = map_immediately;
+        entry.*.page_frame_address = @truncate((base + (PAGE_SIZE * scale)) >> 12);
+    }
+}
+
+pub fn mapFrame(
+    table: *align(PAGE_SIZE) PageTable,
+    index: usize,
+    physical_addr: [*]allowzero align(PAGE_SIZE) const u8,
+) void {
+    if (index < table.len) {
+        table[index].page_frame_address = @truncate(@intFromPtr(physical_addr) >> 12);
+        table[index].writeable = true;
+        table[index].cache_disable = true;
+        table[index].in_physical_memory = true;
+    }
+}
 
 /// Must be aligned to 4KiB, or 4096 bytes.
 pub const PageTableEntry = packed struct(u32) {
@@ -148,6 +181,21 @@ pub const Info = struct {
         }
     }
 
+    pub fn mapTable(
+        self: *const Info,
+        pt_to_use: *align(PAGE_SIZE) PageTable,
+        virtual_address: usize,
+        comptime inline_options: InlineOptions,
+    ) void {
+        const pd_idx: u32 = @call(
+            inline_options.mode,
+            PageDirectoryEntry.indexFromVirtual,
+            .{virtual_address},
+        );
+        const pde: *PageDirectoryEntry = &self.page_directory[pd_idx];
+        @call(inline_options.mode, PageDirectoryEntry.init, .{ pde, pt_to_use });
+    }
+
     /// Sets up the higher half kernel by enabling paging and mapping
     /// the first 4MB starting at 0xC0_00_00_00 ()
     pub fn initHigherHalfPages(
@@ -168,26 +216,18 @@ pub const Info = struct {
         // Will map starting physical addresses 0x0 through
         // 1023*4096=4_194_304=0x3F_F0_00, spanning the actuall physical range of
         // 0x0 <- -> (1023*4096) + 4095 = 0x3F_FF_FF AKA the first 4 MiB.
-        for (pt_to_use, 0..) |*entry, idx| {
-            const scale: u32 = (idx);
-            entry.*.writeable = true;
-            entry.*.in_physical_memory = true;
-            entry.*.page_frame_address = @truncate((PAGE_SIZE * scale) >> 12);
-        }
+        @call(
+            inline_options.mode,
+            fillTable,
+            .{ pt_to_use, @as([*]allowzero align(PAGE_SIZE) const u8, @ptrFromInt(0)), true },
+        );
 
-        const pd_index: u32 = PageDirectoryEntry.indexFromVirtual(self.virtual_kernel_base);
-        const pde: *PageDirectoryEntry = &self.page_directory[pd_index];
-        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ pde, pt_to_use });
-        // pde.basicInit(pt_to_use);
-
-        // We also have to identity map the first 4mb to make the kernel not crash
-        // when paging is turned on.
-        const first_pde: *PageDirectoryEntry = &self.page_directory[0];
-        @call(inline_options.mode, PageDirectoryEntry.basicInit, .{ first_pde, pt_to_use });
-        // first_pde.basicInit(pt_to_use);
+        // identity maps first 4 MiB
+        @call(inline_options.mode, mapTable, .{ self, pt_to_use, 0, inline_options });
     }
 
-    pub fn unmap(self: *const Info, at: u32) void {
+    /// Unmaps the PDE at index `at`
+    pub fn unmapTable(self: *const Info, at: u32) void {
         if (at < self.page_directory.len) {
             self.page_directory[at].in_physical_memory = false;
         }
@@ -242,7 +282,7 @@ pub const Info = struct {
 
         pub const empty: MappingInfo = .{
             .physical_address = 0,
-            .virtual_mappings = .{0} ** 16,
+            .virtual_mappings = @splat(0),
             .map_count = 0,
         };
     };
@@ -292,17 +332,20 @@ pub const Info = struct {
 };
 
 test Info {
+    if (@sizeOf(usize) != 4) {
+        return;
+    }
+
     const std = @import("std");
 
     const physical_framebuffer_start = 0x00_0B_80_00;
-    const virtual_framebuffer_start = 0xC0_0B_80_00;
 
-    var page_directory: PageDirectory align(PAGE_SIZE) = .{
+    var page_directory: PageDirectory align(PAGE_SIZE) = @splat(
         PageDirectoryEntry.default,
-    } ** ENTRY_COUNT;
-    var kernel_page_table: PageTable align(PAGE_SIZE) = .{
+    );
+    var kernel_page_table: PageTable align(PAGE_SIZE) = @splat(
         PageTableEntry.default,
-    } ** ENTRY_COUNT;
+    );
 
     const page_info: Info = .{
         .page_directory = &page_directory,
@@ -310,46 +353,45 @@ test Info {
 
     page_info.initHigherHalfPages(&kernel_page_table, .{});
 
-    var translated = if (page_info.virtualToPhysical(
-        page_info.virtual_kernel_base,
-    )) |addr| addr else return PageTableEntry.Error.not_paged;
+    // initHigherHalfPages identity-maps the first 4 MiB. Higher-half
+    // addresses are installed separately and are not covered here.
+    var translated = if (page_info.virtualToPhysical(0)) |addr|
+        addr
+    else
+        return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == 0,
     ) catch |err| {
         std.debug.print(
             "Expected virt address {x} to be translated to {x} but was instead {x}\n",
-            .{ page_info.virtual_kernel_base, 0, translated },
+            .{ 0, 0, translated },
         );
         return err;
     };
 
     translated = if (page_info.virtualToPhysical(
-        virtual_framebuffer_start,
+        physical_framebuffer_start,
     )) |addr| addr else return PageTableEntry.Error.not_paged;
     std.testing.expect(
         translated == physical_framebuffer_start,
     ) catch |err| {
         std.debug.print(
             "Expected virt address {x} to be translated to {x} but was instead {x}\n",
-            .{ virtual_framebuffer_start, physical_framebuffer_start, translated },
+            .{ physical_framebuffer_start, physical_framebuffer_start, translated },
         );
         return err;
     };
 
     const phys_map_list = try page_info.physicalToVirtual(0);
-    for (phys_map_list.virtual_mappings, 0..) |mapped, idx| {
-        if (idx >= phys_map_list.map_count) {
-            std.testing.expect(false) catch |err| {
-                std.debug.print(
-                    "Expected phys address {x} to be mapped to {x} but was instead {}\n",
-                    .{ 0, page_info.virtual_kernel_base, phys_map_list },
-                );
-                return err;
-            };
-        } else if (mapped == 0) {}
-        {
-            try std.testing.expect(true);
-            break;
-        }
+    var found_identity = false;
+    for (phys_map_list.virtual_mappings[0..phys_map_list.map_count]) |mapped| {
+        if (mapped == 0) found_identity = true;
+    }
+    if (!found_identity) {
+        std.debug.print(
+            "Expected phys address {x} to be mapped to {x} but was instead {}\n",
+            .{ 0, 0, phys_map_list },
+        );
+        try std.testing.expect(false);
     }
 }
