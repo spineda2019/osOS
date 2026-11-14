@@ -1,3 +1,8 @@
+//! Central type for storing user defined run-time options (e.g. what emulator
+//! to run with, whether to run underthe debugger, etc). Not to be confused with
+//! `ModuleOptions`, which is the central type for storing compile-time values
+//! that are added as imports into zig modules in the project being built.
+
 const BuildOptions = @This();
 
 const std = @import("std");

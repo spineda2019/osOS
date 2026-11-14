@@ -18,6 +18,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_helpers = @import("build_helpers/root.zig");
 
+const BuildOptions = build_helpers.BuildOptions;
+const ModuleOptions = build_helpers.ModuleOptions;
 const BuildTool = build_helpers.BuildTool;
 const OsModule = build_helpers.OsModule;
 const RiscV32Modules = build_helpers.RiscV32Modules;
@@ -69,8 +71,8 @@ pub fn build(b: *std.Build) Err!void {
     );
 
     std.debug.print("*************** Build time options **************\n", .{});
-    const build_options: build_helpers.BuildOptions = .init(b);
-    inline for (comptime std.meta.fieldNames(build_helpers.BuildOptions)) |option_name| {
+    const build_options: BuildOptions = .init(b);
+    inline for (comptime std.meta.fieldNames(BuildOptions)) |option_name| {
         const option = @field(build_options, option_name);
         std.debug.print("Option: {s}\n", .{option_name});
         std.debug.print("\tValue: {}\n\n", .{option});
@@ -81,17 +83,17 @@ pub fn build(b: *std.Build) Err!void {
     //                               Option Setup                              *
     //**************************************************************************
 
-    const boot_options = b.addOptions();
+    const module_options: ModuleOptions = .init(b);
     switch (build_options.boot_info) {
         .limine => |limine_boot| {
-            boot_options.addOption(
+            module_options.boot.addOption(
                 @TypeOf(limine_boot),
                 "boot_specification",
                 limine_boot,
             );
         },
         .grub_legacy => |grub_boot| {
-            boot_options.addOption(
+            module_options.boot.addOption(
                 @TypeOf(grub_boot),
                 "boot_specification",
                 grub_boot,
@@ -99,9 +101,8 @@ pub fn build(b: *std.Build) Err!void {
         },
     }
 
-    const test_options = b.addOptions();
-    test_options.addOption(bool, "test_panic", build_options.test_panic);
-    test_options.addOption(bool, "test_ill", build_options.test_illegal_instruction);
+    module_options.testing.addOption(bool, "test_panic", build_options.test_panic);
+    module_options.testing.addOption(bool, "test_ill", build_options.test_illegal_instruction);
 
     const depbochs: ?*std.Build.Dependency = dep: {
         if (build_options.build_bochs) {
@@ -390,7 +391,7 @@ pub fn build(b: *std.Build) Err!void {
     x86_modules.kernel_entry.addImportToAll(&shared_modules.osformat);
     x86_modules.kernel_entry.addImportToAll(&shared_modules.oshal);
     x86_modules.kernel_entry.addImportToAll(&shared_modules.osmemory);
-    x86_modules.kernel_entry.addOptionsToAll("bootoptions", boot_options);
+    x86_modules.kernel_entry.addOptionsToAll("bootoptions", module_options.boot);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make
@@ -400,7 +401,7 @@ pub fn build(b: *std.Build) Err!void {
     shared_modules.kmain.addImportToAll(&shared_modules.oshal);
     shared_modules.kmain.addImportToAll(&shared_modules.osprocess);
     shared_modules.kmain.addImportToAll(&shared_modules.osformat);
-    shared_modules.kmain.addOptionsToAll("testoptions", test_options);
+    shared_modules.kmain.addOptionsToAll("testoptions", module_options.testing);
 
     x86_modules.kernel_entry.addImportToAll(&shared_modules.kmain);
     riscv32_modules.kernel_entry.addImportToAll(&shared_modules.kmain);
