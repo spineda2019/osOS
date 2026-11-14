@@ -5,6 +5,7 @@ const riscv32asm = @import("riscv32asm");
 const sbi = @import("sbi/root.zig");
 const osformat = @import("osformat");
 const oshal = @import("oshal");
+const osmemory = @import("osmemory");
 const kmain = @import("kmain");
 const riscv32hal = @import("hal/hal.zig");
 const serial = @import("serial/serial.zig");
@@ -115,6 +116,28 @@ pub fn setup(hart_id: u32, dtb_address: [*]const u8) callconv(.c) noreturn {
                     .getChar = &struct {
                         fn impl(_: ?*anyopaque) ?u8 {
                             return null;
+                        }
+                    }.impl,
+                },
+            },
+            .page_allocator = .{
+                .impl = undefined,
+                .vtable = &.{
+                    .allocPages = &struct {
+                        fn impl(
+                            opaque_self: *anyopaque,
+                            page_count: usize,
+                        ) osmemory.IPageAllocator.Error![]u8 {
+                            _ = opaque_self;
+                            _ = page_count;
+                            const Err = osmemory.IPageAllocator.Error;
+                            return Err.out_of_physical_memory;
+                        }
+                    }.impl,
+                    .freePages = &struct {
+                        fn impl(opaque_self: *anyopaque, mem: []u8) void {
+                            _ = opaque_self;
+                            _ = mem;
                         }
                     }.impl,
                 },

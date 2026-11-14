@@ -21,6 +21,7 @@ const as = @import("x86asm");
 const interrupts = @import("x86interrupts");
 const kmain = @import("kmain");
 const osformat = @import("osformat");
+const osmemory = @import("osmemory");
 const oshal = @import("oshal");
 const BootInfo = @import("x86BootInfo");
 const panic = @import("panic/root.zig");
@@ -36,6 +37,8 @@ var gdt_descriptor: memory.gdt.GDTDescriptor = .{ .size = 0, .address = 0 };
 
 var idt: [256]interrupts.idt.InterruptDescriptor = undefined;
 var idt_descriptor: interrupts.idt.IDTDescriptor = undefined;
+
+var page_allocator: memory.PageAllocator = undefined;
 
 /// Hardware setup; jumped to from the boot routine
 /// At this point, paging should be enabled, and we should be in the higher
@@ -107,7 +110,7 @@ pub fn setup(boot_info: BootInfo) noreturn {
         break :blk iter;
     };
 
-    var page_allocator = memory.PageAllocator.init(
+    page_allocator = memory.PageAllocator.init(
         &page_iter,
         boot_info.memory.kernel_end,
     ) catch |err| {
@@ -144,6 +147,30 @@ pub fn setup(boot_info: BootInfo) noreturn {
                     .getChar = &struct {
                         fn impl(_: ?*anyopaque) ?u8 {
                             return interrupts.pic.scan_code_buffer.pop();
+                        }
+                    }.impl,
+                },
+            },
+            .page_allocator = .{
+                .impl = &page_allocator,
+                .vtable = &.{
+                    .allocPages = &struct {
+                        fn impl(
+                            opaque_self: *anyopaque,
+                            count: usize,
+                        ) osmemory.IPageAllocator.Error![]u8 {
+                            _ = count;
+                            const Err = osmemory.IPageAllocator.Error;
+                            const self: *memory.PageAllocator = @ptrCast(@alignCast(opaque_self));
+                            const page = self.allocFrame() catch return Err.out_of_physical_memory;
+                            const to_many: [*]u8 = @ptrCast(page);
+                            return to_many[0..4096];
+                        }
+                    }.impl,
+                    .freePages = &struct {
+                        fn impl(opaque_self: *anyopaque, mem: []u8) void {
+                            _ = opaque_self;
+                            _ = mem;
                         }
                     }.impl,
                 },
@@ -231,7 +258,7 @@ fn reportMemoryInfo(logger: *io.Logger, boot_info: *const BootInfo) void {
 
         while (iter.next()) |chunk| {
             logger.log("        Addr: {*}\r\n", .{chunk.ptr});
-            logger.log("        Len: 0x{d}\r\n\r\n", .{chunk.len});
+            logger.log("        Len: {d} Bytes\r\n\r\n", .{chunk.len});
 
             logger.flush();
         }

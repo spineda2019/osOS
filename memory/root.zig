@@ -16,6 +16,7 @@
 
 pub const SpinLock = @import("SpinLock.zig");
 pub const IMemoryProber = @import("IMemoryProber.zig");
+pub const IPageAllocator = @import("IPageAllocator.zig");
 
 pub fn runtimeMemset(ptr: [*]u8, value: u8, length: usize) void {
     var bytes_left: usize = length;

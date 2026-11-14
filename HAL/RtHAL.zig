@@ -21,6 +21,7 @@ const RtHal = @This();
 
 const osformat = @import("osformat");
 const osprocess = @import("osprocess");
+const osmemory = @import("osmemory");
 
 pub const ICharBuf = @import("ICharBuf.zig");
 const IWriter = @import("osformat").IWriter;
@@ -30,3 +31,4 @@ serial_io: IWriter,
 terminal: IWriter,
 boot_module_info: IModuleProber,
 char_buf: ICharBuf,
+page_allocator: osmemory.IPageAllocator,

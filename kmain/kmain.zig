@@ -27,7 +27,10 @@ const testoptions = @import("testoptions");
 /// Universally common CPU instructions (like jumping to an address, executing
 /// and arbitrary illegal instruction for testing, etc) will be provided via
 /// functions in `ct_hal`. Might be an escape hatch, but I like the abstraction.
-pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
+pub fn kmain(_rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
+    // get around const-args
+    var rt_hal = _rt_hal;
+
     const Logger = struct {
         serial: osformat.IWriter,
         terminal: osformat.IWriter,
@@ -36,6 +39,9 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
         fn writef(self: *Logger, comptime format: []const u8, args: anytype) void {
             self.serial.writef(format, args);
             self.terminal.writef(format, args);
+        }
+        fn writefln(self: *Logger, comptime format: []const u8, args: anytype) void {
+            self.writef(format ++ "\r\n", args);
         }
         fn flush(self: *Logger) void {
             self.serial.flush();
@@ -77,8 +83,6 @@ pub fn kmain(rt_hal: oshal.RtHAL, comptime ct_hal: oshal.CtHal) noreturn {
         );
         ct_hal.assembly_wrappers.illegal_instruction();
     }
-
-    logger.flush();
 
     const static_process_storage = struct {
         var process_pool: process.ProcessTable(.{

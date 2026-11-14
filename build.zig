@@ -221,6 +221,7 @@ pub fn build(b: *std.Build) Err!void {
 
     shared_modules.oshal.addImportToAll(&shared_modules.osformat);
     shared_modules.oshal.addImportToAll(&shared_modules.osprocess);
+    shared_modules.oshal.addImportToAll(&shared_modules.osmemory);
 
     const exebochs: ?*std.Build.Step.Compile = bochs: {
         if (!build_options.build_bochs) {
@@ -792,8 +793,6 @@ pub fn build(b: *std.Build) Err!void {
     }
 
     x86_run_bochs.step.dependOn(&create_x86_iso.step);
-
-    build_steps.build_all.dependOn(build_steps.build_iso);
 
     //* ************************* Generic Run Target ************************* *
     build_steps.build_kernel.dependOn(switch (build_options.default_run_target) {
