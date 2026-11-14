@@ -84,6 +84,7 @@ pub fn build(b: *std.Build) Err!void {
     //**************************************************************************
 
     const module_options: ModuleOptions = .init(b);
+
     switch (build_options.boot_info) {
         .limine => |limine_boot| {
             module_options.boot.addOption(
@@ -103,6 +104,9 @@ pub fn build(b: *std.Build) Err!void {
 
     module_options.testing.addOption(bool, "test_panic", build_options.test_panic);
     module_options.testing.addOption(bool, "test_ill", build_options.test_illegal_instruction);
+
+    // TODO(SEP): Make this intelligently computable
+    module_options.mem.addOption(u32, "PAGE_SIZE", 4096);
 
     const depbochs: ?*std.Build.Dependency = dep: {
         if (build_options.build_bochs) {
@@ -374,6 +378,7 @@ pub fn build(b: *std.Build) Err!void {
     x86_modules.memory_module.addImportToAll(&x86_modules.asm_module);
     x86_modules.memory_module.addImportToAll(&x86_modules.boot_info);
     x86_modules.memory_module.addImportToAll(&shared_modules.osmemory);
+    x86_modules.memory_module.addOptionsToAll("memoptions", module_options.mem);
 
     x86_modules.interrupts_module.addImportToAll(&x86_modules.asm_module);
     x86_modules.interrupts_module.addImportToAll(&x86_modules.io_module);
@@ -392,6 +397,7 @@ pub fn build(b: *std.Build) Err!void {
     x86_modules.kernel_entry.addImportToAll(&shared_modules.oshal);
     x86_modules.kernel_entry.addImportToAll(&shared_modules.osmemory);
     x86_modules.kernel_entry.addOptionsToAll("bootoptions", module_options.boot);
+    x86_modules.kernel_entry.addOptionsToAll("memoptions", module_options.mem);
 
     //* *************************** Doc Specific ***************************** *
     // to properly build with an opt level and root module, we need to make

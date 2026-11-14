@@ -8,10 +8,12 @@ const ModuleOptions = @This();
 
 testing: *std.Build.Step.Options,
 boot: *std.Build.Step.Options,
+mem: *std.Build.Step.Options,
 
 pub fn init(b: *std.Build) ModuleOptions {
     return .{
         .testing = b.addOptions(),
         .boot = b.addOptions(),
+        .mem = b.addOptions(),
     };
 }

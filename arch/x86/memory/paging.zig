@@ -16,8 +16,9 @@
 //! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const as = @import("x86asm");
+const memoptions = @import("memoptions");
 
-pub const PAGE_SIZE: comptime_int = 4096;
+pub const PAGE_SIZE = memoptions.PAGE_SIZE;
 pub const ENTRY_COUNT = 1024;
 
 pub const InlineOptions = struct {
