@@ -47,3 +47,6 @@ bochslog.txt
 *.exe
 *.out
 *.app
+
+# common IDE/debugger meta-data folders
+.vscode/
