@@ -1,26 +1,31 @@
+// Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 //! PageAllocator.zig - The kernel page allocator for x86
-//!
-//! Copyright (C) 2025 Sebastian Pineda (spineda.wpi.alum@gmail.com)
-//!
-//! This program is free software: you can redistribute it and/or modify
-//! it under the terms of the GNU General Public License as published by
-//! the Free Software Foundation, either version 3 of the License, or
-//! (at your option) any later version.
-//!
-//! This program is distributed in the hope that it will be useful,
-//! but WITHOUT ANY WARRANTY; without even the implied warranty of
-//! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//! GNU General Public License for more details.
-//!
-//! You should have received a copy of the GNU General Public License
-//! along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 const PageAllocator = @This();
 const MemoryInfo = @import("x86BootInfo").MemoryInfo;
-const ChunkIterator = MemoryInfo.Iterator;
 const std = @import("std");
 const builtin = @import("builtin");
+const memoptions = @import("memoptions");
 
+const PAGE_SIZE = memoptions.PAGE_SIZE;
+
+/// The tipitty top of free physical memory. When initialized, should point to
+/// the first address after the kernel image's end that can hold _at least_ one
+/// frame.
 head: std.SinglyLinkedList,
 
 pub const Error = error{
@@ -31,32 +36,38 @@ pub const Error = error{
 pub const Chunk = struct {
     node: std.SinglyLinkedList.Node,
     free_bytes: u32,
+
+    pub const Iterator = struct {
+        node: ?*std.SinglyLinkedList.Node,
+
+        pub fn peek(self: *const Iterator) ?*Chunk {
+            if (self.node) |n| {
+                const chunk: *Chunk = @fieldParentPtr("node", n);
+                return chunk;
+            } else {
+                return null;
+            }
+        }
+
+        pub fn next(self: *Iterator) ?*Chunk {
+            var result: ?*Chunk = null;
+            if (self.node) |n| {
+                const chunk: *Chunk = @fieldParentPtr("node", n);
+                result = chunk;
+                self.node = n.next;
+            }
+            return result;
+        }
+    };
 };
 
-pub const Iterator = struct {
-    node: ?*std.SinglyLinkedList.Node,
-
-    pub fn peek(self: *const Iterator) ?*Chunk {
-        if (self.node) |n| {
-            const chunk: *Chunk = @fieldParentPtr("node", n);
-            return chunk;
-        } else {
-            return null;
-        }
+comptime {
+    if (@sizeOf(Chunk) > PAGE_SIZE) {
+        @compileError("Chunk type must fit in a single page");
     }
+}
 
-    pub fn next(self: *Iterator) ?*Chunk {
-        var result: ?*Chunk = null;
-        if (self.node) |n| {
-            const chunk: *Chunk = @fieldParentPtr("node", n);
-            result = chunk;
-            self.node = n.next;
-        }
-        return result;
-    }
-};
-
-pub fn iterator(self: *const PageAllocator) Iterator {
+pub fn iterator(self: *const PageAllocator) Chunk.Iterator {
     return .{ .node = self.head.first };
 }
 
@@ -92,13 +103,13 @@ const find_first_valid_address = struct {
         return @ptrFromInt(first_aligned_address);
     }
 
-    fn pageAligned(ptr: usize) *align(4096) anyopaque {
-        return withAlignment(ptr, 4096);
+    fn pageAligned(ptr: usize) *align(PAGE_SIZE) anyopaque {
+        return withAlignment(ptr, PAGE_SIZE);
     }
 };
 
 /// Initialize a PageAllocator
-pub fn init(iter: *ChunkIterator, kernel_end: [*]const u8) Error!PageAllocator {
+pub fn init(iter: *MemoryInfo.Iterator, kernel_end: [*]const u8) Error!PageAllocator {
     const physical_end: usize = @intFromPtr(kernel_end);
 
     while (iter.next()) |raw_chunk| {
@@ -114,12 +125,12 @@ pub fn init(iter: *ChunkIterator, kernel_end: [*]const u8) Error!PageAllocator {
                 continue;
             }
         };
-        const head_candidate: *align(4096) anyopaque = find_first_valid_address.pageAligned(
+        const head_candidate: *align(PAGE_SIZE) anyopaque = find_first_valid_address.pageAligned(
             first_past_kernel,
         );
         const freespace: usize = chunk_end - @intFromPtr(head_candidate);
-        if (freespace >= 4096) {
-            const chunk: *align(4096) Chunk = @ptrCast(head_candidate);
+        if (freespace >= PAGE_SIZE) {
+            const chunk: *align(PAGE_SIZE) Chunk = @ptrCast(head_candidate);
             chunk.node = .{};
             chunk.free_bytes = freespace;
 
@@ -132,23 +143,27 @@ pub fn init(iter: *ChunkIterator, kernel_end: [*]const u8) Error!PageAllocator {
     return Error.no_system_memory_after_kernel;
 }
 
-pub fn allocFrame(self: *PageAllocator) Error!*align(4096) anyopaque {
+pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) anyopaque {
     var previous: ?*std.SinglyLinkedList.Node = self.head.first;
     var maybe_node: ?*std.SinglyLinkedList.Node = self.head.first;
 
     while (maybe_node) |node| {
         // if a chunk isn't page aligned we hella messed up and should panic
         // anyway
-        const chunk: *align(4096) Chunk = @alignCast(@fieldParentPtr("node", node));
+        const chunk: *align(PAGE_SIZE) Chunk = @alignCast(@fieldParentPtr("node", node));
 
-        if (chunk.free_bytes >= 4096) {
+        if (chunk.free_bytes >= PAGE_SIZE) {
             self.head.remove(node);
 
-            if (chunk.free_bytes >= 4096 + @sizeOf(Chunk)) {
+            // We need at least 2 frames worth of free memory to easily
+            // guarantee we can intrusively store the new head. A smarter
+            // algorithm doesn't need this, but this stays for now because I
+            // want to focus on cooler things.
+            if (chunk.free_bytes >= 8192) {
                 @branchHint(.likely);
 
-                const next_chunk: *Chunk = @ptrFromInt(@intFromPtr(chunk) + 4096);
-                next_chunk.free_bytes = chunk.free_bytes - 4096;
+                const next_chunk: *Chunk = @ptrFromInt(@intFromPtr(chunk) + PAGE_SIZE);
+                next_chunk.free_bytes = chunk.free_bytes - PAGE_SIZE;
                 next_chunk.node = .{};
 
                 self.head.prepend(&next_chunk.node);
@@ -164,11 +179,11 @@ pub fn allocFrame(self: *PageAllocator) Error!*align(4096) anyopaque {
     return Error.oom;
 }
 
-pub fn freeFrame(self: *PageAllocator, ptr: *align(4096) anyopaque) void {
-    const chunk: *align(4096) Chunk = @ptrCast(ptr);
+pub fn freeFrame(self: *PageAllocator, ptr: *align(PAGE_SIZE) anyopaque) void {
+    const chunk: *align(PAGE_SIZE) Chunk = @ptrCast(ptr);
     // TODO(SEP): Somehow zero the page out
     chunk.node = .{};
-    chunk.free_bytes = 4096;
+    chunk.free_bytes = PAGE_SIZE;
 
     self.head.prepend(&chunk.node);
 }
@@ -340,7 +355,7 @@ test allocFrame {
     }
 
     const osmemory = @import("osmemory");
-    var single_chunk: [2 * 4096]u8 = undefined;
+    var single_chunk: [2 * PAGE_SIZE]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
     const first: [][]u8 = arena[0..arena.len];
 
@@ -373,12 +388,12 @@ test allocFrame {
     const peeked: *Chunk = chunk_iter.peek() orelse @panic("first chunk should exist");
     const initial_byte_count = peeked.free_bytes;
 
-    const allocated_page: *align(4096) anyopaque = try page_allocator.allocFrame();
+    const allocated_page: *align(PAGE_SIZE) anyopaque = try page_allocator.allocFrame();
     try std.testing.expect(@intFromPtr(allocated_page) == @intFromPtr(peeked));
 
     chunk_iter = page_allocator.iterator();
     const new_chunk: *Chunk = chunk_iter.peek() orelse @panic("Chunk not found");
-    const diff = initial_byte_count - 4096;
+    const diff = initial_byte_count - PAGE_SIZE;
     std.testing.expect(new_chunk.free_bytes == diff) catch |err| {
         std.debug.print(
             "Initial Free Byte Count: {}\nFinal Free Byte Count: {}\nExpected {}\n",
@@ -398,7 +413,7 @@ test PageAllocator {
     }
 
     const osmemory = @import("osmemory");
-    var single_chunk: [2 * 4096]u8 = undefined;
+    var single_chunk: [2 * PAGE_SIZE]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
     const first: [][]u8 = arena[0..arena.len];
 
@@ -430,7 +445,7 @@ test PageAllocator {
         std.debug.print("Chunk Object Address: {*}\n", .{chunk});
         std.debug.print("Child node Address: {*}\n", .{&chunk.node});
 
-        const remainder = @mod(@intFromPtr(chunk), 4096);
+        const remainder = @mod(@intFromPtr(chunk), PAGE_SIZE);
         try std.testing.expect(remainder == 0);
     }
 }
