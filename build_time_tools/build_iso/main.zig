@@ -402,31 +402,23 @@ test Args {
     const allocator = dbg_alloc.allocator();
     const parsed: Args = try .parseArgs(correct_args, allocator);
 
-    std.debug.print("Expected: 'my_repo'\n", .{});
-    std.debug.print("Actual: {s}\n\n", .{parsed.repo_root});
     try std.testing.expect(std.mem.eql(
         u8,
         parsed.repo_root,
         "my_repo",
     ));
 
-    std.debug.print("Expected: 'foo/bar'\n", .{});
-    std.debug.print("Actual: {s}\n\n", .{parsed.kernel.kernel_image_src});
     try std.testing.expect(std.mem.eql(
         u8,
         parsed.kernel.kernel_image_src,
         "foo/bar",
     ));
-    std.debug.print("Expected: 'bar/baz'\n", .{});
-    std.debug.print("Actual: {s}\n\n", .{parsed.kernel.kernel_image_dest});
     try std.testing.expect(std.mem.eql(
         u8,
         parsed.kernel.kernel_image_dest,
         "bar/baz",
     ));
 
-    std.debug.print("Expected len: 2\n", .{});
-    std.debug.print("Actual: {d}\n\n", .{parsed.dirs_to_create.len});
     try std.testing.expect(parsed.dirs_to_create.len == 2);
     try std.testing.expect(std.mem.eql(
         u8,
@@ -439,8 +431,6 @@ test Args {
         "c/d/",
     ));
 
-    std.debug.print("Expected len: 2\n", .{});
-    std.debug.print("Actual: {d}\n\n", .{parsed.files_to_copy.len});
     try std.testing.expect(parsed.files_to_copy.len == 2);
     try std.testing.expect(std.mem.eql(
         u8,

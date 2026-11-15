@@ -295,17 +295,7 @@ test IWriter {
             return err;
         };
 
-        std.debug.print(
-            "Hard memory length before flush: {d}\n",
-            .{fake_writer.fake_memory.items.len},
-        );
-
         fake_interface.flush();
-
-        std.debug.print(
-            "Hard memory length before flush: {d}\n",
-            .{fake_writer.fake_memory.items.len},
-        );
 
         try std.testing.expect(fake_writer.fake_memory.items.len == to_write.len);
     }
@@ -373,5 +363,39 @@ test IWriter {
             );
             return err;
         };
+    }
+
+    {
+        const FuzzTest = struct {
+            fn fuzz(_: void, smith: *std.testing.Smith) anyerror!void {
+                var backing: std.heap.DebugAllocator(.{}) = .init;
+
+                const fuzz_allocator: std.mem.Allocator = backing.allocator();
+                var buffer: [1024]u8 = undefined;
+                var fuzz_writer: test_helpers.FakeWriter = .init(fuzz_allocator);
+                var fuzz_interface: IWriter = fuzz_writer.writer(&buffer);
+
+                while (!smith.eos()) {
+                    var str_array: std.ArrayList(u8) = .empty;
+                    defer str_array.deinit(fuzz_allocator);
+
+                    const len = smith.valueRangeAtMost(u32, 0, buffer.len);
+                    for (0..len) |_| {
+                        try str_array.append(fuzz_allocator, smith.value(u8));
+                    }
+
+                    const expected: []const u8 = str_array.items;
+                    fuzz_interface.writef("{s}", .{expected});
+                    try std.testing.expect(
+                        std.mem.eql(u8, expected, buffer[0..expected.len]),
+                    );
+                    fuzz_writer.reset();
+                }
+
+                try std.testing.expect(backing.deinit() == .ok);
+            }
+        };
+
+        try std.testing.fuzz({}, FuzzTest.fuzz, .{});
     }
 }
