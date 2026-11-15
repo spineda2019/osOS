@@ -16,7 +16,8 @@
 //! PageAllocator.zig - The kernel page allocator for x86
 
 const PageAllocator = @This();
-const MemoryInfo = @import("x86BootInfo").MemoryInfo;
+const BootInfo = @import("x86BootInfo");
+const MemoryInfo = BootInfo.MemoryInfo;
 const std = @import("std");
 const builtin = @import("builtin");
 const memoptions = @import("memoptions");
@@ -109,7 +110,10 @@ const find_first_valid_address = struct {
 };
 
 /// Initialize a PageAllocator
-pub fn init(iter: *MemoryInfo.Iterator, kernel_end: [*]const u8) Error!PageAllocator {
+pub fn init(
+    iter: *MemoryInfo.Iterator,
+    kernel_end: [*]const u8,
+) Error!PageAllocator {
     const physical_end: usize = @intFromPtr(kernel_end);
 
     while (iter.next()) |raw_chunk| {
@@ -145,7 +149,7 @@ pub fn init(iter: *MemoryInfo.Iterator, kernel_end: [*]const u8) Error!PageAlloc
 
 /// Returns a **_physical_** address. It is up to the caller to properly map this
 /// to a virtual address if needed.
-pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) anyopaque {
+pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) [PAGE_SIZE]u8 {
     var maybe_node: ?*std.SinglyLinkedList.Node = self.head.first;
 
     while (maybe_node) |node| {
@@ -355,7 +359,7 @@ test allocFrame {
     }
 
     const osmemory = @import("osmemory");
-    var single_chunk: [2 * PAGE_SIZE]u8 = undefined;
+    var single_chunk: [4 * PAGE_SIZE]u8 = undefined;
     var arena: [8][]u8 = @splat(&single_chunk);
     const first: [][]u8 = arena[0..arena.len];
 
@@ -388,17 +392,16 @@ test allocFrame {
     const peeked: *Chunk = chunk_iter.peek() orelse @panic("first chunk should exist");
     const initial_byte_count = peeked.free_bytes;
 
-    const allocated_page: *align(PAGE_SIZE) anyopaque = try page_allocator.allocFrame();
+    const allocated_page: *align(PAGE_SIZE) [PAGE_SIZE]u8 = try page_allocator.allocFrame();
     try std.testing.expect(@intFromPtr(allocated_page) == @intFromPtr(peeked));
 
     chunk_iter = page_allocator.iterator();
     const new_chunk: *Chunk = chunk_iter.peek() orelse @panic("Chunk not found");
     const diff = initial_byte_count - PAGE_SIZE;
     std.testing.expect(new_chunk.free_bytes == diff) catch |err| {
-        std.debug.print(
-            "Initial Free Byte Count: {}\nFinal Free Byte Count: {}\nExpected {}\n",
-            .{ initial_byte_count, new_chunk.free_bytes, diff },
-        );
+        std.debug.print("Initial Free Byte Count: {}\n", .{initial_byte_count});
+        std.debug.print("Final Free Byte Count: {}\n", .{new_chunk.free_bytes});
+        std.debug.print("Expected {}\n", .{diff});
         return err;
     };
 
@@ -442,9 +445,6 @@ test PageAllocator {
 
     var chunk_iter = page_allocator.iterator();
     while (chunk_iter.next()) |chunk| {
-        std.debug.print("Chunk Object Address: {*}\n", .{chunk});
-        std.debug.print("Child node Address: {*}\n", .{&chunk.node});
-
         const remainder = @mod(@intFromPtr(chunk), PAGE_SIZE);
         try std.testing.expect(remainder == 0);
     }

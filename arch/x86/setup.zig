@@ -132,6 +132,9 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.log("x86: Activating PIC...\r\n", .{});
     interrupts.pic.init();
 
+    const frame = page_allocator.allocFrame() catch @panic("OOM");
+    _ = frame;
+
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmapTable(0);
     as.assembly_wrappers.enable_x86_interrupts();
