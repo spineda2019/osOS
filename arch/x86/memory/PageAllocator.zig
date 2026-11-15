@@ -143,8 +143,9 @@ pub fn init(iter: *MemoryInfo.Iterator, kernel_end: [*]const u8) Error!PageAlloc
     return Error.no_system_memory_after_kernel;
 }
 
+/// Returns a **_physical_** address. It is up to the caller to properly map this
+/// to a virtual address if needed.
 pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) anyopaque {
-    var previous: ?*std.SinglyLinkedList.Node = self.head.first;
     var maybe_node: ?*std.SinglyLinkedList.Node = self.head.first;
 
     while (maybe_node) |node| {
@@ -172,7 +173,6 @@ pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) anyopaque {
             return @ptrCast(chunk);
         }
 
-        previous = node;
         maybe_node = node.next;
     }
 
