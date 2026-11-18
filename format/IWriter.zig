@@ -369,8 +369,8 @@ test IWriter {
         const FuzzTest = struct {
             fn fuzz(_: void, smith: *std.testing.Smith) anyerror!void {
                 var backing: std.heap.DebugAllocator(.{}) = .init;
-
                 const fuzz_allocator: std.mem.Allocator = backing.allocator();
+
                 var buffer: [1024]u8 = undefined;
                 var fuzz_writer: test_helpers.FakeWriter = .init(fuzz_allocator);
                 var fuzz_interface: IWriter = fuzz_writer.writer(&buffer);
@@ -389,6 +389,8 @@ test IWriter {
                     try std.testing.expect(
                         std.mem.eql(u8, expected, buffer[0..expected.len]),
                     );
+
+                    fuzz_interface.flush();
                     fuzz_writer.reset();
                 }
 

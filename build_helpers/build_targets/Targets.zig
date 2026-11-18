@@ -19,7 +19,7 @@ pub fn init() Targets {
                 .sse4_1,
                 .sse4_2,
                 .sse4a,
-                .sse_unaligned_mem,
+                // .sse_unaligned_mem,
                 .ssse3,
                 .avx,
             }),
