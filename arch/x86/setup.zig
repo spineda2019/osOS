@@ -138,6 +138,16 @@ pub fn setup(boot_info: BootInfo) noreturn {
     // bootstrap the page allocator.
     const frame = page_allocator.allocFrame() catch @panic("OOM");
     logger.log("Allocated frame physical address: {*}\r\n", .{frame});
+    logger.log("Testing freeing: {*}\r\n", .{frame});
+    page_allocator.freeFrame(frame);
+    {
+        var iter = page_allocator.iterator();
+        while (iter.next()) |chunk| {
+            logger.log("Chunk obj at: {*}\r\n", .{chunk});
+            logger.log("Points to free mem: {*}\r\n", .{chunk.phy_addr.ptr});
+            logger.log("Free byte count: {d}\r\n", .{chunk.phy_addr.len});
+        }
+    }
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmapTable(0);

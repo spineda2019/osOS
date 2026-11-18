@@ -177,13 +177,10 @@ pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) [PAGE_SIZE]u8 {
     return Error.oom;
 }
 
-pub fn freeFrame(self: *PageAllocator, ptr: *align(PAGE_SIZE) anyopaque) void {
-    const chunk: *align(PAGE_SIZE) Chunk = @ptrCast(ptr);
-    // TODO(SEP): Somehow zero the page out
-    chunk.node = .{};
-    chunk.phy_addr = ptr[0..PAGE_SIZE];
-
-    self.head.prepend(&chunk.node);
+pub fn freeFrame(self: *PageAllocator, ptr: *align(PAGE_SIZE) [PAGE_SIZE]u8) void {
+    // TODO(SEP): somehow reclaim the phy address
+    _ = self;
+    _ = ptr;
 }
 
 const interface_impl = struct {
