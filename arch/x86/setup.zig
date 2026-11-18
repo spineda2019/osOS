@@ -132,8 +132,9 @@ pub fn setup(boot_info: BootInfo) noreturn {
     logger.log("x86: Activating PIC...\r\n", .{});
     interrupts.pic.init();
 
+    // bootstrap the page allocator.
     const frame = page_allocator.allocFrame() catch @panic("OOM");
-    _ = frame;
+    logger.log("Allocated frame physical address: {*}\r\n", .{frame});
 
     // undo first 4MB identity mapping to finish higher half jump.
     boot_info.paging.unmapTable(0);
