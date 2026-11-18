@@ -36,7 +36,7 @@ pub const Error = error{
 
 pub const Chunk = struct {
     node: std.SinglyLinkedList.Node,
-    free_bytes: u32,
+    phy_addr: []align(PAGE_SIZE) u8,
 
     pub const Iterator = struct {
         node: ?*std.SinglyLinkedList.Node,
@@ -92,7 +92,7 @@ const find_first_valid_address = struct {
     fn withAlignment(
         ptr: usize,
         comptime alignment: comptime_int,
-    ) *align(alignment) anyopaque {
+    ) [*]align(alignment) u8 {
         var first_aligned_address: usize = ptr;
         var diff = @mod(first_aligned_address, alignment);
 
@@ -104,7 +104,7 @@ const find_first_valid_address = struct {
         return @ptrFromInt(first_aligned_address);
     }
 
-    fn pageAligned(ptr: usize) *align(PAGE_SIZE) anyopaque {
+    fn pageAligned(ptr: usize) [*]align(PAGE_SIZE) u8 {
         return withAlignment(ptr, PAGE_SIZE);
     }
 };
@@ -113,6 +113,7 @@ const find_first_valid_address = struct {
 pub fn init(
     iter: *MemoryInfo.Iterator,
     kernel_end: [*]const u8,
+    chunk_head: *Chunk,
 ) Error!PageAllocator {
     const physical_end: usize = @intFromPtr(kernel_end);
 
@@ -129,18 +130,15 @@ pub fn init(
                 continue;
             }
         };
-        const head_candidate: *align(PAGE_SIZE) anyopaque = find_first_valid_address.pageAligned(
+        const head_candidate: [*]align(PAGE_SIZE) u8 = find_first_valid_address.pageAligned(
             first_past_kernel,
         );
         const freespace: usize = chunk_end - @intFromPtr(head_candidate);
         if (freespace >= PAGE_SIZE) {
-            const chunk: *align(PAGE_SIZE) Chunk = @ptrCast(head_candidate);
-            chunk.node = .{};
-            chunk.free_bytes = freespace;
+            chunk_head.node = .{};
+            chunk_head.phy_addr = head_candidate[0..freespace];
 
-            return .{
-                .head = .{ .first = &chunk.node },
-            };
+            return .{ .head = .{ .first = &chunk_head.node } };
         }
     }
 
@@ -153,28 +151,24 @@ pub fn allocFrame(self: *PageAllocator) Error!*align(PAGE_SIZE) [PAGE_SIZE]u8 {
     var maybe_node: ?*std.SinglyLinkedList.Node = self.head.first;
 
     while (maybe_node) |node| {
-        // if a chunk isn't page aligned we hella messed up and should panic
-        // anyway
-        const chunk: *align(PAGE_SIZE) Chunk = @alignCast(@fieldParentPtr("node", node));
+        const chunk: *Chunk = @alignCast(@fieldParentPtr("node", node));
 
-        if (chunk.free_bytes >= PAGE_SIZE) {
-            self.head.remove(node);
-
+        if (chunk.phy_addr.len >= PAGE_SIZE) {
             // We need at least 2 frames worth of free memory to easily
             // guarantee we can intrusively store the new head. A smarter
             // algorithm doesn't need this, but this stays for now because I
             // want to focus on cooler things.
-            if (chunk.free_bytes >= 8192) {
+            if (chunk.phy_addr.len >= 8192) {
                 @branchHint(.likely);
 
-                const next_chunk: *Chunk = @ptrFromInt(@intFromPtr(chunk) + PAGE_SIZE);
-                next_chunk.free_bytes = chunk.free_bytes - PAGE_SIZE;
-                next_chunk.node = .{};
+                const ret = chunk.phy_addr[0..PAGE_SIZE];
 
-                self.head.prepend(&next_chunk.node);
+                const next: [*]align(PAGE_SIZE) u8 = @ptrFromInt(@intFromPtr(chunk.phy_addr.ptr) + PAGE_SIZE);
+                const len: usize = chunk.phy_addr.len - PAGE_SIZE;
+                chunk.phy_addr = next[0..len];
+
+                return ret;
             }
-
-            return @ptrCast(chunk);
         }
 
         maybe_node = node.next;
@@ -187,7 +181,7 @@ pub fn freeFrame(self: *PageAllocator, ptr: *align(PAGE_SIZE) anyopaque) void {
     const chunk: *align(PAGE_SIZE) Chunk = @ptrCast(ptr);
     // TODO(SEP): Somehow zero the page out
     chunk.node = .{};
-    chunk.free_bytes = PAGE_SIZE;
+    chunk.phy_addr = ptr[0..PAGE_SIZE];
 
     self.head.prepend(&chunk.node);
 }

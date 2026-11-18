@@ -110,9 +110,11 @@ pub fn setup(boot_info: BootInfo) noreturn {
         break :blk iter;
     };
 
+    var head: memory.PageAllocator.Chunk = undefined;
     page_allocator = memory.PageAllocator.init(
         &page_iter,
         boot_info.memory.kernel_end,
+        &head,
     ) catch |err| {
         @panic(@errorName(err));
     };
@@ -123,8 +125,9 @@ pub fn setup(boot_info: BootInfo) noreturn {
     {
         var iter = page_allocator.iterator();
         while (iter.next()) |chunk| {
-            logger.log("Free Chunk at: {*}\r\n", .{chunk});
-            logger.log("Free byte count: {d}\r\n", .{chunk.free_bytes});
+            logger.log("Chunk obj at: {*}\r\n", .{chunk});
+            logger.log("Points to free mem: {*}\r\n", .{chunk.phy_addr.ptr});
+            logger.log("Free byte count: {d}\r\n", .{chunk.phy_addr.len});
         }
     }
 
